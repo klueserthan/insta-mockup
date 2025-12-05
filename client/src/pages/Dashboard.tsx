@@ -4,18 +4,110 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { INITIAL_VIDEOS, type Video } from '@/lib/mockData';
-import { Plus, Copy, Share2, BarChart3, ExternalLink, Trash2, Eye } from 'lucide-react';
+import { Plus, Copy, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface SortableRowProps {
+  video: Video;
+}
+
+function SortableRow({ video }: SortableRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: video.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    position: isDragging ? 'relative' as const : undefined,
+    backgroundColor: isDragging ? 'hsl(var(--muted))' : undefined,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style} {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+      <TableCell>
+        <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden pointer-events-none">
+          <img src={video.url} alt="Thumbnail" className="w-full h-full object-cover" />
+        </div>
+      </TableCell>
+      <TableCell className="font-medium pointer-events-none">
+        <div className="max-w-[300px] truncate">{video.caption}</div>
+        <div className="text-xs text-muted-foreground mt-1">@{video.username}</div>
+      </TableCell>
+      <TableCell className="pointer-events-none">
+        <div className="flex gap-3 text-sm text-muted-foreground">
+          <span>❤️ {video.likes.toLocaleString()}</span>
+          <span>💬 {video.comments.toLocaleString()}</span>
+          <span>↗️ {video.shares.toLocaleString()}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2" onPointerDown={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" title="Preview">
+            <ExternalLink size={16} />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title="Remove">
+            <Trash2 size={16} />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
 
 export default function Dashboard() {
   const [videos, setVideos] = useState<Video[]>(INITIAL_VIDEOS);
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
-  const [newVideoUrl, setNewVideoUrl] = useState(''); // Simplified for mockup
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setVideos((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }
 
   const handleLogout = () => {
     setLocation('/');
@@ -144,52 +236,36 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle>Active Feed Content</CardTitle>
             <CardDescription>
-              Manage the videos currently visible to study participants.
+              Manage the videos currently visible to study participants. Drag rows to reorder.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Thumbnail</TableHead>
-                  <TableHead>Caption</TableHead>
-                  <TableHead>Metrics</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {videos.map((video) => (
-                  <TableRow key={video.id}>
-                    <TableCell>
-                      <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden">
-                        <img src={video.url} alt="Thumbnail" className="w-full h-full object-cover" />
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <div className="max-w-[300px] truncate">{video.caption}</div>
-                      <div className="text-xs text-muted-foreground mt-1">@{video.username}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-3 text-sm text-muted-foreground">
-                        <span>❤️ {video.likes.toLocaleString()}</span>
-                        <span>💬 {video.comments.toLocaleString()}</span>
-                        <span>↗️ {video.shares.toLocaleString()}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" title="Preview">
-                          <ExternalLink size={16} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title="Remove">
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[100px]">Thumbnail</TableHead>
+                    <TableHead>Caption</TableHead>
+                    <TableHead>Metrics</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  <SortableContext
+                    items={videos}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {videos.map((video) => (
+                      <SortableRow key={video.id} video={video} />
+                    ))}
+                  </SortableContext>
+                </TableBody>
+              </Table>
+            </DndContext>
           </CardContent>
         </Card>
       </main>
