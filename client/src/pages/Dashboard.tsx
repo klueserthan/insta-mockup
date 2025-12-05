@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { INITIAL_VIDEOS, type Video } from '@/lib/mockData';
-import { Plus, Copy, Share2, BarChart3, ExternalLink, Trash2 } from 'lucide-react';
+import { Plus, Copy, Share2, BarChart3, ExternalLink, Trash2, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
@@ -84,6 +84,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold tracking-tight">Experiment Management</h2>
           <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => window.open('/feed?participantId=preview', '_blank')} className="gap-2">
+              <Eye size={16} /> Preview Feed
+            </Button>
             <Button variant="outline" onClick={copyPublicLink} className="gap-2">
               <Share2 size={16} /> Share Link
             </Button>
