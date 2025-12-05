@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { Video } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
+import { CommentsOverlay } from './CommentsOverlay';
 
 interface VideoPlayerProps {
   video: Video;
@@ -19,6 +20,7 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
   const [liked, setLiked] = useState(false);
   const [following, setFollowing] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [progress, setProgress] = useState(0);
   const startTimeRef = useRef<number | null>(null);
   const { toast } = useToast();
@@ -83,12 +85,24 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
     });
   };
 
+  const handleComment = (text: string) => {
+    onInteraction('comment', video.id);
+    // Increase comment count locally for feedback
+  };
+
   return (
-    <div 
-      className="relative h-full w-full bg-black snap-start overflow-hidden"
-      onDoubleClick={handleDoubleTap}
-      data-testid={`video-container-${video.id}`}
-    >
+    <>
+      <CommentsOverlay 
+        video={video} 
+        isOpen={showComments} 
+        onOpenChange={setShowComments}
+        onComment={handleComment}
+      />
+      <div 
+        className="relative h-full w-full bg-black snap-start overflow-hidden"
+        onDoubleClick={handleDoubleTap}
+        data-testid={`video-container-${video.id}`}
+      >
       {/* Video Content (Image for prototype) */}
       <img 
         src={video.url} 
@@ -133,7 +147,10 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
         </div>
 
         <div className="flex flex-col items-center gap-1">
-          <button className="transition-transform active:scale-90 text-white">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
+            className="transition-transform active:scale-90 text-white"
+          >
             <MessageCircle size={28} />
           </button>
           <span className="text-xs font-medium">{video.comments}</span>
@@ -201,5 +218,6 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
         />
       </div>
     </div>
+    </>
   );
 }
