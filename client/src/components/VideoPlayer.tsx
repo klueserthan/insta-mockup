@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { Video } from '@/lib/mockData';
+import { useToast } from '@/hooks/use-toast';
 
 interface VideoPlayerProps {
   video: Video;
@@ -16,9 +17,11 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction }: VideoPlayerProps) {
   const [liked, setLiked] = useState(false);
+  const [following, setFollowing] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const [progress, setProgress] = useState(0);
   const startTimeRef = useRef<number | null>(null);
+  const { toast } = useToast();
 
   // Reset state when video changes or becomes inactive
   useEffect(() => {
@@ -65,6 +68,19 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
       setLiked(true);
       onInteraction('like', video.id);
     }
+  };
+
+  const handleFollow = () => {
+    setFollowing(!following);
+    onInteraction(following ? 'unfollow' : 'follow', video.id);
+  };
+
+  const handleShare = () => {
+    onInteraction('share', video.id);
+    toast({
+      description: "Sent to direct messages",
+      duration: 2000,
+    });
   };
 
   return (
@@ -124,7 +140,10 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
         </div>
 
         <div className="flex flex-col items-center gap-1">
-          <button className="transition-transform active:scale-90 text-white">
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleShare(); }}
+            className="transition-transform active:scale-90 text-white"
+          >
             <Send size={28} className="-rotate-45 translate-x-1" />
           </button>
           <span className="text-xs font-medium">{video.shares}</span>
@@ -147,7 +166,15 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
             <AvatarFallback>{video.username[0]}</AvatarFallback>
           </Avatar>
           <span className="font-semibold text-sm drop-shadow-md">{video.username}</span>
-          <button className="border border-white/30 rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm">Follow</button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleFollow(); }}
+            className={cn(
+              "border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm transition-colors",
+              following ? "bg-white/20 border-transparent text-white" : "border-white/30 text-white hover:bg-white/10"
+            )}
+          >
+            {following ? 'Following' : 'Follow'}
+          </button>
         </div>
 
         <div className="mb-3 text-sm line-clamp-2 drop-shadow-md">
