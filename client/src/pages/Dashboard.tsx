@@ -8,21 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { INITIAL_VIDEOS, type Video } from '@/lib/mockData';
-import { Plus, Copy, Share2, BarChart3, ExternalLink, Trash2, Eye, PenSquare } from 'lucide-react';
+import { Plus, Copy, Share2, BarChart3, ExternalLink, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   const [videos, setVideos] = useState<Video[]>(INITIAL_VIDEOS);
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingVideo, setEditingVideo] = useState<Video | null>(null);
-
-  // Form states
-  const [caption, setCaption] = useState('');
-  const [likes, setLikes] = useState(0);
-  const [comments, setComments] = useState(0);
-  const [shares, setShares] = useState(0);
+  const [newVideoUrl, setNewVideoUrl] = useState(''); // Simplified for mockup
 
   const handleLogout = () => {
     setLocation('/');
@@ -35,45 +28,6 @@ export default function Dashboard() {
       title: "Link copied!",
       description: "Public experiment URL copied to clipboard.",
     });
-  };
-
-  const openPreviewFeed = () => {
-    window.open(`${window.location.origin}/feed?participantId=researcher_preview`, '_blank');
-  };
-
-  const handleOpenDialog = (video?: Video) => {
-    if (video) {
-      setEditingVideo(video);
-      setCaption(video.caption);
-      setLikes(video.likes);
-      setComments(video.comments);
-      setShares(video.shares);
-    } else {
-      setEditingVideo(null);
-      setCaption('');
-      setLikes(0);
-      setComments(0);
-      setShares(0);
-    }
-    setIsDialogOpen(true);
-  };
-
-  const handleSaveVideo = () => {
-    if (editingVideo) {
-      // Update existing video
-      setVideos(videos.map(v => v.id === editingVideo.id ? {
-        ...v,
-        caption,
-        likes,
-        comments,
-        shares
-      } : v));
-      toast({ title: "Video Updated", description: "Metadata changes saved." });
-    } else {
-      // Add new video (mock)
-      toast({ title: "Simulated Upload", description: "Video added to feed (mock)." });
-    }
-    setIsDialogOpen(false);
   };
 
   return (
@@ -130,78 +84,52 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold tracking-tight">Experiment Management</h2>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={openPreviewFeed} className="gap-2">
-              <Eye size={16} /> Preview Feed
-            </Button>
             <Button variant="outline" onClick={copyPublicLink} className="gap-2">
               <Share2 size={16} /> Share Link
             </Button>
-            
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog>
               <DialogTrigger asChild>
-                <Button className="gap-2 bg-[#E4405F] hover:bg-[#D03050] text-white border-0" onClick={() => handleOpenDialog()}>
+                <Button className="gap-2 bg-[#E4405F] hover:bg-[#D03050] text-white border-0">
                   <Plus size={16} /> Add Video
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{editingVideo ? 'Edit Video Metadata' : 'Add New Stimulus Video'}</DialogTitle>
+                  <DialogTitle>Add New Stimulus Video</DialogTitle>
                   <DialogDescription>
-                    {editingVideo ? 'Modify the engagement metrics and caption for this video.' : 'Upload a video or provide a URL to add to the experiment feed.'}
+                    Upload a video or provide a URL to add to the experiment feed.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
                     <Label htmlFor="caption">Caption</Label>
-                    <Input 
-                      id="caption" 
-                      value={caption}
-                      onChange={(e) => setCaption(e.target.value)}
-                      placeholder="Enter video caption with hashtags..." 
-                    />
+                    <Input id="caption" placeholder="Enter video caption with hashtags..." />
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="likes">Initial Likes</Label>
-                      <Input 
-                        id="likes" 
-                        type="number" 
-                        value={likes}
-                        onChange={(e) => setLikes(parseInt(e.target.value) || 0)}
-                      />
+                      <Input id="likes" type="number" defaultValue="0" />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="comments">Comments</Label>
-                      <Input 
-                        id="comments" 
-                        type="number" 
-                        value={comments}
-                        onChange={(e) => setComments(parseInt(e.target.value) || 0)}
-                      />
+                      <Input id="comments" type="number" defaultValue="0" />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="shares">Shares</Label>
-                      <Input 
-                        id="shares" 
-                        type="number" 
-                        value={shares}
-                        onChange={(e) => setShares(parseInt(e.target.value) || 0)}
-                      />
+                      <Input id="shares" type="number" defaultValue="0" />
                     </div>
                   </div>
-                  {!editingVideo && (
-                    <div className="grid gap-2">
-                      <Label>Upload File</Label>
-                      <div className="border-2 border-dashed rounded-md p-8 flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 cursor-pointer transition-colors">
-                        <span className="text-sm">Drag & drop video file here</span>
-                        <span className="text-xs mt-1 opacity-70">or click to browse</span>
-                      </div>
+                  <div className="grid gap-2">
+                    <Label>Upload File</Label>
+                    <div className="border-2 border-dashed rounded-md p-8 flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 cursor-pointer transition-colors">
+                      <span className="text-sm">Drag & drop video file here</span>
+                      <span className="text-xs mt-1 opacity-70">or click to browse</span>
                     </div>
-                  )}
+                  </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" onClick={handleSaveVideo}>
-                    {editingVideo ? 'Save Changes' : 'Add to Feed'}
+                  <Button type="submit" onClick={() => toast({ title: "Simulated Upload", description: "Video added to feed (mock)." })}>
+                    Add to Feed
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -228,11 +156,7 @@ export default function Dashboard() {
               </TableHeader>
               <TableBody>
                 {videos.map((video) => (
-                  <TableRow 
-                    key={video.id} 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleOpenDialog(video)}
-                  >
+                  <TableRow key={video.id}>
                     <TableCell>
                       <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden">
                         <img src={video.url} alt="Thumbnail" className="w-full h-full object-cover" />
@@ -250,9 +174,9 @@ export default function Dashboard() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" title="Edit" onClick={() => handleOpenDialog(video)}>
-                          <PenSquare size={16} />
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" title="Preview">
+                          <ExternalLink size={16} />
                         </Button>
                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title="Remove">
                           <Trash2 size={16} />
