@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { createServer, type Server } from "http";
+import type { Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { insertVideoSchema, insertExperimentSchema, insertInteractionSchema } from "@shared/schema";
@@ -12,7 +12,7 @@ function requireAuth(req: Request, res: Response, next: () => void) {
   next();
 }
 
-export function registerRoutes(app: Express): Server {
+export function registerRoutes(httpServer: Server, app: Express): Server {
   setupAuth(app);
 
   // Experiments
@@ -135,8 +135,6 @@ export function registerRoutes(app: Express): Server {
       res.status(400).send(error.message);
     }
   });
-
-  const httpServer = createServer(app);
 
   return httpServer;
 }
