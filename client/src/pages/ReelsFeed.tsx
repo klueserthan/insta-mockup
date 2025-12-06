@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRoute } from 'wouter';
+import { useRoute, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { ArrowLeft } from 'lucide-react';
 import type { Video } from '@shared/schema';
 
 interface FeedData {
@@ -17,6 +18,7 @@ interface FeedData {
 
 export default function ReelsFeed() {
   const [, params] = useRoute('/feed/:publicUrl');
+  const [, setLocation] = useLocation();
   const publicUrl = params?.publicUrl;
   
   const [muted, setMuted] = useState(true);
@@ -154,6 +156,15 @@ export default function ReelsFeed() {
 
   return (
     <div className="h-[100dvh] w-full bg-black flex justify-center overflow-hidden relative">
+      <button
+        onClick={() => setLocation('/dashboard')}
+        className="absolute top-4 left-4 z-50 bg-black/60 text-white p-2 rounded-full backdrop-blur-sm hover:bg-black/80 transition-colors"
+        data-testid="button-back-dashboard"
+        title="Back to Dashboard"
+      >
+        <ArrowLeft size={20} />
+      </button>
+      
       {timeRemaining !== null && timeRemaining > 0 && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm" data-testid="timer-display">
           {formatTime(timeRemaining)}
