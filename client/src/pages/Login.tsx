@@ -5,18 +5,51 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { BarChart3, Lock } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Login() {
-  const [location, setLocation] = useLocation();
-  const [loading, setLoading] = useState(false);
+  const [, setLocation] = useLocation();
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const { loginMutation, registerMutation } = useAuth();
+  const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLocation('/dashboard');
-    }, 1000);
+    
+    if (isRegister) {
+      registerMutation.mutate(
+        { email, password, name },
+        {
+          onSuccess: () => {
+            toast({
+              title: "Account created",
+              description: "Welcome to InstaReel Research!",
+            });
+            setLocation('/dashboard');
+          },
+        }
+      );
+    } else {
+      loginMutation.mutate(
+        { email, password },
+        {
+          onSuccess: () => {
+            toast({
+              title: "Welcome back",
+              description: "You have been logged in successfully.",
+            });
+            setLocation('/dashboard');
+          },
+        }
+      );
+    }
   };
+
+  const isLoading = loginMutation.isPending || registerMutation.isPending;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-neutral-950 p-4">
@@ -25,25 +58,79 @@ export default function Login() {
           <div className="w-12 h-12 bg-gradient-to-tr from-[#E4405F] to-[#833AB4] rounded-xl flex items-center justify-center text-white mb-4 shadow-lg">
             <BarChart3 size={24} />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Researcher Access</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            {isRegister ? 'Create Account' : 'Researcher Access'}
+          </CardTitle>
           <CardDescription>
-            Enter your credentials to manage Instagram Reels experiments
+            {isRegister 
+              ? 'Register to start managing Instagram Reels experiments'
+              : 'Enter your credentials to manage Instagram Reels experiments'
+            }
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {isRegister && (
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input 
+                  id="name" 
+                  type="text" 
+                  placeholder="Dr. Jane Smith" 
+                  required 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  data-testid="input-name"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="researcher@university.edu" required />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="researcher@university.edu" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                data-testid="input-email"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required />
+              <Input 
+                id="password" 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                data-testid="input-password"
+              />
             </div>
           </CardContent>
-          <CardFooter>
-            <Button className="w-full bg-gradient-to-r from-[#E4405F] to-[#833AB4] hover:opacity-90 transition-opacity border-0 h-11 text-md font-medium" type="submit" disabled={loading}>
-              {loading ? 'Authenticating...' : 'Sign In'}
+          <CardFooter className="flex flex-col gap-4">
+            <Button 
+              className="w-full bg-gradient-to-r from-[#E4405F] to-[#833AB4] hover:opacity-90 transition-opacity border-0 h-11 text-md font-medium" 
+              type="submit" 
+              disabled={isLoading}
+              data-testid="button-submit"
+            >
+              {isLoading 
+                ? (isRegister ? 'Creating Account...' : 'Signing In...') 
+                : (isRegister ? 'Create Account' : 'Sign In')
+              }
+            </Button>
+            <Button 
+              type="button"
+              variant="ghost" 
+              className="w-full" 
+              onClick={() => setIsRegister(!isRegister)}
+              data-testid="button-toggle-mode"
+            >
+              {isRegister 
+                ? 'Already have an account? Sign In' 
+                : "Don't have an account? Register"
+              }
             </Button>
           </CardFooter>
         </form>
