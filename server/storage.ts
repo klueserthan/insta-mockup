@@ -1,10 +1,11 @@
 import { 
   type Researcher, type InsertResearcher,
+  type Project, type InsertProject,
   type Experiment, type InsertExperiment,
   type Video, type InsertVideo,
   type Participant, type InsertParticipant,
   type Interaction, type InsertInteraction,
-  researchers, experiments, videos, participants, interactions
+  researchers, projects, experiments, videos, participants, interactions
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -22,11 +23,20 @@ export interface IStorage {
   getResearcherByEmail(email: string): Promise<Researcher | undefined>;
   createResearcher(data: InsertResearcher): Promise<Researcher>;
 
+  // Projects
+  getProject(id: string): Promise<Project | undefined>;
+  getProjectsByResearcher(researcherId: string): Promise<Project[]>;
+  createProject(data: InsertProject): Promise<Project>;
+  updateProject(id: string, data: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(id: string): Promise<void>;
+
   // Experiments
   getExperiment(id: string): Promise<Experiment | undefined>;
-  getExperimentsByResearcher(researcherId: string): Promise<Experiment[]>;
+  getExperimentsByProject(projectId: string): Promise<Experiment[]>;
   getExperimentByPublicUrl(publicUrl: string): Promise<Experiment | undefined>;
   createExperiment(data: InsertExperiment & { publicUrl: string }): Promise<Experiment>;
+  updateExperiment(id: string, data: Partial<InsertExperiment>): Promise<Experiment | undefined>;
+  deleteExperiment(id: string): Promise<void>;
   
   // Videos
   getVideo(id: string): Promise<Video | undefined>;
@@ -68,14 +78,38 @@ export class DatabaseStorage implements IStorage {
     return researcher;
   }
 
+  // Projects
+  async getProject(id: string): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
+  }
+
+  async getProjectsByResearcher(researcherId: string): Promise<Project[]> {
+    return db.select().from(projects).where(eq(projects.researcherId, researcherId)).orderBy(desc(projects.createdAt));
+  }
+
+  async createProject(data: InsertProject): Promise<Project> {
+    const [project] = await db.insert(projects).values(data).returning();
+    return project;
+  }
+
+  async updateProject(id: string, data: Partial<InsertProject>): Promise<Project | undefined> {
+    const [project] = await db.update(projects).set(data).where(eq(projects.id, id)).returning();
+    return project || undefined;
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    await db.delete(projects).where(eq(projects.id, id));
+  }
+
   // Experiments
   async getExperiment(id: string): Promise<Experiment | undefined> {
     const [experiment] = await db.select().from(experiments).where(eq(experiments.id, id));
     return experiment || undefined;
   }
 
-  async getExperimentsByResearcher(researcherId: string): Promise<Experiment[]> {
-    return db.select().from(experiments).where(eq(experiments.researcherId, researcherId));
+  async getExperimentsByProject(projectId: string): Promise<Experiment[]> {
+    return db.select().from(experiments).where(eq(experiments.projectId, projectId)).orderBy(desc(experiments.createdAt));
   }
 
   async getExperimentByPublicUrl(publicUrl: string): Promise<Experiment | undefined> {
@@ -86,6 +120,15 @@ export class DatabaseStorage implements IStorage {
   async createExperiment(data: InsertExperiment & { publicUrl: string }): Promise<Experiment> {
     const [experiment] = await db.insert(experiments).values(data).returning();
     return experiment;
+  }
+
+  async updateExperiment(id: string, data: Partial<InsertExperiment>): Promise<Experiment | undefined> {
+    const [experiment] = await db.update(experiments).set(data).where(eq(experiments.id, id)).returning();
+    return experiment || undefined;
+  }
+
+  async deleteExperiment(id: string): Promise<void> {
+    await db.delete(experiments).where(eq(experiments.id, id));
   }
 
   // Videos

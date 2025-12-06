@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { insertVideoSchema, insertExperimentSchema, insertInteractionSchema } from "@shared/schema";
+import { insertProjectSchema, insertVideoSchema, insertExperimentSchema, insertInteractionSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
 
 function requireAuth(req: Request, res: Response, next: () => void) {
@@ -15,24 +15,80 @@ function requireAuth(req: Request, res: Response, next: () => void) {
 export function registerRoutes(httpServer: Server, app: Express): Server {
   setupAuth(app);
 
-  // Experiments
-  app.get("/api/experiments", requireAuth, async (req, res) => {
+  // Projects
+  app.get("/api/projects", requireAuth, async (req, res) => {
     try {
-      const experiments = await storage.getExperimentsByResearcher(req.user!.id);
-      res.json(experiments);
+      const projectsList = await storage.getProjectsByResearcher(req.user!.id);
+      res.json(projectsList);
     } catch (error: any) {
       res.status(500).send(error.message);
     }
   });
 
-  app.post("/api/experiments", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).send("Project not found");
+      }
+      res.json(project);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/projects", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertProjectSchema.parse(req.body);
+      const project = await storage.createProject({
+        ...parsed,
+        researcherId: req.user!.id
+      });
+      res.status(201).json(project);
+    } catch (error: any) {
+      res.status(400).send(error.message);
+    }
+  });
+
+  app.patch("/api/projects/:projectId", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.updateProject(req.params.projectId, req.body);
+      if (!project) {
+        return res.status(404).send("Project not found");
+      }
+      res.json(project);
+    } catch (error: any) {
+      res.status(400).send(error.message);
+    }
+  });
+
+  app.delete("/api/projects/:projectId", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteProject(req.params.projectId);
+      res.sendStatus(204);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  // Experiments (Feeds) - scoped to projects
+  app.get("/api/projects/:projectId/experiments", requireAuth, async (req, res) => {
+    try {
+      const experimentsList = await storage.getExperimentsByProject(req.params.projectId);
+      res.json(experimentsList);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/projects/:projectId/experiments", requireAuth, async (req, res) => {
     try {
       const parsed = insertExperimentSchema.parse(req.body);
       const publicUrl = randomBytes(16).toString('hex');
       
       const experiment = await storage.createExperiment({
         ...parsed,
-        researcherId: req.user!.id,
+        projectId: req.params.projectId,
         publicUrl
       });
       
@@ -42,11 +98,32 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
     }
   });
 
+  app.patch("/api/experiments/:experimentId", requireAuth, async (req, res) => {
+    try {
+      const experiment = await storage.updateExperiment(req.params.experimentId, req.body);
+      if (!experiment) {
+        return res.status(404).send("Experiment not found");
+      }
+      res.json(experiment);
+    } catch (error: any) {
+      res.status(400).send(error.message);
+    }
+  });
+
+  app.delete("/api/experiments/:experimentId", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteExperiment(req.params.experimentId);
+      res.sendStatus(204);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
   // Videos
   app.get("/api/experiments/:experimentId/videos", async (req, res) => {
     try {
-      const videos = await storage.getVideosByExperiment(req.params.experimentId);
-      res.json(videos);
+      const videosList = await storage.getVideosByExperiment(req.params.experimentId);
+      res.json(videosList);
     } catch (error: any) {
       res.status(500).send(error.message);
     }
@@ -100,7 +177,7 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
     }
   });
 
-  // Public Feed (for participants)
+  // Public Feed (for participants) - returns videos and project settings
   app.get("/api/feed/:publicUrl", async (req, res) => {
     try {
       const experiment = await storage.getExperimentByPublicUrl(req.params.publicUrl);
@@ -108,8 +185,23 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
         return res.status(404).send("Experiment not found");
       }
 
-      const videos = await storage.getVideosByExperiment(experiment.id);
-      res.json(videos);
+      const project = await storage.getProject(experiment.projectId);
+      if (!project) {
+        return res.status(404).send("Project not found");
+      }
+
+      const videosList = await storage.getVideosByExperiment(experiment.id);
+      
+      res.json({
+        experimentId: experiment.id,
+        experimentName: experiment.name,
+        projectSettings: {
+          queryKey: project.queryKey,
+          timeLimitSeconds: project.timeLimitSeconds,
+          redirectUrl: project.redirectUrl
+        },
+        videos: videosList
+      });
     } catch (error: any) {
       res.status(500).send(error.message);
     }

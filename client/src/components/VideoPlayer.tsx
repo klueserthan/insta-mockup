@@ -4,7 +4,7 @@ import { Heart, MessageCircle, Send, MoreHorizontal, Music2, Volume2, VolumeX } 
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import type { Video } from '@/lib/mockData';
+import type { Video } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { CommentsOverlay } from './CommentsOverlay';
 

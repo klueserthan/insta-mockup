@@ -11,9 +11,19 @@ export const researchers = pgTable('researchers', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-export const experiments = pgTable('experiments', {
+export const projects = pgTable('projects', {
   id: varchar('id').primaryKey().default(sql`gen_random_uuid()`),
   researcherId: varchar('researcher_id').notNull().references(() => researchers.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  queryKey: text('query_key').notNull().default('participantId'),
+  timeLimitSeconds: integer('time_limit_seconds').notNull().default(300),
+  redirectUrl: text('redirect_url').notNull().default(''),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const experiments = pgTable('experiments', {
+  id: varchar('id').primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   publicUrl: text('public_url').notNull().unique(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -56,14 +66,22 @@ export const insertResearcherSchema = createInsertSchema(researchers).omit({
   createdAt: true,
 });
 
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  researcherId: true,
+  createdAt: true,
+});
+
 export const insertExperimentSchema = createInsertSchema(experiments).omit({
   id: true,
+  projectId: true,
   createdAt: true,
   publicUrl: true,
 });
 
 export const insertVideoSchema = createInsertSchema(videos).omit({
   id: true,
+  experimentId: true,
   createdAt: true,
 });
 
@@ -79,6 +97,9 @@ export const insertInteractionSchema = createInsertSchema(interactions).omit({
 
 export type Researcher = typeof researchers.$inferSelect;
 export type InsertResearcher = z.infer<typeof insertResearcherSchema>;
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
 
 export type Experiment = typeof experiments.$inferSelect;
 export type InsertExperiment = z.infer<typeof insertExperimentSchema>;
