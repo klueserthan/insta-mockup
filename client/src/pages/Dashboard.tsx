@@ -230,6 +230,38 @@ export default function Dashboard() {
     },
   });
 
+  const createVideoMutation = useMutation({
+    mutationFn: async (data: { url: string; username: string; caption: string; likes: number; comments: number; shares: number; song: string }) => {
+      const res = await apiRequest('POST', `/api/experiments/${selectedExperimentId}/videos`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/experiments', selectedExperimentId, 'videos'] });
+      setEditingVideo(null);
+      toast({ title: 'Video added', description: 'New video added to the feed.' });
+    },
+  });
+
+  const isNewVideo = editingVideo && !editingVideo.id;
+
+  const handleAddNewVideo = () => {
+    setEditingVideo({
+      id: '',
+      url: '',
+      username: '',
+      caption: '',
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      song: '',
+      userAvatar: '',
+      description: null,
+      position: videos.length,
+      experimentId: selectedExperimentId || '',
+      createdAt: new Date(),
+    });
+  };
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -483,11 +515,16 @@ export default function Dashboard() {
             </div>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Feed Videos</CardTitle>
-                <CardDescription>
-                  Manage the videos visible to participants. Drag to reorder.
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Feed Videos</CardTitle>
+                  <CardDescription>
+                    Manage the videos visible to participants. Drag to reorder.
+                  </CardDescription>
+                </div>
+                <Button onClick={handleAddNewVideo} className="gap-2 bg-[#E4405F] hover:bg-[#D03050] text-white border-0" data-testid="button-add-video">
+                  <Plus size={16} /> Add Video
+                </Button>
               </CardHeader>
               <CardContent>
                 {videos.length === 0 ? (
@@ -529,9 +566,9 @@ export default function Dashboard() {
             <Dialog open={!!editingVideo} onOpenChange={(open) => !open && setEditingVideo(null)}>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                  <DialogTitle>Edit Video</DialogTitle>
+                  <DialogTitle>{isNewVideo ? 'Add Video' : 'Edit Video'}</DialogTitle>
                   <DialogDescription>
-                    Update the video details displayed to participants.
+                    {isNewVideo ? 'Add a new video to the feed.' : 'Update the video details displayed to participants.'}
                   </DialogDescription>
                 </DialogHeader>
                 {editingVideo && (
@@ -619,22 +656,40 @@ export default function Dashboard() {
                     Cancel
                   </Button>
                   <Button 
-                    onClick={() => editingVideo && updateVideoMutation.mutate({ 
-                      id: editingVideo.id, 
-                      data: {
-                        url: editingVideo.url,
-                        username: editingVideo.username,
-                        caption: editingVideo.caption,
-                        likes: editingVideo.likes,
-                        comments: editingVideo.comments,
-                        shares: editingVideo.shares,
-                        song: editingVideo.song,
+                    onClick={() => {
+                      if (!editingVideo) return;
+                      if (isNewVideo) {
+                        createVideoMutation.mutate({
+                          url: editingVideo.url,
+                          username: editingVideo.username,
+                          caption: editingVideo.caption,
+                          likes: editingVideo.likes,
+                          comments: editingVideo.comments,
+                          shares: editingVideo.shares,
+                          song: editingVideo.song || '',
+                        });
+                      } else {
+                        updateVideoMutation.mutate({ 
+                          id: editingVideo.id, 
+                          data: {
+                            url: editingVideo.url,
+                            username: editingVideo.username,
+                            caption: editingVideo.caption,
+                            likes: editingVideo.likes,
+                            comments: editingVideo.comments,
+                            shares: editingVideo.shares,
+                            song: editingVideo.song,
+                          }
+                        });
                       }
-                    })}
-                    disabled={updateVideoMutation.isPending}
+                    }}
+                    disabled={isNewVideo ? createVideoMutation.isPending : updateVideoMutation.isPending}
                     data-testid="button-save-video"
                   >
-                    {updateVideoMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    {isNewVideo 
+                      ? (createVideoMutation.isPending ? 'Adding...' : 'Add Video')
+                      : (updateVideoMutation.isPending ? 'Saving...' : 'Save Changes')
+                    }
                   </Button>
                 </DialogFooter>
               </DialogContent>
