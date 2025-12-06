@@ -132,6 +132,31 @@ export default function Login() {
                 : "Don't have an account? Register"
               }
             </Button>
+            {process.env.NODE_ENV !== 'production' && (
+              <Button 
+                type="button"
+                variant="outline" 
+                className="w-full border-dashed border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950" 
+                onClick={() => {
+                  loginMutation.mutate(
+                    { email: 'test@research.edu', password: 'password123' },
+                    {
+                      onSuccess: () => {
+                        toast({
+                          title: "Dev Login",
+                          description: "Logged in as test user.",
+                        });
+                        setLocation('/dashboard');
+                      },
+                    }
+                  );
+                }}
+                disabled={isLoading}
+                data-testid="button-dev-login"
+              >
+                Dev Login (test@research.edu)
+              </Button>
+            )}
           </CardFooter>
         </form>
         <div className="p-6 pt-0 text-center text-sm text-muted-foreground">
