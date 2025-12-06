@@ -50,17 +50,26 @@ function SortableRow({ video }: SortableRowProps) {
   };
 
   return (
-    <TableRow ref={setNodeRef} style={style} {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+    <TableRow ref={setNodeRef} style={style} {...attributes} className={isDragging ? 'opacity-50' : ''}>
+      <TableCell className="w-[50px]">
+        <div 
+          {...listeners} 
+          className="cursor-grab active:cursor-grabbing p-2 hover:bg-muted rounded flex items-center justify-center"
+          data-testid={`drag-handle-${video.id}`}
+        >
+          <GripVertical size={18} className="text-muted-foreground" />
+        </div>
+      </TableCell>
       <TableCell>
-        <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden pointer-events-none">
+        <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden">
           <img src={video.url} alt="Thumbnail" className="w-full h-full object-cover" />
         </div>
       </TableCell>
-      <TableCell className="font-medium pointer-events-none">
+      <TableCell className="font-medium">
         <div className="max-w-[300px] truncate">{video.caption}</div>
         <div className="text-xs text-muted-foreground mt-1">@{video.username}</div>
       </TableCell>
-      <TableCell className="pointer-events-none">
+      <TableCell>
         <div className="flex gap-3 text-sm text-muted-foreground">
           <span>❤️ {video.likes.toLocaleString()}</span>
           <span>💬 {video.comments.toLocaleString()}</span>
@@ -68,11 +77,11 @@ function SortableRow({ video }: SortableRowProps) {
         </div>
       </TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end gap-2" onPointerDown={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" title="Preview">
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="icon" title="Preview" data-testid={`button-preview-${video.id}`}>
             <ExternalLink size={16} />
           </Button>
-          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title="Remove">
+          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title="Remove" data-testid={`button-delete-${video.id}`}>
             <Trash2 size={16} />
           </Button>
         </div>
@@ -248,6 +257,7 @@ export default function Dashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]"></TableHead>
                     <TableHead className="w-[100px]">Thumbnail</TableHead>
                     <TableHead>Caption</TableHead>
                     <TableHead>Metrics</TableHead>
