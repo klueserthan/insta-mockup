@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft } from 'lucide-react';
+import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -36,9 +36,10 @@ interface SortableRowProps {
   video: Video;
   onDelete: (id: string) => void;
   onPreview: (id: string) => void;
+  onEdit: (video: Video) => void;
 }
 
-function SortableRow({ video, onDelete, onPreview }: SortableRowProps) {
+function SortableRow({ video, onDelete, onPreview, onEdit }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -85,6 +86,9 @@ function SortableRow({ video, onDelete, onPreview }: SortableRowProps) {
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="icon" title="Edit" onClick={() => onEdit(video)} data-testid={`button-edit-${video.id}`}>
+            <Pencil size={16} />
+          </Button>
           <Button variant="ghost" size="icon" title="Preview" onClick={() => onPreview(video.id)} data-testid={`button-preview-${video.id}`}>
             <ExternalLink size={16} />
           </Button>
@@ -111,6 +115,7 @@ export default function Dashboard() {
   
   const [newProject, setNewProject] = useState({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '' });
   const [newExperiment, setNewExperiment] = useState({ name: '' });
+  const [editingVideo, setEditingVideo] = useState<Video | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -210,6 +215,18 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/experiments', selectedExperimentId, 'videos'] });
+    },
+  });
+
+  const updateVideoMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Video> }) => {
+      const res = await apiRequest('PATCH', `/api/videos/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/experiments', selectedExperimentId, 'videos'] });
+      setEditingVideo(null);
+      toast({ title: 'Video updated', description: 'Video details saved successfully.' });
     },
   });
 
@@ -498,6 +515,7 @@ export default function Dashboard() {
                               video={video} 
                               onDelete={(id) => deleteVideoMutation.mutate(id)}
                               onPreview={(id) => {}}
+                              onEdit={(v) => setEditingVideo(v)}
                             />
                           ))}
                         </SortableContext>
@@ -507,6 +525,120 @@ export default function Dashboard() {
                 )}
               </CardContent>
             </Card>
+
+            <Dialog open={!!editingVideo} onOpenChange={(open) => !open && setEditingVideo(null)}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Edit Video</DialogTitle>
+                  <DialogDescription>
+                    Update the video details displayed to participants.
+                  </DialogDescription>
+                </DialogHeader>
+                {editingVideo && (
+                  <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
+                    <div className="grid gap-2">
+                      <Label htmlFor="video-url">Video URL</Label>
+                      <Input 
+                        id="video-url" 
+                        value={editingVideo.url} 
+                        onChange={(e) => setEditingVideo({ ...editingVideo, url: e.target.value })} 
+                        placeholder="https://example.com/video.mp4"
+                        data-testid="input-video-url"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="video-username">Username</Label>
+                      <Input 
+                        id="video-username" 
+                        value={editingVideo.username} 
+                        onChange={(e) => setEditingVideo({ ...editingVideo, username: e.target.value })} 
+                        placeholder="username"
+                        data-testid="input-video-username"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="video-caption">Caption</Label>
+                      <Input 
+                        id="video-caption" 
+                        value={editingVideo.caption} 
+                        onChange={(e) => setEditingVideo({ ...editingVideo, caption: e.target.value })} 
+                        placeholder="Video caption..."
+                        data-testid="input-video-caption"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="video-likes">Likes</Label>
+                        <Input 
+                          id="video-likes" 
+                          type="number" 
+                          value={editingVideo.likes} 
+                          onChange={(e) => setEditingVideo({ ...editingVideo, likes: parseInt(e.target.value) || 0 })} 
+                          data-testid="input-video-likes"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="video-comments">Comments</Label>
+                        <Input 
+                          id="video-comments" 
+                          type="number" 
+                          value={editingVideo.comments} 
+                          onChange={(e) => setEditingVideo({ ...editingVideo, comments: parseInt(e.target.value) || 0 })} 
+                          data-testid="input-video-comments"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="video-shares">Shares</Label>
+                        <Input 
+                          id="video-shares" 
+                          type="number" 
+                          value={editingVideo.shares} 
+                          onChange={(e) => setEditingVideo({ ...editingVideo, shares: parseInt(e.target.value) || 0 })} 
+                          data-testid="input-video-shares"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="video-song">Song</Label>
+                      <Input 
+                        id="video-song" 
+                        value={editingVideo.song || ''} 
+                        onChange={(e) => setEditingVideo({ ...editingVideo, song: e.target.value })} 
+                        placeholder="Original sound - username"
+                        data-testid="input-video-song"
+                      />
+                    </div>
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setEditingVideo(null)}
+                    data-testid="button-cancel-edit-video"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => editingVideo && updateVideoMutation.mutate({ 
+                      id: editingVideo.id, 
+                      data: {
+                        url: editingVideo.url,
+                        username: editingVideo.username,
+                        caption: editingVideo.caption,
+                        likes: editingVideo.likes,
+                        comments: editingVideo.comments,
+                        shares: editingVideo.shares,
+                        song: editingVideo.song,
+                      }
+                    })}
+                    disabled={updateVideoMutation.isPending}
+                    data-testid="button-save-video"
+                  >
+                    {updateVideoMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </main>
