@@ -106,7 +106,7 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
       {/* Video Content (Image for prototype) */}
       <img 
         src={video.url} 
-        alt={video.description}
+        alt={video.description || ''}
         className="absolute h-full w-full object-cover" 
       />
 
@@ -134,43 +134,48 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
       </div>
 
       {/* Right Side Actions */}
-      <div className="absolute bottom-20 right-4 flex flex-col items-center gap-6 z-20 text-white">
-        <div className="flex flex-col items-center gap-1">
+      <div className="absolute bottom-20 right-4 flex flex-col items-center gap-5 z-20 text-white">
+        {/* Like */}
+        <div className="flex flex-col items-center gap-0.5 w-10">
           <button 
             onClick={(e) => { e.stopPropagation(); toggleLike(); }}
-            className={cn("transition-transform active:scale-90", liked ? "text-[#E4405F]" : "text-white")}
+            className={cn("transition-transform active:scale-90 flex items-center justify-center", liked ? "text-[#E4405F]" : "text-white")}
             data-testid={`button-like-${video.id}`}
           >
             <Heart size={28} className={cn(liked && "fill-[#E4405F]")} />
           </button>
-          <span className="text-xs font-medium">{liked ? video.likes + 1 : video.likes}</span>
+          <span className="text-xs font-medium text-center h-3.5 flex items-center">{liked ? video.likes + 1 : video.likes}</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1">
+        {/* Comments */}
+        <div className="flex flex-col items-center gap-0.5 w-10">
           <button 
             onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
-            className="transition-transform active:scale-90 text-white"
+            className="transition-transform active:scale-90 text-white flex items-center justify-center"
           >
             <MessageCircle size={28} />
           </button>
-          <span className="text-xs font-medium">{video.comments}</span>
+          <span className="text-xs font-medium text-center h-3.5 flex items-center">{video.comments}</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1">
+        {/* Share */}
+        <div className="flex flex-col items-center gap-0.5 w-10">
           <button 
             onClick={(e) => { e.stopPropagation(); handleShare(); }}
-            className="transition-transform active:scale-90 text-white"
+            className="transition-transform active:scale-90 text-white flex items-center justify-center"
           >
             <Send size={28} className="-rotate-45 translate-x-1" />
           </button>
-          <span className="text-xs font-medium">{video.shares}</span>
+          <span className="text-xs font-medium text-center h-3.5 flex items-center">{video.shares}</span>
         </div>
 
-        <button className="transition-transform active:scale-90 text-white">
+        {/* More */}
+        <button className="transition-transform active:scale-90 text-white flex items-center justify-center mt-2">
           <MoreHorizontal size={28} />
         </button>
 
-        <div className="mt-2 border-2 border-white/20 rounded-md overflow-hidden w-8 h-8">
+        {/* Video Preview */}
+        <div className="mt-1 border-2 border-white/20 rounded-md overflow-hidden w-8 h-8">
            <img src={video.url} className="w-full h-full object-cover" />
         </div>
       </div>
