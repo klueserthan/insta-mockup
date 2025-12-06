@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil } from 'lucide-react';
+import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2 } from 'lucide-react';
+import { ObjectUploader } from '@/components/ObjectUploader';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -116,6 +117,7 @@ export default function Dashboard() {
   const [newProject, setNewProject] = useState({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '' });
   const [newExperiment, setNewExperiment] = useState({ name: '' });
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'finalizing' | 'done'>('idle');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -245,6 +247,7 @@ export default function Dashboard() {
   const isNewVideo = editingVideo && !editingVideo.id;
 
   const handleAddNewVideo = () => {
+    setUploadStatus('idle');
     setEditingVideo({
       id: '',
       url: '',
@@ -574,14 +577,89 @@ export default function Dashboard() {
                 {editingVideo && (
                   <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
                     <div className="grid gap-2">
-                      <Label htmlFor="video-url">Video URL</Label>
-                      <Input 
-                        id="video-url" 
-                        value={editingVideo.url} 
-                        onChange={(e) => setEditingVideo({ ...editingVideo, url: e.target.value })} 
-                        placeholder="https://example.com/video.mp4"
-                        data-testid="input-video-url"
-                      />
+                      <Label>{isNewVideo ? 'Upload Video/Image' : 'Video URL'}</Label>
+                      {isNewVideo ? (
+                        <div className="space-y-3">
+                          {editingVideo.url ? (
+                            <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
+                              <div className="w-16 h-24 rounded overflow-hidden bg-gray-200 shrink-0">
+                                <img src={editingVideo.url} alt="Preview" className="w-full h-full object-cover" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 text-sm text-green-600">
+                                  <CheckCircle2 size={16} />
+                                  <span>File uploaded successfully</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 truncate">{editingVideo.url}</p>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setEditingVideo({ ...editingVideo, url: '' });
+                                  setUploadStatus('idle');
+                                }}
+                              >
+                                Change
+                              </Button>
+                            </div>
+                          ) : uploadStatus === 'uploading' || uploadStatus === 'finalizing' ? (
+                            <div className="flex items-center gap-3 p-4 border rounded-lg bg-muted/50">
+                              <Loader2 className="animate-spin" size={20} />
+                              <span className="text-sm text-muted-foreground">
+                                {uploadStatus === 'uploading' ? 'Uploading file...' : 'Processing...'}
+                              </span>
+                            </div>
+                          ) : (
+                            <ObjectUploader
+                              maxNumberOfFiles={1}
+                              maxFileSize={104857600}
+                              allowedFileTypes={['image/*', 'video/*']}
+                              onGetUploadParameters={async () => {
+                                setUploadStatus('uploading');
+                                const res = await apiRequest('POST', '/api/objects/upload', {});
+                                const data = await res.json();
+                                return {
+                                  method: 'PUT' as const,
+                                  url: data.uploadURL,
+                                };
+                              }}
+                              onComplete={async (result) => {
+                                if (result.successful && result.successful.length > 0) {
+                                  const uploadURL = result.successful[0].uploadURL;
+                                  setUploadStatus('finalizing');
+                                  try {
+                                    const res = await apiRequest('PUT', '/api/objects/finalize', { uploadURL });
+                                    const data = await res.json();
+                                    setEditingVideo(prev => prev ? { ...prev, url: data.objectPath } : null);
+                                    setUploadStatus('done');
+                                  } catch (err) {
+                                    console.error('Error finalizing upload:', err);
+                                    setUploadStatus('idle');
+                                    toast({ title: 'Upload failed', description: 'Could not process the file.', variant: 'destructive' });
+                                  }
+                                } else {
+                                  setUploadStatus('idle');
+                                }
+                              }}
+                              buttonClassName="w-full h-24 border-dashed"
+                            >
+                              <div className="flex flex-col items-center gap-2">
+                                <Upload size={24} className="text-muted-foreground" />
+                                <span className="text-sm">Click to upload video or image</span>
+                              </div>
+                            </ObjectUploader>
+                          )}
+                        </div>
+                      ) : (
+                        <Input 
+                          id="video-url" 
+                          value={editingVideo.url} 
+                          onChange={(e) => setEditingVideo({ ...editingVideo, url: e.target.value })} 
+                          placeholder="https://example.com/video.mp4"
+                          data-testid="input-video-url"
+                        />
+                      )}
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="video-username">Username</Label>

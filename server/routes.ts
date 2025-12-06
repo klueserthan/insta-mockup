@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { insertProjectSchema, insertVideoSchema, insertExperimentSchema, insertInteractionSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 function requireAuth(req: Request, res: Response, next: () => void) {
   if (!req.isAuthenticated()) {
@@ -204,6 +205,78 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
       });
     } catch (error: any) {
       res.status(500).send(error.message);
+    }
+  });
+
+  // Object Storage - File Upload
+  app.post("/api/objects/upload", requireAuth, async (req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error: any) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve uploaded objects with ACL check
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: req.user?.id,
+      });
+      if (!canAccess) {
+        return res.sendStatus(403);
+      }
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // Finalize upload and set ACL
+  app.put("/api/objects/finalize", requireAuth, async (req, res) => {
+    if (!req.body.uploadURL) {
+      return res.status(400).json({ error: "uploadURL is required" });
+    }
+
+    const uploadURL = req.body.uploadURL;
+    
+    if (!uploadURL.startsWith("https://storage.googleapis.com/")) {
+      return res.status(400).json({ error: "Invalid upload URL" });
+    }
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const privateDir = objectStorageService.getPrivateObjectDir();
+      const url = new URL(uploadURL);
+      
+      if (!url.pathname.startsWith(privateDir)) {
+        return res.status(400).json({ error: "Upload path not allowed" });
+      }
+
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        uploadURL,
+        {
+          owner: req.user!.id,
+          visibility: "public",
+        },
+      );
+
+      res.status(200).json({
+        objectPath: objectPath,
+      });
+    } catch (error: any) {
+      console.error("Error finalizing upload:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
