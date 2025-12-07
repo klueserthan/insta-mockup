@@ -62,6 +62,18 @@ export const interactions = pgTable('interactions', {
   timestamp: timestamp('timestamp').defaultNow().notNull(),
 });
 
+export const preseededComments = pgTable('preseeded_comments', {
+  id: varchar('id').primaryKey().default(sql`gen_random_uuid()`),
+  videoId: varchar('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
+  authorName: text('author_name').notNull(),
+  authorAvatar: text('author_avatar').notNull(),
+  body: text('body').notNull(),
+  likes: integer('likes').notNull().default(0),
+  source: text('source').notNull().default('manual'),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const insertResearcherSchema = createInsertSchema(researchers).omit({
   id: true,
   createdAt: true,
@@ -96,6 +108,11 @@ export const insertInteractionSchema = createInsertSchema(interactions).omit({
   timestamp: true,
 });
 
+export const insertPreseededCommentSchema = createInsertSchema(preseededComments).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type Researcher = typeof researchers.$inferSelect;
 export type InsertResearcher = z.infer<typeof insertResearcherSchema>;
 
@@ -113,3 +130,6 @@ export type InsertParticipant = z.infer<typeof insertParticipantSchema>;
 
 export type Interaction = typeof interactions.$inferSelect;
 export type InsertInteraction = z.infer<typeof insertInteractionSchema>;
+
+export type PreseededComment = typeof preseededComments.$inferSelect;
+export type InsertPreseededComment = z.infer<typeof insertPreseededCommentSchema>;
