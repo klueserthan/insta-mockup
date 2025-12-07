@@ -196,6 +196,7 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
       res.json({
         experimentId: experiment.id,
         experimentName: experiment.name,
+        persistTimer: experiment.persistTimer,
         projectSettings: {
           queryKey: project.queryKey,
           timeLimitSeconds: project.timeLimitSeconds,

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -26,6 +26,7 @@ export const experiments = pgTable('experiments', {
   projectId: varchar('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   publicUrl: text('public_url').notNull().unique(),
+  persistTimer: boolean('persist_timer').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
