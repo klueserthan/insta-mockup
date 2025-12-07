@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { insertProjectSchema, insertVideoSchema, insertExperimentSchema, insertInteractionSchema } from "@shared/schema";
+import { insertProjectSchema, insertVideoSchema, insertExperimentSchema, insertInteractionSchema, insertPreseededCommentSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
@@ -193,6 +193,13 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
 
       const videosList = await storage.getVideosByExperiment(experiment.id);
       
+      const videosWithComments = await Promise.all(
+        videosList.map(async (video) => {
+          const comments = await storage.getPreseededCommentsByVideo(video.id);
+          return { ...video, preseededComments: comments };
+        })
+      );
+      
       res.json({
         experimentId: experiment.id,
         experimentName: experiment.name,
@@ -202,7 +209,7 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
           timeLimitSeconds: project.timeLimitSeconds,
           redirectUrl: project.redirectUrl
         },
-        videos: videosList
+        videos: videosWithComments
       });
     } catch (error: any) {
       res.status(500).send(error.message);
@@ -297,6 +304,69 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
 
       const interaction = await storage.createInteraction(parsed);
       res.status(201).json(interaction);
+    } catch (error: any) {
+      res.status(400).send(error.message);
+    }
+  });
+
+  // Preseeded Comments
+  app.get("/api/videos/:videoId/comments", async (req, res) => {
+    try {
+      const commentsList = await storage.getPreseededCommentsByVideo(req.params.videoId);
+      res.json(commentsList);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/videos/:videoId/comments", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertPreseededCommentSchema.parse({
+        ...req.body,
+        videoId: req.params.videoId
+      });
+      
+      const existingComments = await storage.getPreseededCommentsByVideo(req.params.videoId);
+      const maxPosition = existingComments.length > 0 
+        ? Math.max(...existingComments.map(c => c.position))
+        : -1;
+
+      const comment = await storage.createPreseededComment({
+        ...parsed,
+        position: parsed.position ?? maxPosition + 1
+      });
+      
+      res.status(201).json(comment);
+    } catch (error: any) {
+      res.status(400).send(error.message);
+    }
+  });
+
+  app.patch("/api/comments/:commentId", requireAuth, async (req, res) => {
+    try {
+      const comment = await storage.updatePreseededComment(req.params.commentId, req.body);
+      if (!comment) {
+        return res.status(404).send("Comment not found");
+      }
+      res.json(comment);
+    } catch (error: any) {
+      res.status(400).send(error.message);
+    }
+  });
+
+  app.delete("/api/comments/:commentId", requireAuth, async (req, res) => {
+    try {
+      await storage.deletePreseededComment(req.params.commentId);
+      res.sendStatus(204);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/comments/reorder", requireAuth, async (req, res) => {
+    try {
+      await storage.updatePreseededCommentPositions(req.body.updates);
+      res.sendStatus(200);
     } catch (error: any) {
       res.status(400).send(error.message);
     }

@@ -5,7 +5,8 @@ import {
   type Video, type InsertVideo,
   type Participant, type InsertParticipant,
   type Interaction, type InsertInteraction,
-  researchers, projects, experiments, videos, participants, interactions
+  type PreseededComment, type InsertPreseededComment,
+  researchers, projects, experiments, videos, participants, interactions, preseededComments
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -53,6 +54,14 @@ export interface IStorage {
   createInteraction(data: InsertInteraction): Promise<Interaction>;
   getInteractionsByParticipant(participantUuid: string): Promise<Interaction[]>;
   getInteractionsByVideo(videoId: string): Promise<Interaction[]>;
+
+  // Preseeded Comments
+  getPreseededComment(id: string): Promise<PreseededComment | undefined>;
+  getPreseededCommentsByVideo(videoId: string): Promise<PreseededComment[]>;
+  createPreseededComment(data: InsertPreseededComment): Promise<PreseededComment>;
+  updatePreseededComment(id: string, data: Partial<InsertPreseededComment>): Promise<PreseededComment | undefined>;
+  deletePreseededComment(id: string): Promise<void>;
+  updatePreseededCommentPositions(updates: { id: string; position: number }[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -198,6 +207,40 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(interactions)
       .where(eq(interactions.videoId, videoId))
       .orderBy(desc(interactions.timestamp));
+  }
+
+  // Preseeded Comments
+  async getPreseededComment(id: string): Promise<PreseededComment | undefined> {
+    const [comment] = await db.select().from(preseededComments).where(eq(preseededComments.id, id));
+    return comment || undefined;
+  }
+
+  async getPreseededCommentsByVideo(videoId: string): Promise<PreseededComment[]> {
+    return db.select().from(preseededComments)
+      .where(eq(preseededComments.videoId, videoId))
+      .orderBy(preseededComments.position);
+  }
+
+  async createPreseededComment(data: InsertPreseededComment): Promise<PreseededComment> {
+    const [comment] = await db.insert(preseededComments).values(data).returning();
+    return comment;
+  }
+
+  async updatePreseededComment(id: string, data: Partial<InsertPreseededComment>): Promise<PreseededComment | undefined> {
+    const [comment] = await db.update(preseededComments).set(data).where(eq(preseededComments.id, id)).returning();
+    return comment || undefined;
+  }
+
+  async deletePreseededComment(id: string): Promise<void> {
+    await db.delete(preseededComments).where(eq(preseededComments.id, id));
+  }
+
+  async updatePreseededCommentPositions(updates: { id: string; position: number }[]): Promise<void> {
+    await Promise.all(
+      updates.map(update =>
+        db.update(preseededComments).set({ position: update.position }).where(eq(preseededComments.id, update.id))
+      )
+    );
   }
 }
 
