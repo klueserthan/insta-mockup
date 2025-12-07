@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2 } from 'lucide-react';
+import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2, MessageCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { VideoPreview } from '@/components/VideoPreview';
+import { CommentsManager } from '@/components/CommentsManager';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -41,9 +42,10 @@ interface SortableRowProps {
   onDelete: (id: string) => void;
   onPreview: (id: string) => void;
   onEdit: (video: Video) => void;
+  onManageComments: (video: Video) => void;
 }
 
-function SortableRow({ video, onDelete, onPreview, onEdit }: SortableRowProps) {
+function SortableRow({ video, onDelete, onPreview, onEdit, onManageComments }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -93,6 +95,9 @@ function SortableRow({ video, onDelete, onPreview, onEdit }: SortableRowProps) {
           <Button variant="ghost" size="icon" title="Edit" onClick={() => onEdit(video)} data-testid={`button-edit-${video.id}`}>
             <Pencil size={16} />
           </Button>
+          <Button variant="ghost" size="icon" title="Manage Comments" onClick={() => onManageComments(video)} data-testid={`button-comments-${video.id}`}>
+            <MessageCircle size={16} />
+          </Button>
           <Button variant="ghost" size="icon" title="Preview" onClick={() => onPreview(video.id)} data-testid={`button-preview-${video.id}`}>
             <ExternalLink size={16} />
           </Button>
@@ -141,6 +146,7 @@ export default function Dashboard() {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'finalizing' | 'done'>('idle');
   const [editingExperiment, setEditingExperiment] = useState<Experiment | null>(null);
   const [previewingVideo, setPreviewingVideo] = useState<Video | null>(null);
+  const [managingCommentsVideo, setManagingCommentsVideo] = useState<Video | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -663,6 +669,7 @@ export default function Dashboard() {
                               onDelete={(id) => deleteVideoMutation.mutate(id)}
                               onPreview={(id) => setPreviewingVideo(videos.find(v => v.id === id) || null)}
                               onEdit={(v) => { setUploadStatus('idle'); setEditingVideo(v); }}
+                              onManageComments={(v) => setManagingCommentsVideo(v)}
                             />
                           ))}
                         </SortableContext>
@@ -883,6 +890,12 @@ export default function Dashboard() {
                 </div>
               </DialogContent>
             </Dialog>
+
+            <CommentsManager
+              video={managingCommentsVideo}
+              isOpen={!!managingCommentsVideo}
+              onOpenChange={(open) => !open && setManagingCommentsVideo(null)}
+            />
           </div>
         )}
       </main>

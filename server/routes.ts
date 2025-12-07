@@ -5,6 +5,7 @@ import { setupAuth } from "./auth";
 import { insertProjectSchema, insertVideoSchema, insertExperimentSchema, insertInteractionSchema, insertPreseededCommentSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { generateComments } from "./openai";
 
 function requireAuth(req: Request, res: Response, next: () => void) {
   if (!req.isAuthenticated()) {
@@ -369,6 +370,51 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
       res.sendStatus(200);
     } catch (error: any) {
       res.status(400).send(error.message);
+    }
+  });
+
+  app.post("/api/videos/:videoId/comments/generate", requireAuth, async (req, res) => {
+    try {
+      const video = await storage.getVideo(req.params.videoId);
+      if (!video) {
+        return res.status(404).send("Video not found");
+      }
+
+      const { count = 5, tone = "mixed" } = req.body;
+      
+      const generatedComments = await generateComments(
+        video.caption,
+        video.username,
+        Math.min(count, 20),
+        tone
+      );
+
+      const existingComments = await storage.getPreseededCommentsByVideo(req.params.videoId);
+      const maxPosition = existingComments.length > 0 
+        ? Math.max(...existingComments.map(c => c.position))
+        : -1;
+
+      const savedComments = await Promise.all(
+        generatedComments.map(async (comment, index) => {
+          const seed = Math.random().toString(36).substring(7);
+          const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.authorName}_${seed}`;
+          
+          return storage.createPreseededComment({
+            videoId: req.params.videoId,
+            authorName: comment.authorName,
+            authorAvatar: avatar,
+            body: comment.body,
+            likes: comment.likes,
+            source: "ai",
+            position: maxPosition + 1 + index
+          });
+        })
+      );
+
+      res.status(201).json(savedComments);
+    } catch (error: any) {
+      console.error("Error generating comments:", error);
+      res.status(500).send(error.message);
     }
   });
 
