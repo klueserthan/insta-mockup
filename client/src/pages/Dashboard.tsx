@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -118,6 +119,7 @@ export default function Dashboard() {
   const [newExperiment, setNewExperiment] = useState({ name: '' });
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'finalizing' | 'done'>('idle');
+  const [editingExperiment, setEditingExperiment] = useState<Experiment | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -198,6 +200,29 @@ export default function Dashboard() {
       setExperimentDialogOpen(false);
       setNewExperiment({ name: '' });
       toast({ title: 'Feed created', description: 'Your new feed is ready.' });
+    },
+  });
+
+  const updateExperimentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Experiment> }) => {
+      const res = await apiRequest('PATCH', `/api/experiments/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'experiments'] });
+      setEditingExperiment(null);
+      toast({ title: 'Feed settings updated', description: 'Your feed settings have been saved.' });
+    },
+  });
+
+  const deleteExperimentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/experiments/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'experiments'] });
+      setSelectedExperimentId(null);
+      toast({ title: 'Feed deleted' });
     },
   });
 
@@ -514,6 +539,67 @@ export default function Dashboard() {
                 <Button variant="outline" onClick={copyPublicLink} className="gap-2" data-testid="button-copy-link">
                   <Share2 size={16} /> Copy Link
                 </Button>
+                <Dialog open={!!editingExperiment} onOpenChange={(open) => !open && setEditingExperiment(null)}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="icon" onClick={() => setEditingExperiment(selectedExperiment || null)} data-testid="button-feed-settings">
+                      <Settings size={16} />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Feed Settings</DialogTitle>
+                      <DialogDescription>Configure settings for this feed.</DialogDescription>
+                    </DialogHeader>
+                    {editingExperiment && (
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label>Feed Name</Label>
+                          <Input 
+                            value={editingExperiment.name} 
+                            onChange={(e) => setEditingExperiment({ ...editingExperiment, name: e.target.value })} 
+                            data-testid="input-feed-name-edit"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between py-2">
+                          <div>
+                            <Label htmlFor="persist-timer">Persist Timer Across Reloads</Label>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              When enabled, the timer continues from where it left off if a participant refreshes the page. If time has expired, they will be redirected immediately.
+                            </p>
+                          </div>
+                          <Switch
+                            id="persist-timer"
+                            checked={editingExperiment.persistTimer}
+                            onCheckedChange={(checked) => setEditingExperiment({ ...editingExperiment, persistTimer: checked })}
+                            data-testid="switch-persist-timer"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <DialogFooter className="flex justify-between">
+                      <Button 
+                        variant="destructive" 
+                        onClick={() => { 
+                          deleteExperimentMutation.mutate(editingExperiment!.id); 
+                          setEditingExperiment(null); 
+                        }}
+                        data-testid="button-delete-feed"
+                      >
+                        Delete Feed
+                      </Button>
+                      <Button 
+                        onClick={() => updateExperimentMutation.mutate({ 
+                          id: editingExperiment!.id, 
+                          data: { name: editingExperiment!.name, persistTimer: editingExperiment!.persistTimer } 
+                        })}
+                        disabled={updateExperimentMutation.isPending}
+                        data-testid="button-save-feed-settings"
+                      >
+                        {updateExperimentMutation.isPending ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 

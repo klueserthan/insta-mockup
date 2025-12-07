@@ -8,6 +8,7 @@ import type { Video } from '@shared/schema';
 interface FeedData {
   experimentId: string;
   experimentName: string;
+  persistTimer: boolean;
   projectSettings: {
     queryKey: string;
     timeLimitSeconds: number;
@@ -52,10 +53,44 @@ export default function ReelsFeed() {
 
   useEffect(() => {
     if (feedData && !sessionStarted) {
-      setTimeRemaining(timeLimitSeconds);
+      const persistTimer = feedData.persistTimer;
+      const storageKey = `timer_${feedData.experimentId}_${participantId}`;
+      
+      if (persistTimer) {
+        const storedData = localStorage.getItem(storageKey);
+        
+        if (storedData) {
+          try {
+            const { startTime } = JSON.parse(storedData);
+            const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = timeLimitSeconds - elapsedSeconds;
+            
+            if (remaining <= 0) {
+              if (redirectUrl) {
+                const finalUrl = redirectUrl.includes('?') 
+                  ? `${redirectUrl}&${queryKey}=${participantId}`
+                  : `${redirectUrl}?${queryKey}=${participantId}`;
+                window.location.href = finalUrl;
+              }
+              setTimeRemaining(0);
+            } else {
+              setTimeRemaining(remaining);
+            }
+          } catch (e) {
+            localStorage.setItem(storageKey, JSON.stringify({ startTime: Date.now() }));
+            setTimeRemaining(timeLimitSeconds);
+          }
+        } else {
+          localStorage.setItem(storageKey, JSON.stringify({ startTime: Date.now() }));
+          setTimeRemaining(timeLimitSeconds);
+        }
+      } else {
+        setTimeRemaining(timeLimitSeconds);
+      }
+      
       setSessionStarted(true);
     }
-  }, [feedData, timeLimitSeconds, sessionStarted]);
+  }, [feedData, timeLimitSeconds, sessionStarted, participantId, redirectUrl, queryKey]);
 
   useEffect(() => {
     if (timeRemaining === null || timeRemaining <= 0) return;
@@ -64,6 +99,10 @@ export default function ReelsFeed() {
       setTimeRemaining((prev) => {
         if (prev === null) return null;
         if (prev <= 1) {
+          if (feedData?.experimentId && feedData?.persistTimer) {
+            const storageKey = `timer_${feedData.experimentId}_${participantId}`;
+            localStorage.removeItem(storageKey);
+          }
           if (redirectUrl) {
             const finalUrl = redirectUrl.includes('?') 
               ? `${redirectUrl}&${queryKey}=${participantId}`
@@ -77,7 +116,7 @@ export default function ReelsFeed() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining, redirectUrl, queryKey, participantId]);
+  }, [timeRemaining, redirectUrl, queryKey, participantId, feedData?.experimentId, feedData?.persistTimer]);
 
   const logInteraction = useCallback(async (type: string, videoId: string, data?: any) => {
     if (!feedData?.experimentId) return;
