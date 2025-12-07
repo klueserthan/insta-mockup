@@ -139,6 +139,7 @@ export default function Dashboard() {
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'finalizing' | 'done'>('idle');
   const [editingExperiment, setEditingExperiment] = useState<Experiment | null>(null);
+  const [previewingVideo, setPreviewingVideo] = useState<Video | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -659,7 +660,7 @@ export default function Dashboard() {
                               key={video.id} 
                               video={video} 
                               onDelete={(id) => deleteVideoMutation.mutate(id)}
-                              onPreview={(id) => {}}
+                              onPreview={(id) => setPreviewingVideo(videos.find(v => v.id === id) || null)}
                               onEdit={(v) => { setUploadStatus('idle'); setEditingVideo(v); }}
                             />
                           ))}
@@ -865,6 +866,41 @@ export default function Dashboard() {
                     }
                   </Button>
                 </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!previewingVideo} onOpenChange={(open) => !open && setPreviewingVideo(null)}>
+              <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden">
+                <div className="relative bg-black aspect-[9/16] max-h-[70vh]">
+                  {previewingVideo && (
+                    <>
+                      <img 
+                        src={previewingVideo.url} 
+                        alt={previewingVideo.caption}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                        <div className="flex items-center gap-2 mb-2">
+                          <img 
+                            src={previewingVideo.userAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${previewingVideo.username}`} 
+                            alt={previewingVideo.username}
+                            className="w-8 h-8 rounded-full border-2 border-white"
+                          />
+                          <span className="text-white font-semibold text-sm">@{previewingVideo.username}</span>
+                        </div>
+                        <p className="text-white text-sm mb-3">{previewingVideo.caption}</p>
+                        <div className="flex gap-4 text-white text-xs">
+                          <span>❤️ {previewingVideo.likes.toLocaleString()}</span>
+                          <span>💬 {previewingVideo.comments.toLocaleString()}</span>
+                          <span>↗️ {previewingVideo.shares.toLocaleString()}</span>
+                        </div>
+                        {previewingVideo.song && (
+                          <p className="text-white/70 text-xs mt-2">🎵 {previewingVideo.song}</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               </DialogContent>
             </Dialog>
           </div>
