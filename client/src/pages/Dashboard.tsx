@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2, MessageCircle } from 'lucide-react';
+import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2, MessageCircle, Sparkles, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { VideoPreview } from '@/components/VideoPreview';
@@ -39,13 +40,15 @@ import { CSS } from '@dnd-kit/utilities';
 
 interface SortableRowProps {
   video: Video;
+  isSelected: boolean;
+  onSelect: (id: string, checked: boolean) => void;
   onDelete: (id: string) => void;
   onPreview: (id: string) => void;
   onEdit: (video: Video) => void;
   onManageComments: (video: Video) => void;
 }
 
-function SortableRow({ video, onDelete, onPreview, onEdit, onManageComments }: SortableRowProps) {
+function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit, onManageComments }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -64,7 +67,14 @@ function SortableRow({ video, onDelete, onPreview, onEdit, onManageComments }: S
   };
 
   return (
-    <TableRow ref={setNodeRef} style={style} {...attributes} className={isDragging ? 'opacity-50' : ''}>
+    <TableRow ref={setNodeRef} style={style} {...attributes} className={`${isDragging ? 'opacity-50' : ''} ${isSelected ? 'bg-muted/50' : ''}`}>
+      <TableCell className="w-[50px]">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={(checked) => onSelect(video.id, checked as boolean)}
+          data-testid={`checkbox-video-${video.id}`}
+        />
+      </TableCell>
       <TableCell className="w-[50px]">
         <div 
           {...listeners} 
@@ -147,6 +157,9 @@ export default function Dashboard() {
   const [editingExperiment, setEditingExperiment] = useState<Experiment | null>(null);
   const [previewingVideo, setPreviewingVideo] = useState<Video | null>(null);
   const [managingCommentsVideo, setManagingCommentsVideo] = useState<Video | null>(null);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
+  const [bulkCommentTone, setBulkCommentTone] = useState<string>("mixed");
+  const [bulkCommentCount, setBulkCommentCount] = useState<number>(5);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -295,6 +308,48 @@ export default function Dashboard() {
       toast({ title: 'Video added', description: 'New video added to the feed.' });
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (videoIds: string[]) => {
+      await apiRequest('POST', '/api/videos/bulk-delete', { videoIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/experiments', selectedExperimentId, 'videos'] });
+      setSelectedVideoIds(new Set());
+      toast({ title: 'Videos deleted', description: `${selectedVideoIds.size} video(s) removed from the feed.` });
+    },
+  });
+
+  const bulkGenerateCommentsMutation = useMutation({
+    mutationFn: async ({ videoIds, count, tone }: { videoIds: string[]; count: number; tone: string }) => {
+      const res = await apiRequest('POST', '/api/videos/bulk-generate-comments', { videoIds, count, tone });
+      return res.json();
+    },
+    onSuccess: () => {
+      setSelectedVideoIds(new Set());
+      toast({ title: 'Comments generated', description: `AI comments added to ${selectedVideoIds.size} video(s).` });
+    },
+  });
+
+  const handleVideoSelect = (videoId: string, checked: boolean) => {
+    setSelectedVideoIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(videoId);
+      } else {
+        newSet.delete(videoId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedVideoIds(new Set(videos.map(v => v.id)));
+    } else {
+      setSelectedVideoIds(new Set());
+    }
+  };
 
   const isNewVideo = editingVideo && !editingVideo.id;
 
@@ -649,10 +704,95 @@ export default function Dashboard() {
                     <p className="text-sm mt-1">Add videos via the API or upload interface.</p>
                   </div>
                 ) : (
+                  <>
+                  {selectedVideoIds.size > 0 && (
+                    <div className="mb-4 p-4 bg-muted rounded-lg flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{selectedVideoIds.size} video(s) selected</span>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedVideoIds(new Set())} data-testid="button-clear-selection">
+                          <X size={14} className="mr-1" /> Clear
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Select value={bulkCommentTone} onValueChange={setBulkCommentTone}>
+                            <SelectTrigger className="w-[120px]" data-testid="select-bulk-tone">
+                              <SelectValue placeholder="Tone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="positive">Positive</SelectItem>
+                              <SelectItem value="negative">Negative</SelectItem>
+                              <SelectItem value="mixed">Mixed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select value={bulkCommentCount.toString()} onValueChange={(v) => setBulkCommentCount(parseInt(v))}>
+                            <SelectTrigger className="w-[80px]" data-testid="select-bulk-count">
+                              <SelectValue placeholder="Count" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="3">3</SelectItem>
+                              <SelectItem value="5">5</SelectItem>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="15">15</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            variant="secondary" 
+                            onClick={() => bulkGenerateCommentsMutation.mutate({ 
+                              videoIds: Array.from(selectedVideoIds), 
+                              count: bulkCommentCount, 
+                              tone: bulkCommentTone 
+                            })}
+                            disabled={bulkGenerateCommentsMutation.isPending}
+                            data-testid="button-bulk-generate-comments"
+                          >
+                            {bulkGenerateCommentsMutation.isPending ? (
+                              <Loader2 size={16} className="mr-2 animate-spin" />
+                            ) : (
+                              <Sparkles size={16} className="mr-2" />
+                            )}
+                            Generate Comments
+                          </Button>
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" data-testid="button-bulk-delete">
+                              <Trash2 size={16} className="mr-2" /> Delete Selected
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete {selectedVideoIds.size} video(s)?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently remove the selected videos from the feed. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel data-testid="button-cancel-bulk-delete">Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => bulkDeleteMutation.mutate(Array.from(selectedVideoIds))} 
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                data-testid="button-confirm-bulk-delete"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  )}
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-[50px]">
+                            <Checkbox
+                              checked={videos.length > 0 && selectedVideoIds.size === videos.length}
+                              onCheckedChange={handleSelectAll}
+                              data-testid="checkbox-select-all"
+                            />
+                          </TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                           <TableHead className="w-[100px]">Thumbnail</TableHead>
                           <TableHead>Caption</TableHead>
@@ -665,7 +805,9 @@ export default function Dashboard() {
                           {videos.map((video) => (
                             <SortableRow 
                               key={video.id} 
-                              video={video} 
+                              video={video}
+                              isSelected={selectedVideoIds.has(video.id)}
+                              onSelect={handleVideoSelect}
                               onDelete={(id) => deleteVideoMutation.mutate(id)}
                               onPreview={(id) => setPreviewingVideo(videos.find(v => v.id === id) || null)}
                               onEdit={(v) => { setUploadStatus('idle'); setEditingVideo(v); }}
@@ -676,6 +818,7 @@ export default function Dashboard() {
                       </TableBody>
                     </Table>
                   </DndContext>
+                  </>
                 )}
               </CardContent>
             </Card>

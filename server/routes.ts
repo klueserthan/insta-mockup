@@ -170,6 +170,79 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
     }
   });
 
+  app.post("/api/videos/bulk-delete", requireAuth, async (req, res) => {
+    try {
+      const { videoIds } = req.body;
+      if (!Array.isArray(videoIds) || videoIds.length === 0) {
+        return res.status(400).send("videoIds must be a non-empty array");
+      }
+      await Promise.all(videoIds.map((id: string) => storage.deleteVideo(id)));
+      res.sendStatus(204);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/videos/bulk-generate-comments", requireAuth, async (req, res) => {
+    try {
+      const { videoIds, count = 5, tone = "mixed" } = req.body;
+      if (!Array.isArray(videoIds) || videoIds.length === 0) {
+        return res.status(400).send("videoIds must be a non-empty array");
+      }
+
+      const results = await Promise.all(
+        videoIds.map(async (videoId: string) => {
+          const video = await storage.getVideo(videoId);
+          if (!video) return { videoId, comments: [], error: "Video not found" };
+
+          const generatedComments = await generateComments(
+            video.caption,
+            video.username,
+            Math.min(count, 20),
+            tone
+          );
+
+          const existingComments = await storage.getPreseededCommentsByVideo(videoId);
+          const maxPosition = existingComments.length > 0 
+            ? Math.max(...existingComments.map(c => c.position))
+            : -1;
+
+          const savedComments = await Promise.all(
+            generatedComments.map(async (comment, index) => {
+              const seed = Math.random().toString(36).substring(7);
+              const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.authorName}_${seed}`;
+              
+              const daysAgo = Math.random() * 7;
+              const hoursAgo = Math.random() * 24;
+              const minutesAgo = Math.random() * 60;
+              const randomTimestamp = new Date(
+                Date.now() - (daysAgo * 24 * 60 * 60 * 1000) - (hoursAgo * 60 * 60 * 1000) - (minutesAgo * 60 * 1000)
+              );
+
+              return storage.createPreseededComment({
+                videoId,
+                authorName: comment.authorName,
+                authorAvatar: avatar,
+                body: comment.body,
+                likes: comment.likes,
+                source: "ai",
+                position: maxPosition + 1 + index,
+                createdAt: randomTimestamp
+              });
+            })
+          );
+
+          return { videoId, comments: savedComments };
+        })
+      );
+
+      res.status(201).json(results);
+    } catch (error: any) {
+      console.error("Error bulk generating comments:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
   app.post("/api/videos/reorder", requireAuth, async (req, res) => {
     try {
       await storage.updateVideoPositions(req.body.updates);
