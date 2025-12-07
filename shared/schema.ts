@@ -110,7 +110,8 @@ export const insertInteractionSchema = createInsertSchema(interactions).omit({
 
 export const insertPreseededCommentSchema = createInsertSchema(preseededComments).omit({
   id: true,
-  createdAt: true,
+}).extend({
+  createdAt: z.date().optional(),
 });
 
 export type Researcher = typeof researchers.$inferSelect;

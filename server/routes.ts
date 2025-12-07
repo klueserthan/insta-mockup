@@ -399,6 +399,13 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
           const seed = Math.random().toString(36).substring(7);
           const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.authorName}_${seed}`;
           
+          const daysAgo = Math.random() * 7;
+          const hoursAgo = Math.random() * 24;
+          const minutesAgo = Math.random() * 60;
+          const randomTimestamp = new Date(
+            Date.now() - (daysAgo * 24 * 60 * 60 * 1000) - (hoursAgo * 60 * 60 * 1000) - (minutesAgo * 60 * 1000)
+          );
+          
           return storage.createPreseededComment({
             videoId: req.params.videoId,
             authorName: comment.authorName,
@@ -406,7 +413,8 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
             body: comment.body,
             likes: comment.likes,
             source: "ai",
-            position: maxPosition + 1 + index
+            position: maxPosition + 1 + index,
+            createdAt: randomTimestamp
           });
         })
       );
