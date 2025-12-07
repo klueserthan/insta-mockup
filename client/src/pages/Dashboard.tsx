@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { ObjectUploader } from '@/components/ObjectUploader';
+import { VideoPreview } from '@/components/VideoPreview';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -870,35 +871,14 @@ export default function Dashboard() {
             </Dialog>
 
             <Dialog open={!!previewingVideo} onOpenChange={(open) => !open && setPreviewingVideo(null)}>
-              <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden">
-                <div className="relative bg-black aspect-[9/16] max-h-[70vh]">
+              <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden border-0" data-testid="dialog-video-preview">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>Video Preview</DialogTitle>
+                  <DialogDescription>Preview of how this video will appear in the feed</DialogDescription>
+                </DialogHeader>
+                <div className="aspect-[9/16] max-h-[80vh]">
                   {previewingVideo && (
-                    <>
-                      <img 
-                        src={previewingVideo.url} 
-                        alt={previewingVideo.caption}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                        <div className="flex items-center gap-2 mb-2">
-                          <img 
-                            src={previewingVideo.userAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${previewingVideo.username}`} 
-                            alt={previewingVideo.username}
-                            className="w-8 h-8 rounded-full border-2 border-white"
-                          />
-                          <span className="text-white font-semibold text-sm">@{previewingVideo.username}</span>
-                        </div>
-                        <p className="text-white text-sm mb-3">{previewingVideo.caption}</p>
-                        <div className="flex gap-4 text-white text-xs">
-                          <span>❤️ {previewingVideo.likes.toLocaleString()}</span>
-                          <span>💬 {previewingVideo.comments.toLocaleString()}</span>
-                          <span>↗️ {previewingVideo.shares.toLocaleString()}</span>
-                        </div>
-                        {previewingVideo.song && (
-                          <p className="text-white/70 text-xs mt-2">🎵 {previewingVideo.song}</p>
-                        )}
-                      </div>
-                    </>
+                    <VideoPreview video={previewingVideo} />
                   )}
                 </div>
               </DialogContent>
