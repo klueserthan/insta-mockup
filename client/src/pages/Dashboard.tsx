@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2 } from 'lucide-react';
@@ -94,9 +95,27 @@ function SortableRow({ video, onDelete, onPreview, onEdit }: SortableRowProps) {
           <Button variant="ghost" size="icon" title="Preview" onClick={() => onPreview(video.id)} data-testid={`button-preview-${video.id}`}>
             <ExternalLink size={16} />
           </Button>
-          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title="Remove" onClick={() => onDelete(video.id)} data-testid={`button-delete-${video.id}`}>
-            <Trash2 size={16} />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title="Remove" data-testid={`button-delete-${video.id}`}>
+                <Trash2 size={16} />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove this video from the feed. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDelete(video.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" data-testid="button-confirm-delete">
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </TableCell>
     </TableRow>
