@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Trash2, Plus, Sparkles, Loader2, MessageCircle, Heart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, fetchWithAuth } from '@/lib/queryClient';
 import type { Video, PreseededComment } from '@shared/schema';
 
 interface CommentsManagerProps {
@@ -29,7 +29,7 @@ export function CommentsManager({ video, isOpen, onOpenChange }: CommentsManager
     queryKey: ['/api/videos', video?.id, 'comments'],
     queryFn: async () => {
       if (!video) return [];
-      const res = await fetch(`/api/videos/${video.id}/comments`);
+      const res = await fetchWithAuth(`/api/videos/${video.id}/comments`);
       if (!res.ok) throw new Error('Failed to fetch comments');
       return res.json();
     },

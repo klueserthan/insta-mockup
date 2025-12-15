@@ -18,7 +18,7 @@ import { VideoPreview } from '@/components/VideoPreview';
 import { CommentsManager } from '@/components/CommentsManager';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, fetchWithAuth } from '@/lib/queryClient';
 import type { Project, Experiment, Video } from '@shared/schema';
 import {
   DndContext,
@@ -174,7 +174,8 @@ export default function Dashboard() {
     queryKey: ['/api/projects', selectedProjectId, 'experiments'],
     queryFn: async () => {
       if (!selectedProjectId) return [];
-      const res = await fetch(`/api/projects/${selectedProjectId}/experiments`, { credentials: 'include' });
+      const res = await fetchWithAuth(`/api/projects/${selectedProjectId}/experiments`);
+      if (!res.ok) throw new Error('Failed to fetch experiments');
       return res.json();
     },
     enabled: !!selectedProjectId,
@@ -184,7 +185,8 @@ export default function Dashboard() {
     queryKey: ['/api/experiments', selectedExperimentId, 'videos'],
     queryFn: async () => {
       if (!selectedExperimentId) return [];
-      const res = await fetch(`/api/experiments/${selectedExperimentId}/videos`, { credentials: 'include' });
+      const res = await fetchWithAuth(`/api/experiments/${selectedExperimentId}/videos`);
+      if (!res.ok) throw new Error('Failed to fetch videos');
       return res.json();
     },
     enabled: !!selectedExperimentId,
