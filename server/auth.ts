@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -12,6 +12,8 @@ declare global {
     interface User extends Researcher {}
   }
 }
+
+const tokenToUserMap = new Map<string, string>();
 
 const scryptAsync = promisify(scrypt);
 
@@ -29,15 +31,17 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  const isProduction = process.env.NODE_ENV === "production";
+  
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "instarel-research-secret-key",
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      secure: true,
+      secure: "auto" as any,
       httpOnly: true,
-      sameSite: "none",
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   };
@@ -46,6 +50,23 @@ export function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
+
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const userId = tokenToUserMap.get(token);
+        if (userId) {
+          const user = await storage.getResearcher(userId);
+          if (user) {
+            req.user = user;
+          }
+        }
+      }
+    }
+    next();
+  });
 
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
@@ -77,17 +98,26 @@ export function setupAuth(app: Express) {
 
     req.login(researcher, (err) => {
       if (err) return next(err);
+      const token = randomBytes(32).toString("hex");
+      tokenToUserMap.set(token, researcher.id);
       const { password, ...researcherWithoutPassword } = researcher;
-      res.status(201).json(researcherWithoutPassword);
+      res.status(201).json({ ...researcherWithoutPassword, token });
     });
   });
 
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
+    const token = randomBytes(32).toString("hex");
+    tokenToUserMap.set(token, req.user!.id);
     const { password, ...researcherWithoutPassword } = req.user!;
-    res.status(200).json(researcherWithoutPassword);
+    res.status(200).json({ ...researcherWithoutPassword, token });
   });
 
   app.post("/api/logout", (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      tokenToUserMap.delete(token);
+    }
     req.logout((err) => {
       if (err) return next(err);
       res.sendStatus(200);
@@ -95,7 +125,7 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.isAuthenticated() && !req.user) return res.sendStatus(401);
     const { password, ...researcherWithoutPassword } = req.user!;
     res.json(researcherWithoutPassword);
   });

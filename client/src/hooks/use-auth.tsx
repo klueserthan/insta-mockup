@@ -5,7 +5,7 @@ import {
   UseMutationResult,
 } from "@tanstack/react-query";
 import { Researcher, InsertResearcher } from "@shared/schema";
-import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
+import { getQueryFn, apiRequest, queryClient, setAuthToken } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 type AuthContextType = {
@@ -37,7 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/login", credentials);
       return await res.json();
     },
-    onSuccess: (user: Omit<Researcher, 'password'>) => {
+    onSuccess: (data: Omit<Researcher, 'password'> & { token?: string }) => {
+      if (data.token) {
+        setAuthToken(data.token);
+      }
+      const { token, ...user } = data as any;
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
@@ -54,7 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/register", credentials);
       return await res.json();
     },
-    onSuccess: (user: Omit<Researcher, 'password'>) => {
+    onSuccess: (data: Omit<Researcher, 'password'> & { token?: string }) => {
+      if (data.token) {
+        setAuthToken(data.token);
+      }
+      const { token, ...user } = data as any;
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
@@ -71,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
+      setAuthToken(null);
       queryClient.setQueryData(["/api/user"], null);
     },
     onError: (error: Error) => {
