@@ -345,7 +345,7 @@ export function VideoPlayer({
       </div>
 
       {/* Right Side Actions */}
-      <div className="absolute bottom-24 right-3 flex flex-col items-center gap-4 z-20 text-white">
+      <div className="absolute bottom-10 right-3 flex flex-col items-center gap-4 z-20 text-white">
         {/* Like */}
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
