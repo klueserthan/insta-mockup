@@ -19,6 +19,8 @@ export const projects = pgTable('projects', {
   timeLimitSeconds: integer('time_limit_seconds').notNull().default(300),
   redirectUrl: text('redirect_url').notNull().default(''),
   endScreenMessage: text('end_screen_message').notNull().default('Thank you for participating in this study. You will be redirected shortly.'),
+  lockAllPositions: boolean('lock_all_positions').notNull().default(false),
+  randomizationSeed: integer('randomization_seed').notNull().default(42),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -45,6 +47,7 @@ export const videos = pgTable('videos', {
   song: text('song').notNull(),
   description: text('description'),
   position: integer('position').notNull().default(0),
+  isLocked: boolean('is_locked').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

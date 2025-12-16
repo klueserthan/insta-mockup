@@ -252,6 +252,26 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
     }
   });
 
+  // Seeded random shuffle helper using Mulberry32 PRNG
+  function seededShuffle<T>(array: T[], seed: number): T[] {
+    const result = [...array];
+    let state = seed;
+    
+    const random = () => {
+      state = (state + 0x6D2B79F5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    
+    return result;
+  }
+
   // Public Feed (for participants) - returns videos and project settings
   app.get("/api/feed/:publicUrl", async (req, res) => {
     try {
@@ -267,8 +287,80 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
 
       const videosList = await storage.getVideosByExperiment(experiment.id);
       
+      // Apply randomization logic
+      let orderedVideos: typeof videosList;
+      
+      if (project.lockAllPositions) {
+        // All videos locked - just use original position order
+        orderedVideos = [...videosList];
+      } else {
+        // Separate locked and unlocked videos
+        const lockedVideos = videosList.filter(v => v.isLocked);
+        const unlockedVideos = videosList.filter(v => !v.isLocked);
+        
+        // Shuffle unlocked videos with seed
+        const shuffledUnlocked = seededShuffle(unlockedVideos, project.randomizationSeed);
+        
+        // Algorithm: Build result array using locked videos at their clamped positions
+        // Step 1: Create array slots for all videos
+        const totalCount = videosList.length;
+        const result: (typeof videosList[0] | null)[] = new Array(totalCount).fill(null);
+        const usedSlots = new Set<number>();
+        
+        // Step 2: Sort locked videos by position (original order) and sanitize positions
+        const sanitizedLocked = lockedVideos
+          .map((v, originalIndex) => ({
+            video: v,
+            // Sanitize: ensure position is a finite non-negative integer
+            pos: Number.isFinite(v.position) && v.position >= 0 
+              ? Math.floor(v.position) 
+              : originalIndex  // Fallback to original array index if position is invalid
+          }))
+          .sort((a, b) => a.pos - b.pos);
+        
+        // Step 3: Place locked videos at their target positions (clamped)
+        for (const { video, pos } of sanitizedLocked) {
+          // Clamp to valid range
+          const clamped = Math.min(pos, totalCount - 1);
+          
+          // Find first available slot starting from clamped position
+          let targetSlot = clamped;
+          while (usedSlots.has(targetSlot) && targetSlot < totalCount) {
+            targetSlot++;
+          }
+          
+          // If we went past the end, find first available from the beginning
+          if (targetSlot >= totalCount) {
+            for (let i = 0; i < totalCount; i++) {
+              if (!usedSlots.has(i)) {
+                targetSlot = i;
+                break;
+              }
+            }
+          }
+          
+          // Safety: if all slots are somehow used (shouldn't happen), skip
+          // But this should never occur if counts are correct
+          if (targetSlot < totalCount && !usedSlots.has(targetSlot)) {
+            result[targetSlot] = video;
+            usedSlots.add(targetSlot);
+          }
+        }
+        
+        // Step 4: Fill remaining slots with shuffled unlocked videos
+        let unlockedIdx = 0;
+        for (let i = 0; i < totalCount; i++) {
+          if (result[i] === null && unlockedIdx < shuffledUnlocked.length) {
+            result[i] = shuffledUnlocked[unlockedIdx++];
+          }
+        }
+        
+        // Step 5: Filter out any null entries and cast
+        orderedVideos = result.filter((v): v is typeof videosList[0] => v !== null);
+      }
+      
       const videosWithComments = await Promise.all(
-        videosList.map(async (video) => {
+        orderedVideos.map(async (video) => {
           const comments = await storage.getPreseededCommentsByVideo(video.id);
           return { ...video, preseededComments: comments };
         })

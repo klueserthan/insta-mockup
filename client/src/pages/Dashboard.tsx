@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2, MessageCircle, Sparkles, X, Heart, Send } from 'lucide-react';
+import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2, MessageCircle, Sparkles, X, Heart, Send, Lock, Unlock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { ObjectUploader } from '@/components/ObjectUploader';
@@ -46,9 +46,11 @@ interface SortableRowProps {
   onPreview: (id: string) => void;
   onEdit: (video: Video) => void;
   onManageComments: (video: Video) => void;
+  onToggleLock: (video: Video) => void;
+  lockAllPositions: boolean;
 }
 
-function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit, onManageComments }: SortableRowProps) {
+function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit, onManageComments, onToggleLock, lockAllPositions }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -56,7 +58,7 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: video.id });
+  } = useSortable({ id: video.id, disabled: video.isLocked || lockAllPositions });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -66,8 +68,10 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
     backgroundColor: isDragging ? 'hsl(var(--muted))' : undefined,
   };
 
+  const isEffectivelyLocked = video.isLocked || lockAllPositions;
+
   return (
-    <TableRow ref={setNodeRef} style={style} {...attributes} className={`${isDragging ? 'opacity-50' : ''} ${isSelected ? 'bg-muted/50' : ''}`}>
+    <TableRow ref={setNodeRef} style={style} {...attributes} className={`${isDragging ? 'opacity-50' : ''} ${isSelected ? 'bg-muted/50' : ''} ${video.isLocked ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
       <TableCell className="w-[50px]">
         <Checkbox
           checked={isSelected}
@@ -77,12 +81,25 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
       </TableCell>
       <TableCell className="w-[50px]">
         <div 
-          {...listeners} 
-          className="cursor-grab active:cursor-grabbing p-2 hover:bg-muted rounded flex items-center justify-center"
+          {...(isEffectivelyLocked ? {} : listeners)} 
+          className={`p-2 rounded flex items-center justify-center ${isEffectivelyLocked ? 'cursor-not-allowed opacity-50' : 'cursor-grab active:cursor-grabbing hover:bg-muted'}`}
           data-testid={`drag-handle-${video.id}`}
         >
           <GripVertical size={18} className="text-muted-foreground" />
         </div>
+      </TableCell>
+      <TableCell className="w-[50px]">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          title={video.isLocked ? "Unlock position" : "Lock position"}
+          onClick={() => onToggleLock(video)}
+          disabled={lockAllPositions}
+          className={video.isLocked ? "text-amber-600" : "text-muted-foreground"}
+          data-testid={`button-lock-${video.id}`}
+        >
+          {video.isLocked ? <Lock size={16} /> : <Unlock size={16} />}
+        </Button>
       </TableCell>
       <TableCell>
         <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden">
@@ -150,7 +167,7 @@ export default function Dashboard() {
   const [experimentDialogOpen, setExperimentDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   
-  const [newProject, setNewProject] = useState({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '', endScreenMessage: 'Thank you for participating in this study. You will be redirected shortly.' });
+  const [newProject, setNewProject] = useState({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '', endScreenMessage: 'Thank you for participating in this study. You will be redirected shortly.', lockAllPositions: false, randomizationSeed: 42 });
   const [newExperiment, setNewExperiment] = useState({ name: '' });
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'finalizing' | 'done'>('idle');
@@ -203,7 +220,7 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
       setProjectDialogOpen(false);
-      setNewProject({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '', endScreenMessage: 'Thank you for participating in this study. You will be redirected shortly.' });
+      setNewProject({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '', endScreenMessage: 'Thank you for participating in this study. You will be redirected shortly.', lockAllPositions: false, randomizationSeed: 42 });
       toast({ title: 'Project created', description: 'Your new project is ready.' });
     },
   });
@@ -478,6 +495,30 @@ export default function Dashboard() {
                       />
                       <p className="text-xs text-muted-foreground">Message shown when the feed ends before redirect</p>
                     </div>
+                    <div className="flex items-center justify-between">
+                      <div className="grid gap-1">
+                        <Label htmlFor="lock-all-positions">Lock All Positions</Label>
+                        <p className="text-xs text-muted-foreground">Disable feed randomization entirely</p>
+                      </div>
+                      <Switch 
+                        id="lock-all-positions"
+                        checked={newProject.lockAllPositions}
+                        onCheckedChange={(checked) => setNewProject({ ...newProject, lockAllPositions: checked })}
+                        data-testid="switch-lock-all-positions"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="randomization-seed">Randomization Seed</Label>
+                      <Input 
+                        id="randomization-seed" 
+                        type="number" 
+                        value={newProject.randomizationSeed} 
+                        onChange={(e) => setNewProject({ ...newProject, randomizationSeed: parseInt(e.target.value) || 42 })} 
+                        disabled={newProject.lockAllPositions}
+                        data-testid="input-randomization-seed" 
+                      />
+                      <p className="text-xs text-muted-foreground">Seed for deterministic randomization of unlocked items</p>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button 
@@ -576,6 +617,26 @@ export default function Dashboard() {
                         />
                         <p className="text-xs text-muted-foreground">Message shown when the feed ends before redirect</p>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <div className="grid gap-1">
+                          <Label>Lock All Positions</Label>
+                          <p className="text-xs text-muted-foreground">Disable feed randomization entirely</p>
+                        </div>
+                        <Switch 
+                          checked={editingProject.lockAllPositions}
+                          onCheckedChange={(checked) => setEditingProject({ ...editingProject, lockAllPositions: checked })}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Randomization Seed</Label>
+                        <Input 
+                          type="number" 
+                          value={editingProject.randomizationSeed} 
+                          onChange={(e) => setEditingProject({ ...editingProject, randomizationSeed: parseInt(e.target.value) || 42 })} 
+                          disabled={editingProject.lockAllPositions}
+                        />
+                        <p className="text-xs text-muted-foreground">Seed for deterministic randomization of unlocked items</p>
+                      </div>
                     </div>
                   )}
                   <DialogFooter className="flex justify-between">
@@ -590,7 +651,9 @@ export default function Dashboard() {
                           queryKey: editingProject!.queryKey, 
                           timeLimitSeconds: editingProject!.timeLimitSeconds, 
                           redirectUrl: editingProject!.redirectUrl,
-                          endScreenMessage: editingProject!.endScreenMessage
+                          endScreenMessage: editingProject!.endScreenMessage,
+                          lockAllPositions: editingProject!.lockAllPositions,
+                          randomizationSeed: editingProject!.randomizationSeed
                         } 
                       })}
                       disabled={editingProject?.redirectUrl ? !editingProject.redirectUrl.startsWith('http://') && !editingProject.redirectUrl.startsWith('https://') : false}
@@ -858,6 +921,7 @@ export default function Dashboard() {
                             />
                           </TableHead>
                           <TableHead className="w-[50px]"></TableHead>
+                          <TableHead className="w-[50px]">Lock</TableHead>
                           <TableHead className="w-[100px]">Thumbnail</TableHead>
                           <TableHead>Caption</TableHead>
                           <TableHead>Metrics</TableHead>
@@ -876,6 +940,8 @@ export default function Dashboard() {
                               onPreview={(id) => setPreviewingVideo(videos.find(v => v.id === id) || null)}
                               onEdit={(v) => { setUploadStatus('idle'); setEditingVideo(v); }}
                               onManageComments={(v) => setManagingCommentsVideo(v)}
+                              onToggleLock={(v) => updateVideoMutation.mutate({ id: v.id, data: { isLocked: !v.isLocked } })}
+                              lockAllPositions={selectedProject?.lockAllPositions || false}
                             />
                           ))}
                         </SortableContext>
