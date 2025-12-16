@@ -461,11 +461,18 @@ export default function Dashboard() {
                     <div className="grid gap-2">
                       <Label htmlFor="redirect-url">Redirect URL</Label>
                       <Input id="redirect-url" value={newProject.redirectUrl} onChange={(e) => setNewProject({ ...newProject, redirectUrl: e.target.value })} placeholder="https://your-survey.com/complete" data-testid="input-redirect-url" />
+                      {newProject.redirectUrl && !newProject.redirectUrl.startsWith('http://') && !newProject.redirectUrl.startsWith('https://') && (
+                        <p className="text-sm text-destructive">URL must start with http:// or https://</p>
+                      )}
                       <p className="text-xs text-muted-foreground">Where to send participants when time expires</p>
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button onClick={() => createProjectMutation.mutate(newProject)} disabled={!newProject.name || createProjectMutation.isPending} data-testid="button-create-project">
+                    <Button 
+                      onClick={() => createProjectMutation.mutate(newProject)} 
+                      disabled={!newProject.name || createProjectMutation.isPending || (newProject.redirectUrl ? !newProject.redirectUrl.startsWith('http://') && !newProject.redirectUrl.startsWith('https://') : false)} 
+                      data-testid="button-create-project"
+                    >
                       {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
                     </Button>
                   </DialogFooter>
@@ -538,7 +545,14 @@ export default function Dashboard() {
                       </div>
                       <div className="grid gap-2">
                         <Label>Redirect URL</Label>
-                        <Input value={editingProject.redirectUrl} onChange={(e) => setEditingProject({ ...editingProject, redirectUrl: e.target.value })} />
+                        <Input 
+                          value={editingProject.redirectUrl} 
+                          onChange={(e) => setEditingProject({ ...editingProject, redirectUrl: e.target.value })} 
+                          placeholder="https://example.com/survey"
+                        />
+                        {editingProject.redirectUrl && !editingProject.redirectUrl.startsWith('http://') && !editingProject.redirectUrl.startsWith('https://') && (
+                          <p className="text-sm text-destructive">URL must start with http:// or https://</p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -546,15 +560,18 @@ export default function Dashboard() {
                     <Button variant="destructive" onClick={() => { deleteProjectMutation.mutate(editingProject!.id); setEditingProject(null); }}>
                       Delete Project
                     </Button>
-                    <Button onClick={() => updateProjectMutation.mutate({ 
-                      id: editingProject!.id, 
-                      data: { 
-                        name: editingProject!.name, 
-                        queryKey: editingProject!.queryKey, 
-                        timeLimitSeconds: editingProject!.timeLimitSeconds, 
-                        redirectUrl: editingProject!.redirectUrl 
-                      } 
-                    })}>
+                    <Button 
+                      onClick={() => updateProjectMutation.mutate({ 
+                        id: editingProject!.id, 
+                        data: { 
+                          name: editingProject!.name, 
+                          queryKey: editingProject!.queryKey, 
+                          timeLimitSeconds: editingProject!.timeLimitSeconds, 
+                          redirectUrl: editingProject!.redirectUrl 
+                        } 
+                      })}
+                      disabled={editingProject?.redirectUrl ? !editingProject.redirectUrl.startsWith('http://') && !editingProject.redirectUrl.startsWith('https://') : false}
+                    >
                       Save Changes
                     </Button>
                   </DialogFooter>
