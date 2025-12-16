@@ -349,7 +349,7 @@ export function VideoPlayer({
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
             <div className="flex items-center justify-center text-white h-8 w-8">
-              <Heart size={26} strokeWidth={1.5} />
+              <Heart size={26} strokeWidth={2} />
             </div>
           ) : (
             <button 
@@ -357,7 +357,7 @@ export function VideoPlayer({
               className={cn("transition-transform active:scale-90 flex items-center justify-center h-8 w-8", liked ? "text-[#FF3040]" : "text-white")}
               data-testid={`button-like-${video.id}`}
             >
-              <Heart size={26} strokeWidth={1.5} className={cn(liked && "fill-[#FF3040]")} />
+              <Heart size={26} strokeWidth={2} className={cn(liked && "fill-[#FF3040]")} />
             </button>
           )}
           <span className="text-[11px] font-medium mt-0.5">{previewMode ? video.likes : (liked ? video.likes + 1 : video.likes)}</span>
@@ -367,14 +367,14 @@ export function VideoPlayer({
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
             <div className="flex items-center justify-center text-white h-8 w-8">
-              <MessageCircle size={26} strokeWidth={1.5} className="scale-x-[-1]" />
+              <MessageCircle size={26} strokeWidth={2} className="scale-x-[-1]" />
             </div>
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
               className="transition-transform active:scale-90 text-white flex items-center justify-center h-8 w-8"
             >
-              <MessageCircle size={26} strokeWidth={1.5} className="scale-x-[-1]" />
+              <MessageCircle size={26} strokeWidth={2} className="scale-x-[-1]" />
             </button>
           )}
           <span className="text-[11px] font-medium mt-0.5">{video.comments}</span>
@@ -383,7 +383,7 @@ export function VideoPlayer({
         {/* Remix */}
         <div className="flex flex-col items-center w-12">
           <div className="flex items-center justify-center text-white h-8 w-8">
-            <Repeat2 size={26} strokeWidth={1.5} />
+            <Repeat2 size={26} strokeWidth={2} />
           </div>
         </div>
 
@@ -391,14 +391,14 @@ export function VideoPlayer({
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
             <div className="flex items-center justify-center text-white h-8 w-8">
-              <Send size={24} strokeWidth={1.5} />
+              <Send size={24} strokeWidth={2} />
             </div>
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); handleShare(); }}
               className="transition-transform active:scale-90 text-white flex items-center justify-center h-8 w-8"
             >
-              <Send size={24} strokeWidth={1.5} />
+              <Send size={24} strokeWidth={2} />
             </button>
           )}
           <span className="text-[11px] font-medium mt-0.5">{video.shares}</span>
