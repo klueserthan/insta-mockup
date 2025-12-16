@@ -420,39 +420,39 @@ export function VideoPlayer({
       </div>
 
       {/* Bottom Info Overlay */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 z-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
-        <div className="flex items-center gap-2 mb-3">
-          <Avatar className="w-8 h-8 border border-white/20">
-            <AvatarImage src={video.userAvatar} />
-            <AvatarFallback>{video.username[0]}</AvatarFallback>
-          </Avatar>
-          <span className="font-semibold text-sm drop-shadow-md">{video.username}</span>
-          {previewMode ? (
-            <span className="border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm border-white/30 text-white">
-              Follow
-            </span>
-          ) : (
-            <button 
-              onClick={(e) => { e.stopPropagation(); handleFollow(); }}
-              className={cn(
-                "border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm transition-colors",
-                following ? "bg-white/20 border-transparent text-white" : "border-white/30 text-white hover:bg-white/10"
-              )}
-            >
-              {following ? 'Following' : 'Follow'}
-            </button>
-          )}
-        </div>
+      {!captionExpanded && (
+        <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 z-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
+          <div className="flex items-center gap-2 mb-3">
+            <Avatar className="w-8 h-8 border border-white/20">
+              <AvatarImage src={video.userAvatar} />
+              <AvatarFallback>{video.username[0]}</AvatarFallback>
+            </Avatar>
+            <span className="font-semibold text-sm drop-shadow-md">{video.username}</span>
+            {previewMode ? (
+              <span className="border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm border-white/30 text-white">
+                Follow
+              </span>
+            ) : (
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleFollow(); }}
+                className={cn(
+                  "border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm transition-colors",
+                  following ? "bg-white/20 border-transparent text-white" : "border-white/30 text-white hover:bg-white/10"
+                )}
+              >
+                {following ? 'Following' : 'Follow'}
+              </button>
+            )}
+          </div>
 
-        {!captionExpanded && (
           <div 
             className="text-sm drop-shadow-md cursor-pointer pr-14"
             onClick={(e) => { e.stopPropagation(); if (!previewMode) setCaptionExpanded(true); }}
           >
             <span className="line-clamp-1">{video.caption}</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Expanded Caption Overlay */}
       <AnimatePresence>
