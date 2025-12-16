@@ -166,7 +166,23 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [progress, setProgress] = useState(0);
   const startTimeRef = useRef<number | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
+
+  // Control video playback based on isActive state (Instagram-like behavior)
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (isActive) {
+      videoElement.play().catch(() => {
+        // Autoplay may be blocked by browser - that's fine
+      });
+    } else {
+      videoElement.pause();
+      videoElement.currentTime = 0;
+    }
+  }, [isActive]);
 
   // Reset state when video changes or becomes inactive
   useEffect(() => {
@@ -252,9 +268,9 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
       {/* Video Content */}
       {video.url.includes('/objects/') || video.url.endsWith('.mp4') || video.url.endsWith('.webm') || video.url.endsWith('.mov') ? (
         <video 
+          ref={videoRef}
           src={video.url}
           className="absolute h-full w-full object-cover"
-          autoPlay={isActive}
           loop
           muted={muted}
           playsInline
