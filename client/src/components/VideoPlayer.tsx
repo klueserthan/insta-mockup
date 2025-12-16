@@ -176,6 +176,7 @@ export function VideoPlayer({
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [progress, setProgress] = useState(0);
   const [hasInteractedWithMute, setHasInteractedWithMute] = useState(false);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const startTimeRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
@@ -443,10 +444,37 @@ export function VideoPlayer({
           )}
         </div>
 
-        <div className="text-sm line-clamp-2 drop-shadow-md">
-          {video.caption}
+        <div 
+          className="text-sm drop-shadow-md cursor-pointer pr-14"
+          onClick={(e) => { e.stopPropagation(); if (!previewMode) setCaptionExpanded(true); }}
+        >
+          <span className="line-clamp-1">{video.caption}</span>
         </div>
       </div>
+
+      {/* Expanded Caption Overlay */}
+      <AnimatePresence>
+        {captionExpanded && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/80 z-40 flex flex-col justify-end p-4 pb-12"
+            onClick={(e) => { e.stopPropagation(); setCaptionExpanded(false); }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Avatar className="w-8 h-8 border border-white/20">
+                <AvatarImage src={video.userAvatar} />
+                <AvatarFallback>{video.username[0]}</AvatarFallback>
+              </Avatar>
+              <span className="font-semibold text-sm text-white drop-shadow-md">{video.username}</span>
+            </div>
+            <div className="text-sm text-white drop-shadow-md max-h-[60vh] overflow-y-auto">
+              {video.caption}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Progress Bar */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-30">
