@@ -420,8 +420,25 @@ export function VideoPlayer({
       </div>
 
       {/* Bottom Info Overlay */}
-      {!captionExpanded && (
-        <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 z-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
+      <motion.div 
+        className="absolute bottom-0 left-0 right-0 z-20 text-white"
+        initial={false}
+        animate={{
+          paddingTop: captionExpanded ? 16 : 48,
+          paddingBottom: captionExpanded ? 12 : 8,
+        }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        style={{
+          background: captionExpanded 
+            ? 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.85) 80%, rgba(0,0,0,0.7) 100%)'
+            : 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)'
+        }}
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          if (captionExpanded && !previewMode) setCaptionExpanded(false); 
+        }}
+      >
+        <div className="px-4">
           <div className="flex items-center gap-2 mb-3">
             <Avatar className="w-8 h-8 border border-white/20">
               <AvatarImage src={video.userAvatar} />
@@ -445,45 +462,26 @@ export function VideoPlayer({
             )}
           </div>
 
-          <div 
-            className="text-sm drop-shadow-md cursor-pointer pr-14"
-            onClick={(e) => { e.stopPropagation(); if (!previewMode) setCaptionExpanded(true); }}
-          >
-            <span className="line-clamp-1">{video.caption}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Expanded Caption Overlay */}
-      <AnimatePresence>
-        {captionExpanded && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
+          <motion.div 
+            className={cn(
+              "text-sm drop-shadow-md pr-14",
+              !captionExpanded && "cursor-pointer"
+            )}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              if (!previewMode && !captionExpanded) setCaptionExpanded(true); 
+            }}
+            initial={false}
+            animate={{
+              maxHeight: captionExpanded ? 200 : 24,
+            }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="absolute inset-0 bg-black/80 z-40 flex flex-col justify-end p-4 pb-12"
-            onClick={(e) => { e.stopPropagation(); setCaptionExpanded(false); }}
+            style={{ overflow: captionExpanded ? 'auto' : 'hidden' }}
           >
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: 0.1 }}
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <Avatar className="w-8 h-8 border border-white/20">
-                  <AvatarImage src={video.userAvatar} />
-                  <AvatarFallback>{video.username[0]}</AvatarFallback>
-                </Avatar>
-                <span className="font-semibold text-sm text-white drop-shadow-md">{video.username}</span>
-              </div>
-              <div className="text-sm text-white drop-shadow-md max-h-[60vh] overflow-y-auto">
-                {video.caption}
-              </div>
-            </motion.div>
+            <span className={cn(!captionExpanded && "line-clamp-1")}>{video.caption}</span>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </motion.div>
 
       {/* Progress Bar */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-30">
