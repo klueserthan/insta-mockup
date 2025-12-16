@@ -300,7 +300,7 @@ export default function Dashboard() {
   });
 
   const createVideoMutation = useMutation({
-    mutationFn: async (data: { url: string; username: string; caption: string; likes: number; comments: number; shares: number; song: string }) => {
+    mutationFn: async (data: { url: string; username: string; userAvatar: string; caption: string; likes: number; comments: number; shares: number; song: string }) => {
       const res = await apiRequest('POST', `/api/experiments/${selectedExperimentId}/videos`, data);
       return res.json();
     },
@@ -986,9 +986,11 @@ export default function Dashboard() {
                     onClick={() => {
                       if (!editingVideo) return;
                       if (isNewVideo) {
+                        const seed = Math.random().toString(36).substring(7);
                         createVideoMutation.mutate({
                           url: editingVideo.url,
                           username: editingVideo.username,
+                          userAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${editingVideo.username}_${seed}`,
                           caption: editingVideo.caption,
                           likes: editingVideo.likes,
                           comments: editingVideo.comments,
