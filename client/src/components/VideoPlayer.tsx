@@ -310,30 +310,16 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction,
       {/* Top Controls */}
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20 bg-gradient-to-b from-black/40 to-transparent">
         <div className="text-white font-bold text-lg drop-shadow-md">Reels</div>
-        <div className="relative flex items-center justify-center">
-          {showMuteHighlight && (
-            <motion.div
-              className="absolute w-10 h-10 rounded-full border-2 border-white pointer-events-none"
-              style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
-              animate={{ 
-                scale: [1, 1.3, 1],
-                opacity: [1, 0.4, 1]
-              }}
-              transition={{ 
-                duration: 1.5,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            />
+        <button 
+          onClick={(e) => { e.stopPropagation(); handleMuteClick(); }} 
+          className={cn(
+            "relative text-white/90 hover:text-white",
+            showMuteHighlight && "animate-pulse-ring"
           )}
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleMuteClick(); }} 
-            className="relative text-white/90 hover:text-white p-2"
-            data-testid="button-mute-toggle"
-          >
-            {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-          </button>
-        </div>
+          data-testid="button-mute-toggle"
+        >
+          {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+        </button>
       </div>
 
       {/* Right Side Actions */}
