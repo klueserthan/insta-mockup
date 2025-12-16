@@ -18,6 +18,7 @@ export const projects = pgTable('projects', {
   queryKey: text('query_key').notNull().default('participantId'),
   timeLimitSeconds: integer('time_limit_seconds').notNull().default(300),
   redirectUrl: text('redirect_url').notNull().default(''),
+  endScreenMessage: text('end_screen_message').notNull().default('Thank you for participating in this study. You will be redirected shortly.'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

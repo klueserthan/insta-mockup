@@ -14,6 +14,7 @@ interface FeedData {
     queryKey: string;
     timeLimitSeconds: number;
     redirectUrl: string;
+    endScreenMessage: string;
   };
   videos: Video[];
 }
@@ -45,6 +46,15 @@ export default function ReelsFeed() {
   const participantId = searchParams.get(queryKey) || 'anonymous';
   const timeLimitSeconds = feedData?.projectSettings.timeLimitSeconds || 300;
   const redirectUrl = feedData?.projectSettings.redirectUrl || '';
+  const endScreenMessage = feedData?.projectSettings.endScreenMessage || 'Thank you for participating in this study.';
+
+  const navigateToEndScreen = useCallback(() => {
+    const endScreenParams = new URLSearchParams(window.location.search);
+    endScreenParams.set('message', endScreenMessage);
+    endScreenParams.set('redirect', redirectUrl);
+    endScreenParams.set('queryKey', queryKey);
+    setLocation(`/end/${publicUrl}?${endScreenParams.toString()}`);
+  }, [endScreenMessage, redirectUrl, queryKey, publicUrl, setLocation]);
 
   useEffect(() => {
     if (feedData?.videos?.length && !activeVideoId) {
@@ -67,12 +77,7 @@ export default function ReelsFeed() {
             const remaining = timeLimitSeconds - elapsedSeconds;
             
             if (remaining <= 0) {
-              if (redirectUrl) {
-                const finalUrl = redirectUrl.includes('?') 
-                  ? `${redirectUrl}&${queryKey}=${participantId}`
-                  : `${redirectUrl}?${queryKey}=${participantId}`;
-                window.location.href = finalUrl;
-              }
+              navigateToEndScreen();
               setTimeRemaining(0);
             } else {
               setTimeRemaining(remaining);
@@ -91,7 +96,7 @@ export default function ReelsFeed() {
       
       setSessionStarted(true);
     }
-  }, [feedData, timeLimitSeconds, sessionStarted, participantId, redirectUrl, queryKey]);
+  }, [feedData, timeLimitSeconds, sessionStarted, participantId, navigateToEndScreen]);
 
   useEffect(() => {
     if (timeRemaining === null || timeRemaining <= 0) return;
@@ -104,12 +109,7 @@ export default function ReelsFeed() {
             const storageKey = `timer_${feedData.experimentId}_${participantId}`;
             localStorage.removeItem(storageKey);
           }
-          if (redirectUrl) {
-            const finalUrl = redirectUrl.includes('?') 
-              ? `${redirectUrl}&${queryKey}=${participantId}`
-              : `${redirectUrl}?${queryKey}=${participantId}`;
-            window.location.href = finalUrl;
-          }
+          navigateToEndScreen();
           return 0;
         }
         return prev - 1;
@@ -117,7 +117,7 @@ export default function ReelsFeed() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining, redirectUrl, queryKey, participantId, feedData?.experimentId, feedData?.persistTimer]);
+  }, [timeRemaining, navigateToEndScreen, feedData?.experimentId, feedData?.persistTimer, participantId]);
 
   const logInteraction = useCallback(async (type: string, videoId: string, data?: any) => {
     if (!feedData?.experimentId) return;

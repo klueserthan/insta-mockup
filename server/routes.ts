@@ -282,7 +282,8 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
         projectSettings: {
           queryKey: project.queryKey,
           timeLimitSeconds: project.timeLimitSeconds,
-          redirectUrl: project.redirectUrl
+          redirectUrl: project.redirectUrl,
+          endScreenMessage: project.endScreenMessage
         },
         videos: videosWithComments
       });

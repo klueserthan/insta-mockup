@@ -150,7 +150,7 @@ export default function Dashboard() {
   const [experimentDialogOpen, setExperimentDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   
-  const [newProject, setNewProject] = useState({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '' });
+  const [newProject, setNewProject] = useState({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '', endScreenMessage: 'Thank you for participating in this study. You will be redirected shortly.' });
   const [newExperiment, setNewExperiment] = useState({ name: '' });
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'finalizing' | 'done'>('idle');
@@ -203,7 +203,7 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
       setProjectDialogOpen(false);
-      setNewProject({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '' });
+      setNewProject({ name: '', queryKey: 'participantId', timeLimitSeconds: 300, redirectUrl: '', endScreenMessage: 'Thank you for participating in this study. You will be redirected shortly.' });
       toast({ title: 'Project created', description: 'Your new project is ready.' });
     },
   });
@@ -466,6 +466,18 @@ export default function Dashboard() {
                       )}
                       <p className="text-xs text-muted-foreground">Where to send participants when time expires</p>
                     </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="end-screen-message">End Screen Message</Label>
+                      <textarea 
+                        id="end-screen-message" 
+                        value={newProject.endScreenMessage} 
+                        onChange={(e) => setNewProject({ ...newProject, endScreenMessage: e.target.value })} 
+                        placeholder="Thank you for participating..." 
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        data-testid="input-end-screen-message" 
+                      />
+                      <p className="text-xs text-muted-foreground">Message shown when the feed ends before redirect</p>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button 
@@ -554,6 +566,16 @@ export default function Dashboard() {
                           <p className="text-sm text-destructive">URL must start with http:// or https://</p>
                         )}
                       </div>
+                      <div className="grid gap-2">
+                        <Label>End Screen Message</Label>
+                        <textarea 
+                          value={editingProject.endScreenMessage} 
+                          onChange={(e) => setEditingProject({ ...editingProject, endScreenMessage: e.target.value })} 
+                          placeholder="Thank you for participating..."
+                          className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                        <p className="text-xs text-muted-foreground">Message shown when the feed ends before redirect</p>
+                      </div>
                     </div>
                   )}
                   <DialogFooter className="flex justify-between">
@@ -567,7 +589,8 @@ export default function Dashboard() {
                           name: editingProject!.name, 
                           queryKey: editingProject!.queryKey, 
                           timeLimitSeconds: editingProject!.timeLimitSeconds, 
-                          redirectUrl: editingProject!.redirectUrl 
+                          redirectUrl: editingProject!.redirectUrl,
+                          endScreenMessage: editingProject!.endScreenMessage
                         } 
                       })}
                       disabled={editingProject?.redirectUrl ? !editingProject.redirectUrl.startsWith('http://') && !editingProject.redirectUrl.startsWith('https://') : false}
