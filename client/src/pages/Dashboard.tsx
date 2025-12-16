@@ -300,7 +300,7 @@ export default function Dashboard() {
   });
 
   const createVideoMutation = useMutation({
-    mutationFn: async (data: { url: string; username: string; userAvatar: string; caption: string; likes: number; comments: number; shares: number; song: string }) => {
+    mutationFn: async (data: { url: string; username: string; userAvatar: string; caption: string; likes: number; comments: number; shares: number }) => {
       const res = await apiRequest('POST', `/api/experiments/${selectedExperimentId}/videos`, data);
       return res.json();
     },
@@ -371,7 +371,7 @@ export default function Dashboard() {
       position: videos.length,
       experimentId: selectedExperimentId || '',
       createdAt: new Date(),
-    });
+    } as Video);
   };
 
   function handleDragEnd(event: DragEndEvent) {
@@ -976,16 +976,6 @@ export default function Dashboard() {
                         />
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="video-song">Song</Label>
-                      <Input 
-                        id="video-song" 
-                        value={editingVideo.song || ''} 
-                        onChange={(e) => setEditingVideo({ ...editingVideo, song: e.target.value })} 
-                        placeholder="Original sound - username"
-                        data-testid="input-video-song"
-                      />
-                    </div>
                   </div>
                 )}
                 <DialogFooter>
@@ -1009,7 +999,6 @@ export default function Dashboard() {
                           likes: editingVideo.likes,
                           comments: editingVideo.comments,
                           shares: editingVideo.shares,
-                          song: editingVideo.song || '',
                         });
                       } else {
                         updateVideoMutation.mutate({ 
@@ -1021,7 +1010,6 @@ export default function Dashboard() {
                             likes: editingVideo.likes,
                             comments: editingVideo.comments,
                             shares: editingVideo.shares,
-                            song: editingVideo.song,
                           }
                         });
                       }

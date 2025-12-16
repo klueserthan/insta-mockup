@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Send, MoreHorizontal, Music2 } from 'lucide-react';
+import { Heart, MessageCircle, Send, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { Video } from '@shared/schema';
 
@@ -73,19 +73,8 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           </span>
         </div>
 
-        <div className="mb-3 text-sm line-clamp-2 drop-shadow-md">
+        <div className="text-sm line-clamp-2 drop-shadow-md">
           {video.caption}
-        </div>
-
-        <div className="flex items-center gap-2 text-xs font-medium opacity-90">
-          <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full backdrop-blur-sm">
-            <Music2 size={12} />
-            <div className="overflow-hidden w-32">
-              <div className="whitespace-nowrap truncate">
-                {video.song || 'Original Audio'}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
