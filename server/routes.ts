@@ -252,6 +252,16 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
     }
   });
 
+  // Simple string hash function (djb2)
+  function hashString(str: string): number {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+  }
+
   // Seeded random shuffle helper using Mulberry32 PRNG
   function seededShuffle<T>(array: T[], seed: number): T[] {
     const result = [...array];
@@ -287,6 +297,18 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
 
       const videosList = await storage.getVideosByExperiment(experiment.id);
       
+      // Calculate effective seed: combine base seed with participant ID if provided
+      const rawParticipantId = req.query[project.queryKey];
+      // Normalize: handle array values (take first), convert to string
+      const participantId = Array.isArray(rawParticipantId) 
+        ? rawParticipantId[0]?.toString() 
+        : rawParticipantId?.toString();
+      let effectiveSeed = project.randomizationSeed;
+      if (participantId) {
+        // Combine base seed with hashed participant ID for per-participant ordering
+        effectiveSeed = project.randomizationSeed + hashString(participantId);
+      }
+      
       // Apply randomization logic
       let orderedVideos: typeof videosList;
       
@@ -298,8 +320,8 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
         const lockedVideos = videosList.filter(v => v.isLocked);
         const unlockedVideos = videosList.filter(v => !v.isLocked);
         
-        // Shuffle unlocked videos with seed
-        const shuffledUnlocked = seededShuffle(unlockedVideos, project.randomizationSeed);
+        // Shuffle unlocked videos with seed (participant-specific if ID provided)
+        const shuffledUnlocked = seededShuffle(unlockedVideos, effectiveSeed);
         
         // Algorithm: Build result array using locked videos at their clamped positions
         // Step 1: Create array slots for all videos
