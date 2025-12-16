@@ -546,7 +546,15 @@ export default function Dashboard() {
                     <Button variant="destructive" onClick={() => { deleteProjectMutation.mutate(editingProject!.id); setEditingProject(null); }}>
                       Delete Project
                     </Button>
-                    <Button onClick={() => updateProjectMutation.mutate({ id: editingProject!.id, data: editingProject! })}>
+                    <Button onClick={() => updateProjectMutation.mutate({ 
+                      id: editingProject!.id, 
+                      data: { 
+                        name: editingProject!.name, 
+                        queryKey: editingProject!.queryKey, 
+                        timeLimitSeconds: editingProject!.timeLimitSeconds, 
+                        redirectUrl: editingProject!.redirectUrl 
+                      } 
+                    })}>
                       Save Changes
                     </Button>
                   </DialogFooter>
