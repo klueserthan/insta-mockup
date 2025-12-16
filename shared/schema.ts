@@ -27,6 +27,7 @@ export const experiments = pgTable('experiments', {
   name: text('name').notNull(),
   publicUrl: text('public_url').notNull().unique(),
   persistTimer: boolean('persist_timer').notNull().default(false),
+  showUnmutePrompt: boolean('show_unmute_prompt').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
