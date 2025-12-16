@@ -14,7 +14,7 @@ import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, Folde
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { ObjectUploader } from '@/components/ObjectUploader';
-import { VideoPreview } from '@/components/VideoPreview';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { CommentsManager } from '@/components/CommentsManager';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -1034,7 +1034,7 @@ export default function Dashboard() {
                 </DialogHeader>
                 <div className="aspect-[9/16] max-h-[80vh]">
                   {previewingVideo && (
-                    <VideoPreview video={previewingVideo} />
+                    <VideoPlayer video={previewingVideo} previewMode />
                   )}
                 </div>
               </DialogContent>

@@ -152,14 +152,23 @@ function ShareMenu({ isOpen, onClose, videoUrl, videoCaption }: ShareMenuProps) 
 
 interface VideoPlayerProps {
   video: Video;
-  isActive: boolean;
-  muted: boolean;
-  toggleMute: () => void;
-  onInteraction: (type: string, videoId: string) => void;
+  isActive?: boolean;
+  muted?: boolean;
+  toggleMute?: () => void;
+  onInteraction?: (type: string, videoId: string) => void;
   showUnmutePrompt?: boolean;
+  previewMode?: boolean;
 }
 
-export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction, showUnmutePrompt = false }: VideoPlayerProps) {
+export function VideoPlayer({ 
+  video, 
+  isActive = true, 
+  muted = true, 
+  toggleMute, 
+  onInteraction, 
+  showUnmutePrompt = false,
+  previewMode = false 
+}: VideoPlayerProps) {
   const [liked, setLiked] = useState(false);
   const [following, setFollowing] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
@@ -175,7 +184,7 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction,
   
   const handleMuteClick = () => {
     setHasInteractedWithMute(true);
-    toggleMute();
+    toggleMute?.();
   };
 
   // Control video playback based on isActive state (Instagram-like behavior)
@@ -193,8 +202,9 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction,
     }
   }, [isActive]);
 
-  // Reset state when video changes or becomes inactive
+  // Reset state when video changes or becomes inactive (skip in preview mode)
   useEffect(() => {
+    if (previewMode) return;
     if (!isActive) {
       startTimeRef.current = null;
       setProgress(0);
@@ -209,66 +219,75 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction,
       }, 100);
       return () => clearInterval(interval);
     }
-  }, [isActive]);
+  }, [isActive, previewMode]);
 
   // Log viewing time on unmount or when becoming inactive
   useEffect(() => {
+    if (previewMode) return;
     return () => {
-      if (startTimeRef.current) {
+      if (startTimeRef.current && onInteraction) {
         const duration = Date.now() - startTimeRef.current;
         onInteraction('view_duration', `${duration}ms`);
       }
     };
-  }, [isActive, onInteraction]);
+  }, [isActive, onInteraction, previewMode]);
 
   const handleDoubleTap = () => {
+    if (previewMode) return;
     if (!liked) {
       setLiked(true);
-      onInteraction('like', video.id);
+      onInteraction?.('like', video.id);
     }
     setShowHeartAnimation(true);
     setTimeout(() => setShowHeartAnimation(false), 1000);
   };
 
   const toggleLike = () => {
+    if (previewMode) return;
     if (liked) {
       setLiked(false);
-      onInteraction('unlike', video.id);
+      onInteraction?.('unlike', video.id);
     } else {
       setLiked(true);
-      onInteraction('like', video.id);
+      onInteraction?.('like', video.id);
     }
   };
 
   const handleFollow = () => {
+    if (previewMode) return;
     setFollowing(!following);
-    onInteraction(following ? 'unfollow' : 'follow', video.id);
+    onInteraction?.(following ? 'unfollow' : 'follow', video.id);
   };
 
   const handleShare = () => {
-    onInteraction('share', video.id);
+    if (previewMode) return;
+    onInteraction?.('share', video.id);
     setShowShareMenu(true);
   };
 
   const handleComment = (text: string) => {
-    onInteraction('comment', video.id);
-    // Increase comment count locally for feedback
+    if (previewMode) return;
+    onInteraction?.('comment', video.id);
   };
 
   return (
     <>
-      <CommentsOverlay 
-        video={video} 
-        isOpen={showComments} 
-        onOpenChange={setShowComments}
-        onComment={handleComment}
-      />
-      <ShareMenu
-        isOpen={showShareMenu}
-        onClose={() => setShowShareMenu(false)}
-        videoUrl={video.url}
-        videoCaption={video.caption}
-      />
+      {!previewMode && (
+        <>
+          <CommentsOverlay 
+            video={video} 
+            isOpen={showComments} 
+            onOpenChange={setShowComments}
+            onComment={handleComment}
+          />
+          <ShareMenu
+            isOpen={showShareMenu}
+            onClose={() => setShowShareMenu(false)}
+            videoUrl={video.url}
+            videoCaption={video.caption}
+          />
+        </>
+      )}
       <div 
         className="relative h-full w-full bg-black snap-start overflow-hidden"
         onDoubleClick={handleDoubleTap}
@@ -310,58 +329,78 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction,
       {/* Top Controls */}
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20 bg-gradient-to-b from-black/40 to-transparent">
         <div className="text-white font-bold text-lg drop-shadow-md">Reels</div>
-        <button 
-          onClick={(e) => { e.stopPropagation(); handleMuteClick(); }} 
-          className={cn(
-            "relative text-white/90 hover:text-white",
-            showMuteHighlight && "animate-pulse-ring"
-          )}
-          data-testid="button-mute-toggle"
-        >
-          {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-        </button>
+        {!previewMode && toggleMute && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleMuteClick(); }} 
+            className={cn(
+              "relative text-white/90 hover:text-white",
+              showMuteHighlight && "animate-pulse-ring"
+            )}
+            data-testid="button-mute-toggle"
+          >
+            {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+          </button>
+        )}
       </div>
 
       {/* Right Side Actions */}
       <div className="absolute bottom-20 right-4 flex flex-col items-center gap-5 z-20 text-white">
         {/* Like */}
         <div className="flex flex-col items-center gap-0.5 w-10">
-          <button 
-            onClick={(e) => { e.stopPropagation(); toggleLike(); }}
-            className={cn("transition-transform active:scale-90 flex items-center justify-center", liked ? "text-[#E4405F]" : "text-white")}
-            data-testid={`button-like-${video.id}`}
-          >
-            <Heart size={28} className={cn(liked && "fill-[#E4405F]")} />
-          </button>
-          <span className="text-xs font-medium text-center h-3.5 flex items-center">{liked ? video.likes + 1 : video.likes}</span>
+          {previewMode ? (
+            <div className="flex items-center justify-center text-white">
+              <Heart size={28} />
+            </div>
+          ) : (
+            <button 
+              onClick={(e) => { e.stopPropagation(); toggleLike(); }}
+              className={cn("transition-transform active:scale-90 flex items-center justify-center", liked ? "text-[#E4405F]" : "text-white")}
+              data-testid={`button-like-${video.id}`}
+            >
+              <Heart size={28} className={cn(liked && "fill-[#E4405F]")} />
+            </button>
+          )}
+          <span className="text-xs font-medium text-center h-3.5 flex items-center">{previewMode ? video.likes : (liked ? video.likes + 1 : video.likes)}</span>
         </div>
 
         {/* Comments */}
         <div className="flex flex-col items-center gap-0.5 w-10">
-          <button 
-            onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
-            className="transition-transform active:scale-90 text-white flex items-center justify-center"
-          >
-            <MessageCircle size={28} />
-          </button>
+          {previewMode ? (
+            <div className="flex items-center justify-center text-white">
+              <MessageCircle size={28} />
+            </div>
+          ) : (
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
+              className="transition-transform active:scale-90 text-white flex items-center justify-center"
+            >
+              <MessageCircle size={28} />
+            </button>
+          )}
           <span className="text-xs font-medium text-center h-3.5 flex items-center">{video.comments}</span>
         </div>
 
         {/* Share */}
         <div className="flex flex-col items-center gap-0.5 w-10">
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleShare(); }}
-            className="transition-transform active:scale-90 text-white flex items-center justify-center"
-          >
-            <Send size={28} className="-rotate-45 translate-x-1" />
-          </button>
+          {previewMode ? (
+            <div className="flex items-center justify-center text-white">
+              <Send size={28} className="-rotate-45 translate-x-1" />
+            </div>
+          ) : (
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleShare(); }}
+              className="transition-transform active:scale-90 text-white flex items-center justify-center"
+            >
+              <Send size={28} className="-rotate-45 translate-x-1" />
+            </button>
+          )}
           <span className="text-xs font-medium text-center h-3.5 flex items-center">{video.shares}</span>
         </div>
 
         {/* More */}
-        <button className="transition-transform active:scale-90 text-white flex items-center justify-center mt-2">
+        <div className="flex items-center justify-center mt-2 text-white">
           <MoreHorizontal size={28} />
-        </button>
+        </div>
 
         {/* Video Preview */}
         <div className="mt-1 border-2 border-white/20 rounded-md overflow-hidden w-8 h-8">
@@ -377,15 +416,21 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction,
             <AvatarFallback>{video.username[0]}</AvatarFallback>
           </Avatar>
           <span className="font-semibold text-sm drop-shadow-md">{video.username}</span>
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleFollow(); }}
-            className={cn(
-              "border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm transition-colors",
-              following ? "bg-white/20 border-transparent text-white" : "border-white/30 text-white hover:bg-white/10"
-            )}
-          >
-            {following ? 'Following' : 'Follow'}
-          </button>
+          {previewMode ? (
+            <span className="border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm border-white/30 text-white">
+              Follow
+            </span>
+          ) : (
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleFollow(); }}
+              className={cn(
+                "border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm transition-colors",
+                following ? "bg-white/20 border-transparent text-white" : "border-white/30 text-white hover:bg-white/10"
+              )}
+            >
+              {following ? 'Following' : 'Follow'}
+            </button>
+          )}
         </div>
 
         <div className="text-sm line-clamp-2 drop-shadow-md">
@@ -397,7 +442,7 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction,
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-30">
         <div 
           className="h-full bg-white/90 transition-all duration-100 ease-linear"
-          style={{ width: `${progress}%` }}
+          style={{ width: previewMode ? '33%' : `${progress}%` }}
         />
       </div>
     </div>
