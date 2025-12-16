@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2, MessageCircle, Sparkles, X } from 'lucide-react';
+import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2, MessageCircle, Sparkles, X, Heart, Send } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { ObjectUploader } from '@/components/ObjectUploader';
@@ -94,10 +94,10 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
         <div className="text-xs text-muted-foreground mt-1">@{video.username}</div>
       </TableCell>
       <TableCell>
-        <div className="flex gap-3 text-sm text-muted-foreground">
-          <span>❤️ {video.likes.toLocaleString()}</span>
-          <span>💬 {video.comments.toLocaleString()}</span>
-          <span>↗️ {video.shares.toLocaleString()}</span>
+        <div className="flex gap-4 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1"><Heart size={16} strokeWidth={2} /> {video.likes.toLocaleString()}</span>
+          <span className="flex items-center gap-1"><MessageCircle size={16} strokeWidth={2} className="scale-x-[-1]" /> {video.comments.toLocaleString()}</span>
+          <span className="flex items-center gap-1"><Send size={16} strokeWidth={2} /> {video.shares.toLocaleString()}</span>
         </div>
       </TableCell>
       <TableCell className="text-right">
