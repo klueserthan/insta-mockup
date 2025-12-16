@@ -31,10 +31,12 @@ export default function ReelsFeed() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data: feedData, isLoading, error } = useQuery<FeedData>({
-    queryKey: ['/api/feed', publicUrl],
+    queryKey: ['/api/feed', publicUrl, window.location.search],
     queryFn: async () => {
       if (!publicUrl) throw new Error('No feed URL');
-      const res = await fetch(`/api/feed/${publicUrl}`);
+      // Forward query parameters to the API for participant-specific randomization
+      const queryString = window.location.search;
+      const res = await fetch(`/api/feed/${publicUrl}${queryString}`);
       if (!res.ok) throw new Error('Feed not found');
       return res.json();
     },
