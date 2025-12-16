@@ -406,7 +406,7 @@ export function VideoPlayer({
 
         {/* More */}
         <div className="flex items-center justify-center text-white h-8 w-8">
-          <MoreVertical size={22} strokeWidth={2} />
+          <MoreVertical size={22} strokeWidth={2} className="rotate-90" />
         </div>
 
         {/* User Avatar Box */}
