@@ -156,18 +156,27 @@ interface VideoPlayerProps {
   muted: boolean;
   toggleMute: () => void;
   onInteraction: (type: string, videoId: string) => void;
+  showUnmutePrompt?: boolean;
 }
 
-export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction }: VideoPlayerProps) {
+export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction, showUnmutePrompt = false }: VideoPlayerProps) {
   const [liked, setLiked] = useState(false);
   const [following, setFollowing] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [hasInteractedWithMute, setHasInteractedWithMute] = useState(false);
   const startTimeRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
+  
+  const showMuteHighlight = showUnmutePrompt && muted && !hasInteractedWithMute;
+  
+  const handleMuteClick = () => {
+    setHasInteractedWithMute(true);
+    toggleMute();
+  };
 
   // Control video playback based on isActive state (Instagram-like behavior)
   useEffect(() => {
@@ -301,9 +310,29 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
       {/* Top Controls */}
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20 bg-gradient-to-b from-black/40 to-transparent">
         <div className="text-white font-bold text-lg drop-shadow-md">Reels</div>
-        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="text-white/90 hover:text-white">
-          {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-        </button>
+        <div className="relative">
+          {showMuteHighlight && (
+            <motion.div
+              className="absolute -inset-2 rounded-full border-2 border-white"
+              animate={{ 
+                scale: [1, 1.2, 1],
+                opacity: [1, 0.5, 1]
+              }}
+              transition={{ 
+                duration: 1.5,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+          )}
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleMuteClick(); }} 
+            className="relative text-white/90 hover:text-white"
+            data-testid="button-mute-toggle"
+          >
+            {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Right Side Actions */}

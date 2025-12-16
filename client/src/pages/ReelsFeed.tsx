@@ -9,6 +9,7 @@ interface FeedData {
   experimentId: string;
   experimentName: string;
   persistTimer: boolean;
+  showUnmutePrompt: boolean;
   projectSettings: {
     queryKey: string;
     timeLimitSeconds: number;
@@ -222,6 +223,7 @@ export default function ReelsFeed() {
               muted={muted}
               toggleMute={() => setMuted(!muted)}
               onInteraction={(type, data) => logInteraction(type, video.id, data)}
+              showUnmutePrompt={feedData.showUnmutePrompt}
             />
           </div>
         ))}

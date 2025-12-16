@@ -278,6 +278,7 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
         experimentId: experiment.id,
         experimentName: experiment.name,
         persistTimer: experiment.persistTimer,
+        showUnmutePrompt: experiment.showUnmutePrompt,
         projectSettings: {
           queryKey: project.queryKey,
           timeLimitSeconds: project.timeLimitSeconds,

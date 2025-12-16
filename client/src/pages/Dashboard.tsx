@@ -658,6 +658,20 @@ export default function Dashboard() {
                             data-testid="switch-persist-timer"
                           />
                         </div>
+                        <div className="flex items-center justify-between py-2">
+                          <div>
+                            <Label htmlFor="unmute-prompt">Show Unmute Prompt</Label>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              When enabled, a pulsing highlight appears around the mute button to prompt participants to enable audio.
+                            </p>
+                          </div>
+                          <Switch
+                            id="unmute-prompt"
+                            checked={editingExperiment.showUnmutePrompt}
+                            onCheckedChange={(checked) => setEditingExperiment({ ...editingExperiment, showUnmutePrompt: checked })}
+                            data-testid="switch-unmute-prompt"
+                          />
+                        </div>
                       </div>
                     )}
                     <DialogFooter className="flex justify-between">
@@ -674,7 +688,7 @@ export default function Dashboard() {
                       <Button 
                         onClick={() => updateExperimentMutation.mutate({ 
                           id: editingExperiment!.id, 
-                          data: { name: editingExperiment!.name, persistTimer: editingExperiment!.persistTimer } 
+                          data: { name: editingExperiment!.name, persistTimer: editingExperiment!.persistTimer, showUnmutePrompt: editingExperiment!.showUnmutePrompt } 
                         })}
                         disabled={updateExperimentMutation.isPending}
                         data-testid="button-save-feed-settings"
