@@ -9,11 +9,22 @@ interface VideoPreviewProps {
 export function VideoPreview({ video }: VideoPreviewProps) {
   return (
     <div className="relative h-full w-full bg-black overflow-hidden">
-      <img 
-        src={video.url} 
-        alt={video.description || ''}
-        className="absolute h-full w-full object-cover" 
-      />
+      {video.url.includes('/objects/') || video.url.endsWith('.mp4') || video.url.endsWith('.webm') || video.url.endsWith('.mov') ? (
+        <video 
+          src={video.url}
+          className="absolute h-full w-full object-cover"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+      ) : (
+        <img 
+          src={video.url} 
+          alt={video.description || ''}
+          className="absolute h-full w-full object-cover" 
+        />
+      )}
 
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20 bg-gradient-to-b from-black/40 to-transparent">
         <div className="text-white font-bold text-lg drop-shadow-md">Reels</div>

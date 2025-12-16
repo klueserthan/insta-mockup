@@ -249,12 +249,23 @@ export function VideoPlayer({ video, isActive, muted, toggleMute, onInteraction 
         onDoubleClick={handleDoubleTap}
         data-testid={`video-container-${video.id}`}
       >
-      {/* Video Content (Image for prototype) */}
-      <img 
-        src={video.url} 
-        alt={video.description || ''}
-        className="absolute h-full w-full object-cover" 
-      />
+      {/* Video Content */}
+      {video.url.includes('/objects/') || video.url.endsWith('.mp4') || video.url.endsWith('.webm') || video.url.endsWith('.mov') ? (
+        <video 
+          src={video.url}
+          className="absolute h-full w-full object-cover"
+          autoPlay={isActive}
+          loop
+          muted={muted}
+          playsInline
+        />
+      ) : (
+        <img 
+          src={video.url} 
+          alt={video.description || ''}
+          className="absolute h-full w-full object-cover" 
+        />
+      )}
 
       {/* Big Heart Animation */}
       <AnimatePresence>
