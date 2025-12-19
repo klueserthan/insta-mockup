@@ -1,1 +1,0 @@
-ALTER TABLE "social_accounts" ADD CONSTRAINT "social_accounts_username_unique" UNIQUE("username");

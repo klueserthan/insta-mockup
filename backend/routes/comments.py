@@ -1,0 +1,105 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from sqlmodel import Session, select, func
+from typing import List, Optional
+from uuid import UUID
+
+from database import get_session
+from models import PreseededComment, PreseededCommentBase, Video, Experiment, Project, Researcher, CamelModel
+from auth import get_current_user
+
+router = APIRouter()
+
+# Helper
+def verify_comment_ownership(session: Session, comment_id: UUID, user_id: UUID):
+    comment = session.get(PreseededComment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    video = session.get(Video, comment.video_id)
+    experiment = session.get(Experiment, video.experiment_id)
+    project = session.get(Project, experiment.project_id)
+    
+    if project.researcher_id != user_id:
+         raise HTTPException(status_code=403, detail="Not authorized")
+    return comment
+
+def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID):
+    video = session.get(Video, video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    experiment = session.get(Experiment, video.experiment_id)
+    project = session.get(Project, experiment.project_id)
+    if project.researcher_id != user_id:
+         raise HTTPException(status_code=403, detail="Not authorized")
+    return video
+
+@router.get("/api/videos/{video_id}/comments", response_model=List[PreseededComment])
+def get_comments(
+    video_id: UUID,
+    session: Session = Depends(get_session)
+    # Open access for now as per test (test didn't verify auth for GET comments, but did for create/edit. 
+    # original routes.ts allowed get comments publicly `app.get` vs `app.post... requireAuth`).
+):
+    comments = session.exec(select(PreseededComment).where(PreseededComment.video_id == video_id).order_by(PreseededComment.position)).all()
+    return comments
+
+@router.post("/api/videos/{video_id}/comments", response_model=PreseededComment, status_code=201)
+def create_comment(
+    video_id: UUID,
+    comment_base: PreseededCommentBase,
+    session: Session = Depends(get_session),
+    current_user: Researcher = Depends(get_current_user)
+):
+    verify_video_ownership(session, video_id, current_user.id)
+    
+    # max pos
+    max_pos = session.exec(
+        select(func.max(PreseededComment.position)).where(PreseededComment.video_id == video_id)
+    ).one() or -1
+    
+    if max_pos is None: max_pos = -1
+
+    comment = PreseededComment(**comment_base.dict(exclude={"position"}), video_id=video_id, position=max_pos + 1)
+    
+    session.add(comment)
+    session.commit()
+    session.refresh(comment)
+    return comment
+
+class CommentUpdate(CamelModel):
+    author_name: Optional[str] = None
+    author_avatar: Optional[str] = None
+    body: Optional[str] = None
+    likes: Optional[int] = None
+    source: Optional[str] = None
+    position: Optional[int] = None
+
+@router.patch("/api/comments/{comment_id}", response_model=PreseededComment)
+def update_comment(
+    comment_id: UUID,
+    comment_update: CommentUpdate,
+    session: Session = Depends(get_session),
+    current_user: Researcher = Depends(get_current_user)
+):
+    db_comment = verify_comment_ownership(session, comment_id, current_user.id)
+    
+    for key, value in comment_update.dict(exclude_unset=True).items():
+        setattr(db_comment, key, value)
+            
+    session.add(db_comment)
+    session.commit()
+    session.refresh(db_comment)
+    return db_comment
+
+@router.delete("/api/comments/{comment_id}", status_code=204)
+def delete_comment(
+    comment_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: Researcher = Depends(get_current_user)
+):
+    db_comment = session.get(PreseededComment, comment_id)
+    if not db_comment:
+        return
+    
+    verify_comment_ownership(session, comment_id, current_user.id)
+    session.delete(db_comment)
+    session.commit()

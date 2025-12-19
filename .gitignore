@@ -24,7 +24,6 @@ yarn-error.log*
 coverage/
 
 # IDEs
-.vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
@@ -46,3 +45,6 @@ vite.config.ts.*
 
 # Local Netlify folder
 .netlify
+
+# Database
+*.db

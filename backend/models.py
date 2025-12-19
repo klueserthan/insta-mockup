@@ -1,0 +1,130 @@
+from typing import Optional, List, Dict
+from datetime import datetime
+from uuid import UUID, uuid4
+from sqlmodel import SQLModel, Field, Relationship, JSON
+from pydantic import ConfigDict
+from pydantic.alias_generators import to_camel
+
+class CamelModel(SQLModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True
+    )
+
+# Researcher
+class ResearcherBase(CamelModel):
+    email: str = Field(unique=True, index=True)
+    name: str
+    lastname: str
+
+class Researcher(ResearcherBase, table=True):
+    id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
+    password: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    projects: Optional[List["Project"]] = Relationship(back_populates="researcher")
+    social_accounts: Optional[List["SocialAccount"]] = Relationship(back_populates="researcher")
+
+# Project
+class ProjectBase(CamelModel):
+    name: str
+    query_key: str = Field(default="participantId")
+    time_limit_seconds: int = Field(default=300)
+    redirect_url: str = Field(default="")
+    end_screen_message: str = Field(default="Thank you for participating in this study. You will be redirected shortly.")
+    lock_all_positions: bool = Field(default=False)
+    randomization_seed: int = Field(default=42)
+
+class Project(ProjectBase, table=True):
+    id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
+    researcher_id: UUID = Field(foreign_key="researcher.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    researcher: Optional["Researcher"] = Relationship(back_populates="projects")
+    experiments: Optional[List["Experiment"]] = Relationship(back_populates="project")
+
+# Experiment
+class ExperimentBase(CamelModel):
+    name: str
+    public_url: str = Field(unique=True)
+    persist_timer: bool = Field(default=False)
+    show_unmute_prompt: bool = Field(default=True)
+
+class Experiment(ExperimentBase, table=True):
+    id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
+    project_id: UUID = Field(foreign_key="project.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    project: Optional["Project"] = Relationship(back_populates="experiments")
+    videos: Optional[List["Video"]] = Relationship(back_populates="experiment")
+    participants: Optional[List["Participant"]] = Relationship(back_populates="experiment")
+
+# Video
+class VideoBase(CamelModel):
+    url: str
+    username: str
+    user_avatar: str
+    caption: str
+    likes: int = Field(default=0)
+    comments: int = Field(default=0)
+    shares: int = Field(default=0)
+    song: str
+    description: Optional[str] = None
+    position: int = Field(default=0)
+    is_locked: bool = Field(default=False)
+
+class Video(VideoBase, table=True):
+    id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
+    experiment_id: UUID = Field(foreign_key="experiment.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    experiment: Optional["Experiment"] = Relationship(back_populates="videos")
+    preseeded_comments: Optional[List["PreseededComment"]] = Relationship(back_populates="video")
+
+# Participant
+class Participant(CamelModel, table=True):
+    id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
+    experiment_id: UUID = Field(foreign_key="experiment.id")
+    participant_id: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    experiment: Optional["Experiment"] = Relationship(back_populates="participants")
+
+# Interaction
+class Interaction(CamelModel, table=True):
+    id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
+    participant_uuid: UUID = Field(foreign_key="participant.id")
+    video_id: UUID = Field(foreign_key="video.id")
+    interaction_type: str
+    interaction_data: Optional[Dict] = Field(default=None, sa_type=JSON, alias="metadata")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+# PreseededComment
+class PreseededCommentBase(CamelModel):
+    author_name: str
+    author_avatar: str
+    body: str
+    likes: int = Field(default=0)
+    source: str = Field(default="manual")
+    position: int = Field(default=0)
+
+class PreseededComment(PreseededCommentBase, table=True):
+    id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
+    video_id: UUID = Field(foreign_key="video.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    video: Optional["Video"] = Relationship(back_populates="preseeded_comments")
+
+# SocialAccount
+class SocialAccountBase(CamelModel):
+    username: str = Field(unique=True)
+    display_name: str
+    avatar_url: str
+
+class SocialAccount(SocialAccountBase, table=True):
+    id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
+    researcher_id: UUID = Field(foreign_key="researcher.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    researcher: Optional["Researcher"] = Relationship(back_populates="social_accounts")
