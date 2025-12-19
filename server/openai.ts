@@ -1,11 +1,13 @@
 import OpenAI from "openai";
 
-// This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
-});
+const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+const openai = apiKey 
+  ? new OpenAI({
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      apiKey: apiKey
+    })
+  : null;
 
 export interface GeneratedComment {
   authorName: string;
@@ -19,6 +21,16 @@ export async function generateComments(
   count: number = 5,
   tone: string = "mixed"
 ): Promise<GeneratedComment[]> {
+  // Mock fallback if validation fails or explicit mock mode
+  if (!openai) {
+      console.log("No OpenAI API key found, returning mock comments");
+      return Array.from({ length: count }).map((_, i) => ({
+          authorName: `user_${Math.floor(Math.random() * 1000)}`,
+          body: `This is a mock comment ${i + 1} for testing purposes. Nice video!`,
+          likes: Math.floor(Math.random() * 100)
+      }));
+  }
+
   const toneDescription = tone === "positive" 
     ? "supportive, enthusiastic, and positive" 
     : tone === "negative" 
@@ -43,18 +55,18 @@ JSON format:
     {"authorName": "user_name", "body": "comment text", "likes": 12},
     ...
   ]
-}`;
+}
+`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_completion_tokens: 2048,
-  });
-
-  const content = response.choices[0]?.message?.content || "{}";
-  
   try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-5", 
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 2048,
+    });
+
+    const content = response.choices[0]?.message?.content || "{}";
     const parsed = JSON.parse(content);
     return (parsed.comments || []).map((c: any) => ({
       authorName: String(c.authorName || "user"),
@@ -62,7 +74,12 @@ JSON format:
       likes: Number(c.likes) || 0
     }));
   } catch (error) {
-    console.error("Failed to parse OpenAI response:", error);
-    return [];
+    console.error("Failed to parse OpenAI response or API error:", error);
+    // Fallback on error too
+     return Array.from({ length: count }).map((_, i) => ({
+          authorName: `backup_user_${Math.floor(Math.random() * 1000)}`,
+          body: `Backup comment ${i + 1} (API Error)`,
+          likes: 0
+      }));
   }
 }

@@ -14,6 +14,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [lastname, setLastname] = useState('');
   const { loginMutation, registerMutation } = useAuth();
   const { toast } = useToast();
 
@@ -22,7 +23,7 @@ export default function Login() {
     
     if (isRegister) {
       registerMutation.mutate(
-        { email, password, name },
+        { email, password, name, lastname },
         {
           onSuccess: () => {
             toast({
@@ -71,17 +72,31 @@ export default function Login() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {isRegister && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input 
-                  id="name" 
-                  type="text" 
-                  placeholder="Dr. Jane Smith" 
-                  required 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  data-testid="input-name"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">First Name</Label>
+                  <Input 
+                    id="name" 
+                    type="text" 
+                    placeholder="Jane" 
+                    required 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    data-testid="input-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastname">Last Name</Label>
+                  <Input 
+                    id="lastname" 
+                    type="text" 
+                    placeholder="Smith" 
+                    required 
+                    value={lastname}
+                    onChange={(e) => setLastname(e.target.value)}
+                    data-testid="input-lastname"
+                  />
+                </div>
               </div>
             )}
             <div className="space-y-2">

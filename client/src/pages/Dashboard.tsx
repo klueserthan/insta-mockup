@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Share2, BarChart3, ExternalLink, Trash2, Eye, GripVertical, FolderOpen, Settings, ArrowLeft, Pencil, Upload, CheckCircle2, Loader2, MessageCircle, Sparkles, X, Heart, Send, Lock, Unlock } from 'lucide-react';
+import { Trash2, AlertCircle, Play, Pause, GripVertical, Plus, Upload, Loader2, Sparkles, CheckCircle2, MoreVertical, X, Image as ImageIcon, XCircle, Share2, BarChart3, ExternalLink, Eye, FolderOpen, Settings, ArrowLeft, Pencil, Heart, MessageCircle, Send, Lock, Unlock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { ObjectUploader } from '@/components/ObjectUploader';
@@ -19,7 +19,7 @@ import { CommentsManager } from '@/components/CommentsManager';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient, fetchWithAuth } from '@/lib/queryClient';
-import type { Project, Experiment, Video } from '@shared/schema';
+import type { Project, Experiment, Video, SocialAccount, InsertSocialAccount } from '@shared/schema';
 import {
   DndContext,
   closestCenter,
@@ -177,6 +177,18 @@ export default function Dashboard() {
   const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
   const [bulkCommentTone, setBulkCommentTone] = useState<string>("mixed");
   const [bulkCommentCount, setBulkCommentCount] = useState<number>(5);
+  
+  // Account Management State
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+  const [newAccount, setNewAccount] = useState<InsertSocialAccount>({
+    username: '',
+    displayName: '',
+    avatarUrl: '',
+  });
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [avatarMode, setAvatarMode] = useState<'url' | 'upload'>('url');
+  const [ingestUrl, setIngestUrl] = useState("");
+  const [ingestMode, setIngestMode] = useState<'upload' | 'instagram'>('upload');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -207,6 +219,10 @@ export default function Dashboard() {
       return res.json();
     },
     enabled: !!selectedExperimentId,
+  });
+
+  const { data: accounts = [] } = useQuery<SocialAccount[]>({
+    queryKey: ['/api/accounts'],
   });
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
@@ -350,6 +366,68 @@ export default function Dashboard() {
     },
   });
 
+  const createAccountMutation = useMutation({
+    mutationFn: async (data: Partial<InsertSocialAccount>) => {
+      const res = await apiRequest('POST', '/api/accounts', data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
+      setSelectedAccountId(data.id);
+      setAccountError(null);
+      // Update the current video with the new account details if one is being edited
+      if (editingVideo) {
+        setEditingVideo({
+            ...editingVideo,
+            username: data.username,
+            userAvatar: data.avatarUrl
+        });
+      }
+      toast({ title: "Account created", description: "New social account saved." });
+    },
+    onError: (error: Error) => {
+        if (error.message.includes("409")) {
+            setAccountError("Username already exists. Please choose a unique username.");
+        } else {
+            setAccountError("Failed to create account. " + error.message);
+        }
+    }
+  });
+
+  const ingestInstagramMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const res = await apiRequest('POST', '/api/instagram/ingest', { url });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (!editingVideo) return;
+      
+      setEditingVideo({
+        ...editingVideo,
+        url: data.url,
+        username: data.username,
+        userAvatar: data.authorAvatar,
+        caption: data.caption,
+        likes: data.likes,
+        comments: data.comments,
+        shares: data.shares
+      });
+      
+      // Pre-fill creation form too if they want to save this account
+      setNewAccount({
+          username: data.username,
+          displayName: data.authorName,
+          avatarUrl: data.authorAvatar
+      });
+      setSelectedAccountId("new"); // Default to creating new if ingested
+      
+      toast({ title: 'Instagram Imported', description: 'Video details populated.' });
+    },
+    onError: (err: any) => {
+        toast({ title: 'Import Failed', description: err.message, variant: 'destructive' });
+    }
+  });
+
   const handleVideoSelect = (videoId: string, checked: boolean) => {
     setSelectedVideoIds(prev => {
       const newSet = new Set(prev);
@@ -389,6 +467,11 @@ export default function Dashboard() {
       experimentId: selectedExperimentId || '',
       createdAt: new Date(),
     } as Video);
+    // Reset account state
+    setSelectedAccountId("new");
+    setNewAccount({ username: '', displayName: '', avatarUrl: '' });
+    setIngestUrl("");
+    setIngestMode('upload');
   };
 
   function handleDragEnd(event: DragEndEvent) {
@@ -964,7 +1047,41 @@ export default function Dashboard() {
                 {editingVideo && (
                   <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
                     <div className="grid gap-2">
-                      <Label>Video/Image</Label>
+                      <div className="flex items-center justify-between">
+                         <Label>Media Source</Label>
+                         <Tabs value={ingestMode} onValueChange={(v) => setIngestMode(v as any)} className="w-[200px]">
+                            <TabsList className="grid w-full grid-cols-2 h-7">
+                                <TabsTrigger value="upload" className="text-xs h-6">Upload</TabsTrigger>
+                                <TabsTrigger value="instagram" className="text-xs h-6">Instagram</TabsTrigger>
+                            </TabsList>
+                         </Tabs>
+                      </div>
+
+                      {ingestMode === 'instagram' ? (
+                          <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                              <Label className="text-xs">Instagram Post URL</Label>
+                              <div className="flex gap-2">
+                                  <Input 
+                                    value={ingestUrl} 
+                                    onChange={e => setIngestUrl(e.target.value)} 
+                                    placeholder="https://www.instagram.com/p/..." 
+                                    className="h-9"
+                                    data-testid="input-instagram-url"
+                                  />
+                                  <Button 
+                                    size="sm" 
+                                    onClick={() => ingestInstagramMutation.mutate(ingestUrl)}
+                                    disabled={!ingestUrl || ingestInstagramMutation.isPending}
+                                    data-testid="button-ingest"
+                                  >
+                                    {ingestInstagramMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Import'}
+                                  </Button>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">
+                                  Imports media, caption, metrics, and author details.
+                              </p>
+                          </div>
+                      ) : (
                       <div className="space-y-3">
                         {editingVideo.url ? (
                           <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
@@ -1037,16 +1154,182 @@ export default function Dashboard() {
                           </ObjectUploader>
                         )}
                       </div>
+                      )}
                     </div>
+
                     <div className="grid gap-2">
-                      <Label htmlFor="video-username">Username</Label>
-                      <Input 
-                        id="video-username" 
-                        value={editingVideo.username} 
-                        onChange={(e) => setEditingVideo({ ...editingVideo, username: e.target.value })} 
-                        placeholder="username"
-                        data-testid="input-video-username"
-                      />
+                      <Label>Author Account</Label>
+                      <Select 
+                        value={selectedAccountId} 
+                        onValueChange={(val) => {
+                            setSelectedAccountId(val);
+                            if (val !== "new") {
+                                const account = accounts.find(a => a.id === val);
+                                if (account && editingVideo) {
+                                    setEditingVideo({
+                                        ...editingVideo,
+                                        username: account.username,
+                                        userAvatar: account.avatarUrl
+                                    });
+                                }
+                            }
+                        }}
+                      >
+                        <SelectTrigger data-testid="select-account">
+                          <SelectValue placeholder="Select an account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">+ Create New Account</SelectItem>
+                          {accounts.map(acc => (
+                            <SelectItem key={acc.id} value={acc.id}>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-200">
+                                        <img src={acc.avatarUrl} className="w-full h-full object-cover" />
+                                    </div>
+                                    <span>{acc.displayName} (@{acc.username})</span>
+                                </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {selectedAccountId === "new" && (
+                          <div className="p-3 border rounded-md bg-muted/30 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                      <Label className="text-xs">Display Name</Label>
+                                      <Input 
+                                          value={newAccount.displayName} 
+                                          onChange={e => setNewAccount({...newAccount, displayName: e.target.value})}
+                                          placeholder="Jane Doe"
+                                          className="h-8 text-sm"
+                                          data-testid="input-new-account-name"
+                                      />
+                                  </div>
+                                  <div className="space-y-1">
+                                      <Label className="text-xs">Username</Label>
+                                      <Input 
+                                          value={newAccount.username} 
+                                          onChange={e => {
+                                              const val = e.target.value;
+                                              setNewAccount({...newAccount, username: val});
+                                              if (editingVideo) setEditingVideo({...editingVideo, username: val});
+                                          }}
+                                          placeholder="janedoe"
+                                          className="h-8 text-sm"
+                                          data-testid="input-new-account-username"
+                                      />
+                                  </div>
+                              </div>
+                              <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <Label className="text-xs">Avatar Source</Label>
+                                    <Tabs value={avatarMode} onValueChange={(v) => setAvatarMode(v as any)} className="w-[140px]">
+                                        <TabsList className="grid w-full grid-cols-2 h-6">
+                                            <TabsTrigger value="url" className="text-[10px] h-5 px-1">Generate</TabsTrigger>
+                                            <TabsTrigger value="upload" className="text-[10px] h-5 px-1">Upload</TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
+                                  </div>
+                                  
+                                  {avatarMode === 'url' ? (
+                                      <div className="flex gap-2">
+                                        <Input 
+                                            value={newAccount.avatarUrl} 
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setNewAccount({...newAccount, avatarUrl: val});
+                                            }}
+                                            placeholder="https://..."
+                                            className="h-8 text-sm flex-1"
+                                            data-testid="input-new-account-avatar"
+                                        />
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            className="h-8 w-8 p-0"
+                                            title="Generate Random Avatar"
+                                            type="button"
+                                            onClick={() => {
+                                                const seed = Math.random().toString(36).substring(7);
+                                                const url = `https://api.dicebear.com/7.x/avataaars/svg?seed=${newAccount.username || seed}`;
+                                                setNewAccount({...newAccount, avatarUrl: url});
+                                                if (editingVideo) setEditingVideo({ ...editingVideo, userAvatar: url });
+                                            }}
+                                        >
+                                            <Sparkles size={14} />
+                                        </Button>
+                                      </div>
+                                  ) : (
+                                     <div className="border rounded-md p-2 bg-background">
+                                         {newAccount.avatarUrl && newAccount.avatarUrl.includes('storage.googleapis.com') ? (
+                                             <div className="flex items-center gap-2">
+                                                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100">
+                                                     <img src={newAccount.avatarUrl} className="w-full h-full object-cover" />
+                                                 </div>
+                                                 <div className="flex-1 min-w-0">
+                                                     <p className="text-[10px] truncate">{newAccount.avatarUrl.split('/').pop()}</p>
+                                                 </div>
+                                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setNewAccount({...newAccount, avatarUrl: ''})}>
+                                                     <XCircle size={14} />
+                                                 </Button>
+                                             </div>
+                                         ) : (
+                                            <ObjectUploader
+                                                maxNumberOfFiles={1}
+                                                maxFileSize={5242880} // 5MB for avatars
+                                                allowedFileTypes={['image/*']}
+                                                onGetUploadParameters={async () => {
+                                                  const res = await apiRequest('POST', '/api/objects/upload', {});
+                                                  const data = await res.json();
+                                                  return {
+                                                    method: 'PUT' as const,
+                                                    url: data.uploadURL,
+                                                  };
+                                                }}
+                                                onComplete={async (result) => {
+                                                  if (result.successful && result.successful.length > 0) {
+                                                    const uploadURL = result.successful[0].uploadURL;
+                                                    try {
+                                                      const res = await apiRequest('PUT', '/api/objects/finalize', { uploadURL });
+                                                      const data = await res.json();
+                                                      setNewAccount(prev => ({ ...prev, avatarUrl: data.objectPath }));
+                                                    } catch (err) {
+                                                      console.error('Error finalizing avatar upload:', err);
+                                                      toast({ title: 'Upload failed', description: 'Could not process the avatar.', variant: 'destructive' });
+                                                    }
+                                                  }
+                                                }}
+                                                buttonClassName="w-full h-16 border-dashed"
+                                              >
+                                                <div className="flex flex-col items-center gap-1">
+                                                  <Upload size={16} className="text-muted-foreground" />
+                                                  <span className="text-[10px]">Upload Avatar</span>
+                                                </div>
+                                              </ObjectUploader>
+                                         )}
+                                     </div>
+                                  )}
+                              </div>
+                              {accountError && (
+                                <div className="text-destructive text-xs p-2 bg-destructive/10 rounded flex items-center gap-2">
+                                    <AlertCircle size={14} />
+                                    <span>{accountError}</span>
+                                </div>
+                              )}
+                              <Button 
+                                size="sm" 
+                                className="w-full h-8" 
+                                variant="secondary"
+                                type="button"
+                                onClick={() => createAccountMutation.mutate(newAccount)}
+                                disabled={!newAccount.username || !newAccount.displayName || !newAccount.avatarUrl || createAccountMutation.isPending}
+                                data-testid="button-create-account"
+                              >
+                                {createAccountMutation.isPending ? 'Saving...' : 'Save Account'}
+                              </Button>
+                          </div>
+                      )}
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="video-caption">Caption</Label>

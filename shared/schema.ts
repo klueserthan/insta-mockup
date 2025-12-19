@@ -8,6 +8,7 @@ export const researchers = pgTable('researchers', {
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
   name: text('name').notNull(),
+  lastname: text('lastname').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -139,3 +140,21 @@ export type InsertInteraction = z.infer<typeof insertInteractionSchema>;
 
 export type PreseededComment = typeof preseededComments.$inferSelect;
 export type InsertPreseededComment = z.infer<typeof insertPreseededCommentSchema>;
+
+export const socialAccounts = pgTable('social_accounts', {
+  id: varchar('id').primaryKey().default(sql`gen_random_uuid()`),
+  researcherId: varchar('researcher_id').notNull().references(() => researchers.id, { onDelete: 'cascade' }),
+  username: text('username').notNull().unique(),
+  displayName: text('display_name').notNull(),
+  avatarUrl: text('avatar_url').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const insertSocialAccountSchema = createInsertSchema(socialAccounts).omit({
+  id: true,
+  researcherId: true,
+  createdAt: true,
+});
+
+export type SocialAccount = typeof socialAccounts.$inferSelect;
+export type InsertSocialAccount = z.infer<typeof insertSocialAccountSchema>;

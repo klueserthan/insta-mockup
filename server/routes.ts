@@ -2,10 +2,11 @@ import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { insertProjectSchema, insertVideoSchema, insertExperimentSchema, insertInteractionSchema, insertPreseededCommentSchema } from "@shared/schema";
+import { insertProjectSchema, insertVideoSchema, insertExperimentSchema, insertInteractionSchema, insertPreseededCommentSchema, insertSocialAccountSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { generateComments } from "./openai";
+import { getPostDetails } from "./instagram";
 
 function requireAuth(req: Request, res: Response, next: () => void) {
   if (!req.isAuthenticated()) {
@@ -177,6 +178,41 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
         return res.status(400).send("videoIds must be a non-empty array");
       }
       await Promise.all(videoIds.map((id: string) => storage.deleteVideo(id)));
+      res.sendStatus(204);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  // Social Accounts
+  app.get("/api/accounts", requireAuth, async (req, res) => {
+    try {
+      const accounts = await storage.getSocialAccountsByResearcher(req.user!.id);
+      res.json(accounts);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/accounts", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertSocialAccountSchema.parse(req.body);
+      const account = await storage.createSocialAccount({
+        ...parsed,
+        researcherId: req.user!.id
+      });
+      res.status(201).json(account);
+    } catch (error: any) {
+      if (error.code === '23505') { // Postgres unique constraint violation code
+        return res.status(409).json({ message: "Username already exists" });
+      }
+      res.status(400).send(error.message);
+    }
+  });
+
+  app.delete("/api/accounts/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteSocialAccount(req.params.id);
       res.sendStatus(204);
     } catch (error: any) {
       res.status(500).send(error.message);
@@ -611,6 +647,23 @@ export function registerRoutes(httpServer: Server, app: Express): Server {
       res.status(201).json(savedComments);
     } catch (error: any) {
       console.error("Error generating comments:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+
+
+  app.post("/api/instagram/ingest", requireAuth, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).send("URL is required");
+      }
+      
+      const details = await getPostDetails(url);
+      res.json(details);
+    } catch (error: any) {
+      console.error("Instagram Ingestion Error:", error);
       res.status(500).send(error.message);
     }
   });
