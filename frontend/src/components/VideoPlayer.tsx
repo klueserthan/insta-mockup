@@ -4,7 +4,7 @@ import { Heart, MessageCircle, Send, MoreVertical, Volume2, VolumeX, Link2, X, R
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import type { Video } from '@shared/schema';
+import type { Video } from '@/lib/api-types';
 import { useToast } from '@/hooks/use-toast';
 import { CommentsOverlay } from './CommentsOverlay';
 
@@ -361,7 +361,7 @@ export function VideoPlayer({
               <Heart size={26} strokeWidth={2} className={cn(liked && "fill-[#FF3040]")} />
             </button>
           )}
-          <span className="text-[11px] font-medium mt-0.5">{previewMode ? video.likes : (liked ? video.likes + 1 : video.likes)}</span>
+          <span className="text-[11px] font-medium mt-0.5">{previewMode ? (video.likes || 0) : (liked ? (video.likes || 0) + 1 : (video.likes || 0))}</span>
         </div>
 
         {/* Comments */}

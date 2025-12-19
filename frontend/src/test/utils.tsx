@@ -1,15 +1,21 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { getQueryFn } from '../lib/queryClient';
 import { Route, Router } from 'wouter';
 
 const createTestQueryClient = () => new QueryClient({
   defaultOptions: {
     queries: {
       retry: false,
+      queryFn: getQueryFn({ on401: "throw" }),
     },
   },
 });
+
+import userEvent from '@testing-library/user-event';
+
+// ... other imports
 
 export function renderWithProviders(
   ui: ReactElement,
@@ -31,7 +37,7 @@ export function renderWithProviders(
   }
 
   return {
-    user: require('@testing-library/user-event').default.setup(),
+    user: userEvent.setup(),
     ...render(ui, { wrapper: Wrapper, ...renderOptions }),
   };
 }

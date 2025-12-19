@@ -10,7 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Trash2, Plus, Sparkles, Loader2, MessageCircle, Heart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient, fetchWithAuth } from '@/lib/queryClient';
-import type { Video, PreseededComment } from '@shared/schema';
+import type { Video, PreseededComment } from '@/lib/api-types';
 
 interface CommentsManagerProps {
   video: Video | null;

@@ -3,7 +3,7 @@ import { useRoute, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ArrowLeft } from 'lucide-react';
-import type { Video } from '@shared/schema';
+import type { Video } from '@/lib/api-types';
 
 interface FeedData {
   experimentId: string;

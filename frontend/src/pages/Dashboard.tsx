@@ -19,7 +19,7 @@ import { CommentsManager } from '@/components/CommentsManager';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient, fetchWithAuth } from '@/lib/queryClient';
-import type { Project, Experiment, Video, SocialAccount, InsertSocialAccount } from '@shared/schema';
+import type { Project, Experiment, Video, SocialAccount, InsertSocialAccount } from '@/lib/api-types';
 import {
   DndContext,
   closestCenter,
@@ -112,9 +112,9 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
       </TableCell>
       <TableCell>
         <div className="flex gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1"><Heart size={16} strokeWidth={2} /> {video.likes.toLocaleString()}</span>
-          <span className="flex items-center gap-1"><MessageCircle size={16} strokeWidth={2} className="scale-x-[-1]" /> {video.comments.toLocaleString()}</span>
-          <span className="flex items-center gap-1"><Send size={16} strokeWidth={2} /> {video.shares.toLocaleString()}</span>
+          <span className="flex items-center gap-1"><Heart size={16} strokeWidth={2} /> {(video.likes || 0).toLocaleString()}</span>
+          <span className="flex items-center gap-1"><MessageCircle size={16} strokeWidth={2} className="scale-x-[-1]" /> {(video.comments || 0).toLocaleString()}</span>
+          <span className="flex items-center gap-1"><Send size={16} strokeWidth={2} /> {(video.shares || 0).toLocaleString()}</span>
         </div>
       </TableCell>
       <TableCell className="text-right">
@@ -227,6 +227,7 @@ export default function Dashboard() {
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const selectedExperiment = experiments.find(e => e.id === selectedExperimentId);
+  console.log('Dashboard Render: selectedProjectId=', selectedProjectId, 'projects=', projects.length, 'experiments=', experiments);
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: typeof newProject) => {
@@ -462,10 +463,10 @@ export default function Dashboard() {
       shares: 0,
       song: '',
       userAvatar: '',
-      description: null,
+      description: undefined,
       position: videos.length,
       experimentId: selectedExperimentId || '',
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     } as Video);
     // Reset account state
     setSelectedAccountId("new");
@@ -632,7 +633,7 @@ export default function Dashboard() {
                     <CardHeader>
                       <CardTitle className="text-lg">{project.name}</CardTitle>
                       <CardDescription>
-                        Query: {project.queryKey} • {Math.floor(project.timeLimitSeconds / 60)}m {project.timeLimitSeconds % 60}s limit
+                        Query: {project.queryKey} • {Math.floor((project.timeLimitSeconds || 0) / 60)}m {(project.timeLimitSeconds || 0) % 60}s limit
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1393,9 +1394,9 @@ export default function Dashboard() {
                           username: editingVideo.username,
                           userAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${editingVideo.username}_${seed}`,
                           caption: editingVideo.caption,
-                          likes: editingVideo.likes,
-                          comments: editingVideo.comments,
-                          shares: editingVideo.shares,
+                          likes: editingVideo.likes || 0,
+                          comments: editingVideo.comments || 0,
+                          shares: editingVideo.shares || 0,
                         });
                       } else {
                         updateVideoMutation.mutate({ 
@@ -1404,9 +1405,9 @@ export default function Dashboard() {
                             url: editingVideo.url,
                             username: editingVideo.username,
                             caption: editingVideo.caption,
-                            likes: editingVideo.likes,
-                            comments: editingVideo.comments,
-                            shares: editingVideo.shares,
+                            likes: editingVideo.likes || 0,
+                            comments: editingVideo.comments || 0,
+                            shares: editingVideo.shares || 0,
                           }
                         });
                       }

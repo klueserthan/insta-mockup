@@ -6,6 +6,8 @@ export interface Researcher {
   createdAt?: string;
 }
 
+export type InsertResearcher = Omit<Researcher, "id" | "createdAt"> & { password?: string };
+
 export interface Project {
   id: string;
   researcherId: string;
@@ -67,6 +69,8 @@ export interface SocialAccount {
   avatarUrl: string;
   createdAt?: string;
 }
+
+export type InsertSocialAccount = Omit<SocialAccount, "id" | "researcherId" | "createdAt">;
 
 export interface Interaction {
   id: string;

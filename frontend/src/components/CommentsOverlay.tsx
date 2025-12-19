@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Heart, Send } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
-import type { Video, PreseededComment } from '@shared/schema';
+import type { Video, PreseededComment } from '@/lib/api-types';
 
 interface Comment {
   id: string;
@@ -36,8 +36,8 @@ export function CommentsOverlay({ video, isOpen, onOpenChange, onComment }: Comm
     username: c.authorName,
     avatar: c.authorAvatar,
     text: c.body,
-    likes: c.likes,
-    timestamp: getRelativeTime(c.createdAt)
+    likes: c.likes || 0,
+    timestamp: getRelativeTime(c.createdAt || new Date().toISOString())
   }));
 
   const allComments = [...userComments, ...preseededComments];
