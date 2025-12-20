@@ -550,6 +550,7 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
           onOpenChange={(open) => !open && setEditingVideo(null)}
           video={editingVideo}
           experimentId={experiment.id}
+          projectId={project.id}
         />
       )}
 

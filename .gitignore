@@ -30,7 +30,7 @@ coverage/
 
 # Runtime / Data
 /.data/
-/attached_assets/
+#/attached_assets/
 server/public/
 
 # Build artifacts / Cache
@@ -52,3 +52,4 @@ vite.config.ts.*
 # Uploads
 # uploads/
 
+rocket_test.py

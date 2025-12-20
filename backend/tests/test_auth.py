@@ -15,7 +15,7 @@ def test_register_login_user(client: TestClient):
     # Login
     response = client.post(
         "/api/login",
-        data={"username": "test@example.com", "password": "password123"}
+        json={"email": "test@example.com", "password": "password123"}
     )
     assert response.status_code == 200
     
@@ -32,7 +32,7 @@ def test_login_invalid_password(client: TestClient):
     )
     response = client.post(
         "/api/login",
-        data={"username": "test@example.com", "password": "wrongpassword"}
+        json={"email": "test@example.com", "password": "wrongpassword"}
     )
     assert response.status_code == 401
 

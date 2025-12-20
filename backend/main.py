@@ -6,7 +6,7 @@ from config import UPLOAD_DIR
 import os
 
 from auth import router as auth_router
-from routes import projects, experiments, videos, comments, accounts, storage, feed, interactions
+from routes import projects, experiments, videos, comments, accounts, storage, feed, interactions, instagram
 from database import create_db_and_tables
 
 from contextlib import asynccontextmanager
@@ -41,6 +41,7 @@ app.include_router(accounts.router)
 app.include_router(storage.router)
 app.include_router(feed.router)
 app.include_router(interactions.router)
+app.include_router(instagram.router)
 
 # Mount uploads directory to /media to serve files locally
 if os.path.exists(UPLOAD_DIR):

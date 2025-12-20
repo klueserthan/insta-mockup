@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Form
+from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from sqlmodel import Session, select
@@ -62,15 +63,18 @@ def register(
     
     return db_researcher
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 @router.post("/login")
 def login(
-    username: str = Form(...),
-    password: str = Form(...),
-    request: Request = None,
+    login_data: LoginRequest,
+    request: Request,
     session: Session = Depends(get_session)
 ):
-    user = session.exec(select(Researcher).where(Researcher.email == username)).first()
-    if not user or not verify_password(password, user.password):
+    user = session.exec(select(Researcher).where(Researcher.email == login_data.email)).first()
+    if not user or not verify_password(login_data.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

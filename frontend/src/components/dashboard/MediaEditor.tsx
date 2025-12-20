@@ -21,9 +21,14 @@ interface MediaEditorProps {
   onSave?: () => void;
 }
 
-export function MediaEditor({ video: initialVideo, experimentId, open, onOpenChange, onSave }: MediaEditorProps) {
+export function MediaEditor({ video: initialVideo, projectId, experimentId, open, onOpenChange, onSave }: MediaEditorProps & { projectId: string }) {
   const { toast } = useToast();
   const [video, setVideo] = useState<Video>(initialVideo);
+
+  // Carousel State
+  const [carouselCandidates, setCarouselCandidates] = useState<{id: string, type: string, url: string}[]>([]);
+  const [showCarouselSelection, setShowCarouselSelection] = useState(false);
+
   const [ingestMode, setIngestMode] = useState<'upload' | 'instagram'>('upload');
   const [ingestUrl, setIngestUrl] = useState("");
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'finalizing' | 'done'>('idle');
@@ -96,11 +101,22 @@ export function MediaEditor({ video: initialVideo, experimentId, open, onOpenCha
   });
 
   const ingestInstagramMutation = useMutation({
-    mutationFn: async (url: string) => {
-      const res = await apiRequest('POST', '/api/instagram/ingest', { url });
+    mutationFn: async (payload: { url: string, selected_id?: string }) => {
+      const res = await apiRequest('POST', '/api/instagram/ingest', {
+        ...payload,
+        project_id: projectId,
+        feed_id: experimentId
+      });
       return res.json();
     },
     onSuccess: (data: any) => {
+      if (data.type === 'carousel' && data.candidates) {
+          setCarouselCandidates(data.candidates);
+          setShowCarouselSelection(true);
+          toast({ title: 'Select Media', description: 'Please select one item from the carousel.' });
+          return;
+      }
+      
       setVideo(prev => ({
         ...prev,
         url: data.url,
@@ -120,6 +136,8 @@ export function MediaEditor({ video: initialVideo, experimentId, open, onOpenCha
       setSelectedAccountId("new");
       
       toast({ title: 'Instagram Imported', description: 'Media details populated.' });
+      setShowCarouselSelection(false);
+      setCarouselCandidates([]);
     },
     onError: (err: any) => {
         toast({ title: 'Import Failed', description: err.message, variant: 'destructive' });
@@ -155,6 +173,7 @@ export function MediaEditor({ video: initialVideo, experimentId, open, onOpenCha
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
@@ -188,7 +207,7 @@ export function MediaEditor({ video: initialVideo, experimentId, open, onOpenCha
                             />
                             <Button 
                                 size="sm" 
-                                onClick={() => ingestInstagramMutation.mutate(ingestUrl)}
+                                onClick={() => ingestInstagramMutation.mutate({ url: ingestUrl })}
                                 disabled={!ingestUrl || ingestInstagramMutation.isPending}
                                 data-testid="button-ingest"
                             >
@@ -493,5 +512,38 @@ export function MediaEditor({ video: initialVideo, experimentId, open, onOpenCha
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    
+    <Dialog open={showCarouselSelection} onOpenChange={setShowCarouselSelection}>
+        <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+                <DialogTitle>Select Media</DialogTitle>
+                <DialogDescription>This post is a carousel. Please select the image or video you want to import.</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-3 gap-2 py-4">
+                {carouselCandidates.map((c) => (
+                    <button 
+                        key={c.id}
+                        className="relative aspect-[3/4] bg-muted group overflow-hidden rounded-md border-2 border-transparent hover:border-primary focus:outline-none focus:border-primary transition-all"
+                        onClick={() => ingestInstagramMutation.mutate({ url: ingestUrl, selected_id: c.id })}
+                        disabled={ingestInstagramMutation.isPending}
+                    >
+                        <img src={c.url} className="w-full h-full object-cover" />
+                        {c.type === 'video' && (
+                            <div className="absolute top-2 right-2 bg-black/50 p-1 rounded-full text-white">
+                                <span className="sr-only">Video</span>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            </div>
+                        )}
+                        {ingestInstagramMutation.isPending && (
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                <Loader2 className="animate-spin text-white" />
+                            </div>
+                        )}
+                    </button>
+                ))}
+            </div>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }
