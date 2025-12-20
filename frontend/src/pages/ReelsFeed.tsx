@@ -121,9 +121,29 @@ export default function ReelsFeed() {
     return () => clearInterval(timer);
   }, [timeRemaining, navigateToEndScreen, feedData?.experimentId, feedData?.persistTimer, participantId]);
 
-  const logInteraction = useCallback(async (type: string, videoId: string, data?: any) => {
+  const logInteraction = useCallback(async (type: string, videoId: string, data?: any, options?: { keepalive?: boolean }) => {
     if (!feedData?.experimentId) return;
     
+    // Heartbeat Logic
+    if (type === 'heartbeat') {
+       try {
+         await fetch('/api/interactions/heartbeat', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           keepalive: options?.keepalive,
+           body: JSON.stringify({
+             sessionId: data.sessionId,
+             participantId,
+             videoId,
+             durationMs: data.durationMs
+           })
+         });
+       } catch (err) {
+         console.error('Failed to send heartbeat:', err);
+       }
+       return;
+    }
+
     try {
       await fetch('/api/interactions', {
         method: 'POST',
@@ -133,7 +153,7 @@ export default function ReelsFeed() {
           experimentId: feedData.experimentId,
           videoId,
           interactionType: type,
-          metadata: data,
+          interactionData: data, // Note: backend model expects interaction_data or alias metadata
         }),
       });
     } catch (err) {
@@ -224,7 +244,7 @@ export default function ReelsFeed() {
               isActive={activeVideoId === video.id}
               muted={muted}
               toggleMute={() => setMuted(!muted)}
-              onInteraction={(type, data) => logInteraction(type, video.id, data)}
+              onInteraction={logInteraction}
               showUnmutePrompt={feedData.showUnmutePrompt}
             />
           </div>

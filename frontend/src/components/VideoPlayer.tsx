@@ -155,7 +155,7 @@ interface VideoPlayerProps {
   isActive?: boolean;
   muted?: boolean;
   toggleMute?: () => void;
-  onInteraction?: (type: string, videoId: string) => void;
+  onInteraction?: (type: string, videoId: string, data?: any, options?: { keepalive?: boolean }) => void;
   showUnmutePrompt?: boolean;
   previewMode?: boolean;
 }
@@ -222,16 +222,59 @@ export function VideoPlayer({
     }
   }, [isActive, previewMode]);
 
-  // Log viewing time on unmount or when becoming inactive
+  // Heartbeat Logic for tracking view time
+  const sessionIdRef = useRef<string>('');
+  
   useEffect(() => {
-    if (previewMode) return;
-    return () => {
-      if (startTimeRef.current && onInteraction) {
-        const duration = Date.now() - startTimeRef.current;
-        onInteraction('view_duration', `${duration}ms`);
+    if (previewMode || !isActive) return;
+
+    // Start new session
+    sessionIdRef.current = crypto.randomUUID();
+    startTimeRef.current = Date.now();
+    
+    const sendHeartbeat = () => {
+      if (!startTimeRef.current) return;
+      const duration = Date.now() - startTimeRef.current;
+      
+      onInteraction?.('heartbeat', video.id, { 
+        sessionId: sessionIdRef.current,
+        durationMs: duration
+      });
+    };
+
+    // Initial heartbeat (start of session)
+    sendHeartbeat();
+
+    // Heartbeat every 5 seconds
+    const interval = setInterval(sendHeartbeat, 5000);
+
+    // Final heartbeat on visibility change (tab switch/close)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        const duration = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+        onInteraction?.('heartbeat', video.id, { 
+          sessionId: sessionIdRef.current,
+          durationMs: duration
+        }, { keepalive: true });
       }
     };
-  }, [isActive, onInteraction, previewMode]);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Final heartbeat on unmount (ensure keepalive in case of navigation)
+      if (startTimeRef.current) {
+          const duration = Date.now() - startTimeRef.current;
+          onInteraction?.('heartbeat', video.id, { 
+            sessionId: sessionIdRef.current,
+            durationMs: duration
+          }, { keepalive: true });
+      }
+    };
+  }, [isActive, previewMode, video.id, onInteraction]);
 
   const handleDoubleTap = () => {
     if (previewMode) return;
