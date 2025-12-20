@@ -1,64 +1,56 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.responses import FileResponse
-from sqlmodel import Session
-from uuid import uuid4
-import os
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from typing import Dict
 import shutil
-
+import os
+from uuid import uuid4
+from config import UPLOAD_DIR, BASE_URL
 from auth import get_current_user
+from validators import FileValidator
 
 router = APIRouter()
-
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
+validator = FileValidator()
 
 @router.post("/api/objects/upload")
-def get_upload_url(request: Request, current_user = Depends(get_current_user)):
-    filename = f"{uuid4()}.tmp"
-    # Ensure uploads/ endpoint is accessible.
-    # We will use a dedicated endpoint for uploading content locally.
-    url = str(request.url_for('upload_content', filename=filename))
-    return {"uploadURL": url}
-
-@router.put("/api/uploads/{filename}", name="upload_content")
-async def upload_content(filename: str, request: Request):
-    # This endpoint receives the file content directly
-    content = await request.body()
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    with open(filepath, "wb") as f:
-        f.write(content)
-    return {"status": "ok"}
-
-@router.put("/api/objects/finalize")
-def finalize_upload(
-    body: dict,
+async def upload_file(
+    file: UploadFile = File(...),
     current_user = Depends(get_current_user)
-):
-    upload_url = body.get("uploadURL")
-    if not upload_url:
-        raise HTTPException(status_code=400, detail="uploadURL is required")
+) -> Dict[str, str]:
+    """
+    Handle single file upload with validation.
+    Returns the public URL of the uploaded file.
+    """
     
-    # Extract filename from URL
-    # Assuming local URL: .../api/uploads/{filename}
+    # 1. Validate File
+    validation = await validator.validate_file(file)
+    if not validation["valid"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=", ".join(validation["errors"])
+        )
+        
+    # 2. Generate Unique Filename
+    # Use original extension if present, else .tmp (though validator checks extension)
+    _, ext = os.path.splitext(file.filename)
+    unique_filename = f"{uuid4()}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    # 3. Save File
     try:
-        filename = upload_url.split("/")[-1]
-    except:
-         raise HTTPException(status_code=400, detail="Invalid URL")
-         
-    tmp_path = os.path.join(UPLOAD_DIR, filename)
-    if not os.path.exists(tmp_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        
+    # 4. Return Public URL
+    # We return 'uploadURL' to match what the frontend expects for consistency, 
+    # or arguably 'url'. Let's check what we promised in plan.
+    # Plan said: { "url": "..." }. But frontend might expect uploadURL from S3 legacy.
+    # Let's verify frontend expectation in next steps. For now, returning clear structure.
     
-    # Rename to permanent (remove .tmp?) or just keep.
-    # Return objectPath relative to /objects/
-    # Let's say we keep filename as objectPath
+    public_url = f"{BASE_URL}/media/{unique_filename}"
     
-    return {"objectPath": filename}
-
-@router.get("/objects/{object_path:path}")
-def get_object(object_path: str):
-    filepath = os.path.join(UPLOAD_DIR, object_path)
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(filepath)
+    return {
+        "url": public_url,
+        "filename": unique_filename,
+        "original_filename": file.filename
+    }

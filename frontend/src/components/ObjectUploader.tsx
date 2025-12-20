@@ -4,7 +4,7 @@ import Uppy from "@uppy/core";
 import Dashboard from "@uppy/react/dashboard";
 import "@uppy/core/css/style.min.css";
 import "@uppy/dashboard/css/style.min.css";
-import AwsS3 from "@uppy/aws-s3";
+import XHRUpload from "@uppy/xhr-upload";
 import type { UploadResult } from "@uppy/core";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -13,22 +13,19 @@ interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
   maxFileSize?: number;
   allowedFileTypes?: string[];
-  onGetUploadParameters: () => Promise<{
-    method: "PUT";
-    url: string;
-  }>;
-  onComplete?: (
-    result: UploadResult<Record<string, unknown>, Record<string, unknown>>
-  ) => void;
+  mode?: "modal" | "inline";
+  endpoint?: string;
+  onComplete?: (result: any) => void;
   buttonClassName?: string;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 export function ObjectUploader({
   maxNumberOfFiles = 1,
   maxFileSize = 104857600,
   allowedFileTypes,
-  onGetUploadParameters,
+  mode = "modal",
+  endpoint = "/api/objects/upload",
   onComplete,
   buttonClassName,
   children,
@@ -41,17 +38,41 @@ export function ObjectUploader({
         maxFileSize,
         allowedFileTypes,
       },
-      autoProceed: false,
+      autoProceed: true,
     })
-      .use(AwsS3, {
-        shouldUseMultipart: false,
-        getUploadParameters: onGetUploadParameters,
+      .use(XHRUpload, {
+        endpoint,
+        fieldName: "file",
+        formData: true,
+      })
+      .on("upload-success", (file, response) => {
+        if (file) {
+          console.log("Uppy upload-success:", file.name, response);
+        }
       })
       .on("complete", (result) => {
+        console.log("Uppy complete:", result);
         onComplete?.(result);
         setShowModal(false);
       })
+      .on("error", (error) => {
+        console.error("Uppy error:", error);
+      })
   );
+
+  if (mode === "inline") {
+    return (
+      <div className="w-full border rounded-lg overflow-hidden bg-background">
+        <Dashboard
+          uppy={uppy}
+          proudlyDisplayPoweredByUppy={false}
+          height={300}
+          width="100%"
+          hideUploadButton
+        />
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -1,41 +1,61 @@
+import pytest
 from fastapi.testclient import TestClient
+from main import app
+import os
+from config import UPLOAD_DIR
+from auth import get_current_user
 
-def test_storage_upload_download(client: TestClient):
-    # Register/Login
-    client.post("/api/register", json={"email": "str@e.com", "password": "p", "name": "S", "lastname": "T"})
-    client.post("/api/login", data={"username": "str@e.com", "password": "p"})
+client = TestClient(app)
+
+@pytest.fixture(autouse=True)
+def clean_uploads():
+    # Only clean if needed, or rely on unique names
+    yield
+
+def test_simple_upload_flow():
+    # Mock Auth
+    app.dependency_overrides[get_current_user] = lambda: {"id": "testuser", "username": "test"}
+
+    # 1. Upload valid image via POST (multipart)
+    # Minimal valid PNG header
+    png_content = b"\x89PNG\r\n\x1a\n"
+    files = {
+        "file": ("test.png", png_content, "image/png")
+    }
     
-    # 1. Get Upload URL
-    response = client.post("/api/objects/upload")
+    response = client.post("/api/objects/upload", files=files)
     assert response.status_code == 200
     data = response.json()
-    assert "uploadURL" in data
-    upload_url = data["uploadURL"]
     
-    # 2. Upload file (PUT)
-    # The URL will be something like http://testserver/api/uploads/uuid
-    # TestClient can handle relative URLs if valid, or absolute.
-    # If the returned URL is full http://..., TestClient usually works if domain matches.
-    # backend/routes/storage.py will generate the URL.
+    # Check response structure
+    assert "url" in data
+    assert "filename" in data
+    assert data["original_filename"] == "test.png"
     
-    # Let's say we implement local storage.
-    file_content = b"test content"
-    # Parse path from URL
-    path = upload_url.replace("http://testserver", "")
+    # Check file exists on disk
+    filename = data["filename"]
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    assert os.path.exists(filepath)
     
-    response = client.put(path, content=file_content)
-    assert response.status_code == 200
+    # Check access via public URL
+    public_url = data["url"]
+    relative_path = public_url.replace("http://localhost:8000", "")
+    get_res = client.get(relative_path)
+    assert get_res.status_code == 200
+    assert get_res.content == png_content
+
+    app.dependency_overrides.pop(get_current_user)
+
+def test_upload_invalid_type():
+    app.dependency_overrides[get_current_user] = lambda: {"id": "testuser", "username": "test"}
     
-    # 3. Finalize
-    response = client.put(
-        "/api/objects/finalize",
-        json={"uploadURL": upload_url}
-    )
-    assert response.status_code == 200
-    object_path = response.json()["objectPath"]
+    # Text file -> should fail
+    files = {
+        "file": ("test.txt", b"some text", "text/plain")
+    }
     
-    # 4. Download
-    # /objects/{objectPath}
-    response = client.get(f"/objects/{object_path}")
-    assert response.status_code == 200
-    assert response.content == file_content
+    response = client.post("/api/objects/upload", files=files)
+    assert response.status_code == 400
+    assert "not allowed" in response.json()["detail"]
+    
+    app.dependency_overrides.pop(get_current_user)

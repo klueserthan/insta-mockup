@@ -334,7 +334,7 @@ export default function Dashboard() {
   });
 
   const createVideoMutation = useMutation({
-    mutationFn: async (data: { url: string; username: string; userAvatar: string; caption: string; likes: number; comments: number; shares: number }) => {
+    mutationFn: async (data: { url: string; username: string; userAvatar: string; caption: string; likes: number; comments: number; shares: number; song: string }) => {
       const res = await apiRequest('POST', `/api/experiments/${selectedExperimentId}/videos`, data);
       return res.json();
     },
@@ -1116,33 +1116,28 @@ export default function Dashboard() {
                           </div>
                         ) : (
                           <ObjectUploader
+                            mode="inline"
                             maxNumberOfFiles={1}
                             maxFileSize={104857600}
                             allowedFileTypes={['image/*', 'video/*']}
-                            onGetUploadParameters={async () => {
-                              setUploadStatus('uploading');
-                              const res = await apiRequest('POST', '/api/objects/upload', {});
-                              const data = await res.json();
-                              return {
-                                method: 'PUT' as const,
-                                url: data.uploadURL,
-                              };
-                            }}
-                            onComplete={async (result) => {
+                            onComplete={(result) => {
+                              console.log("Video Upload onComplete:", result);
                               if (result.successful && result.successful.length > 0) {
-                                const uploadURL = result.successful[0].uploadURL;
-                                setUploadStatus('finalizing');
-                                try {
-                                  const res = await apiRequest('PUT', '/api/objects/finalize', { uploadURL });
-                                  const data = await res.json();
-                                  setEditingVideo(prev => prev ? { ...prev, url: data.objectPath } : null);
+                                // XHRUpload response body contains the JSON returned by backend
+                                const responseBody = result.successful[0].response?.body as any;
+                                const uploadURL = responseBody?.url;
+                                
+                                console.log("Upload finished:", responseBody);
+                                
+                                if (uploadURL) {
+                                  setEditingVideo(prev => prev ? { ...prev, url: uploadURL } : null);
                                   setUploadStatus('done');
-                                } catch (err) {
-                                  console.error('Error finalizing upload:', err);
+                                } else {
                                   setUploadStatus('idle');
-                                  toast({ title: 'Upload failed', description: 'Could not process the file.', variant: 'destructive' });
+                                  toast({ title: 'Upload failed', description: 'No URL returned.', variant: 'destructive' });
                                 }
                               } else {
+                                console.warn("Upload completed but no successful files:", result);
                                 setUploadStatus('idle');
                               }
                             }}
@@ -1263,7 +1258,7 @@ export default function Dashboard() {
                                       </div>
                                   ) : (
                                      <div className="border rounded-md p-2 bg-background">
-                                         {newAccount.avatarUrl && newAccount.avatarUrl.includes('storage.googleapis.com') ? (
+                                         {newAccount.avatarUrl ? (
                                              <div className="flex items-center gap-2">
                                                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100">
                                                      <img src={newAccount.avatarUrl} className="w-full h-full object-cover" />
@@ -1280,24 +1275,12 @@ export default function Dashboard() {
                                                 maxNumberOfFiles={1}
                                                 maxFileSize={5242880} // 5MB for avatars
                                                 allowedFileTypes={['image/*']}
-                                                onGetUploadParameters={async () => {
-                                                  const res = await apiRequest('POST', '/api/objects/upload', {});
-                                                  const data = await res.json();
-                                                  return {
-                                                    method: 'PUT' as const,
-                                                    url: data.uploadURL,
-                                                  };
-                                                }}
-                                                onComplete={async (result) => {
+                                                onComplete={(result) => {
                                                   if (result.successful && result.successful.length > 0) {
-                                                    const uploadURL = result.successful[0].uploadURL;
-                                                    try {
-                                                      const res = await apiRequest('PUT', '/api/objects/finalize', { uploadURL });
-                                                      const data = await res.json();
-                                                      setNewAccount(prev => ({ ...prev, avatarUrl: data.objectPath }));
-                                                    } catch (err) {
-                                                      console.error('Error finalizing avatar upload:', err);
-                                                      toast({ title: 'Upload failed', description: 'Could not process the avatar.', variant: 'destructive' });
+                                                    const responseBody = result.successful[0].response?.body as any;
+                                                    const uploadURL = responseBody?.url;
+                                                    if (uploadURL) {
+                                                      setNewAccount(prev => ({ ...prev, avatarUrl: uploadURL }));
                                                     }
                                                   }
                                                 }}
@@ -1397,6 +1380,7 @@ export default function Dashboard() {
                           likes: editingVideo.likes || 0,
                           comments: editingVideo.comments || 0,
                           shares: editingVideo.shares || 0,
+                          song: 'Original Audio',
                         });
                       } else {
                         updateVideoMutation.mutate({ 
