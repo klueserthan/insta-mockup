@@ -14,38 +14,34 @@
 
 ## Status Classification
 
-### ✅ What Exists and Works
+### ✅ What Exists and Works (Aligned with Corrected Specs)
 - Backend with FastAPI + SQLModel
 - Researcher authentication (session-based)
-- Projects, experiments, videos CRUD
+- Projects with settings (queryKey, timeLimitSeconds, redirectUrl, endScreenMessage, randomizationSeed)
+- Experiments with public URLs (persistTimer, showUnmutePrompt)
+- Videos with boolean locks (isLocked)
 - Basic feed delivery at `/api/feed/{public_url}`
 - Social accounts (personas)
 - Pre-seeded comments (with author info)
 - Interaction and heartbeat logging
 - Media upload and storage
 
-### 📋 What's Designed But Not Yet Implemented
-Per the design specs in `specs/001-instagram-mockup-feed/`:
+### 📋 What Needs to Be Implemented (from Corrected Specs)
+Per the updated design specs in `specs/001-instagram-mockup-feed/`:
 
-**Experiment-level settings** (currently in Project):
-- Kill switch (`isActive` field)
-- Time limit per experiment
-- End screen message per experiment
-- Redirect URL per experiment
-
-**Video/Media enhancements**:
-- Position-based lock semantics (`lockedPosition`)
-- Lock behavior in feed randomization
+**Project enhancements**:
+- `isActive` field (kill switch at project level)
 
 **Comment enhancements**:
-- Pinned comments (exactly one per video)
-- Link URLs in comments
+- `socialPersonaId` foreign key
+- `isPinned` field (exactly one per video)
+- `linkUrl` field
+- `text` field (or keep `body` for compatibility)
 - Link click tracking
 - AI-generated comment suggestions
 
 **Participant features**:
-- Session resume using configurable `Project.queryKey`
-- Kill switch enforcement (blocked feed access)
+- Kill switch enforcement (blocked feed access when project.isActive=false)
 - Query parameter preservation on redirect
 
 **Results & Analytics**:
@@ -53,83 +49,49 @@ Per the design specs in `specs/001-instagram-mockup-feed/`:
 - CSV export (aggregated)
 - JSON export (detailed events)
 
-## Recommended Path Forward
+## Recommended Path Forward ✅ **DECISION MADE: Option 2**
 
-### ✅ RECOMMENDED: Option 3 - Hybrid Approach (Clear Status Documentation)
+User has chosen **Option 2 - Implement Features** with corrected specs.
 
-This option provides maximum clarity and enables parallel work while preserving the design vision.
+### ✅ Completed Actions (Phase 1)
 
-#### Immediate Actions (Phase 1 Completion)
+1. **Specs corrected to match implementation architecture** ✅
+   - Settings moved to Project level in data-model.md and openapi.yaml
+   - Lock semantics changed to boolean (`isLocked`) in data-model.md and openapi.yaml
+   - `socialPersonaId` foreign key added to PreseededComment in data-model.md and openapi.yaml
+   - Kill switch (`isActive`) moved to Project level
+   - Added `ProjectPatch` schema for updating project settings
 
-1. **Annotate spec documents with implementation status**
-   
-   Add a status legend at the top of each spec document:
-   ```markdown
-   ## Implementation Status
-   - ✅ Implemented and working
-   - ⚠️ Partially implemented or differs from spec
-   - 📋 Designed but not yet implemented
-   ```
-   
-   Then mark each section/feature accordingly.
+2. **Validation documentation updated** ✅
+   - VALIDATION_REPORT.md reflects corrected specs
+   - PHASE_1_NEXT_STEPS.md updated with implementation plan
 
-2. **Create CURRENT_STATE.md**
-   
-   Document what actually exists in `specs/001-instagram-mockup-feed/CURRENT_STATE.md`:
-   - Current data model (as-is from backend/models.py)
-   - Current API routes (as-is from backend/routes/)
-   - Current authentication flow
-   - Differences from design specs
-   
-   This serves as a bridge between current reality and future vision.
+3. **Python version clarified** ✅
+   - Backend should use Python >= 3.13 (per pyproject.toml)
+   - Will pin to 3.13 to avoid Python 3.14 bcrypt issues
 
-3. **Update quickstart.md**
-   
-   Split into two sections:
-   - **"What Works Now"**: Features that can be tested today
-   - **"Planned Features"**: Features from tasks.md not yet implemented
-   
-   Keep the dev setup instructions (uv, ROCKET_API_KEY, npm) as-is.
+3. **Python version clarified** ✅
+   - Backend should use Python >= 3.13 (per pyproject.toml)
+   - Will pin to 3.13 to avoid Python 3.14 bcrypt issues
 
-4. **Add implementation roadmap**
-   
-   Create `specs/001-instagram-mockup-feed/ROADMAP.md`:
-   - Link to tasks.md for detailed implementation plan
-   - Show phase dependencies (Phase 2 → Phase 3 → etc.)
-   - Indicate which user stories depend on which phases
-   - Estimated complexity/effort per phase
+### Next Steps: Phase 2 Implementation
 
-#### Benefits of This Approach
-
-✅ **Documentation is immediately accurate**
-- New developers can see current vs. planned state
-- No confusion about what works today
-
-✅ **Design vision is preserved**
-- spec.md, plan.md, data-model.md remain as design docs
-- Can reference them during implementation
-
-✅ **Enables parallel work**
-- Frontend can proceed with existing backend
-- Backend can implement new features incrementally
-- Clear contracts (OpenAPI) guide API evolution
-
-✅ **Follows constitution principles**
-- TDD for backend changes (per tasks.md)
-- Preserves existing frontend behavior
-- Auth boundaries clearly documented
-
-#### Phase 2 and Beyond
-
-Once status documentation is complete, proceed with **Phase 2: Foundational tasks** from tasks.md:
+Proceed with **Phase 2: Foundational tasks** from tasks.md:
 
 Key Phase 2 deliverables (T004-T010):
-- Confirm/implement `Project.queryKey` behavior
-- Participant identity extraction logic
-- Public vs researcher auth boundaries
-- Kill switch (`Experiment.isActive`) enforcement
-- Experiment settings at Experiment level (migrate from Project)
-- Frontend API types alignment
+- ✅ Confirm `Project.queryKey` behavior (already implemented)
+- Implement participant identity extraction using Project.queryKey
+- Ensure public vs researcher auth boundaries are correct
+- Add `Project.isActive` field (kill switch)
+- Implement kill switch enforcement in feed endpoint
+- Ensure experiment settings align with current architecture
+- Update frontend API types to match corrected schemas
+
+**Implementation Approach**:
+1. Follow TDD per constitution (tests → implementation → refactor)
+2. Use `backend/tests/` with pytest
+3. Run ruff format + pyright before completion
+4. Address one task at a time, validate, commit
 
 **Checkpoint**: After Phase 2, user stories can be implemented independently.
 
@@ -143,90 +105,59 @@ Then deliver user stories in priority order:
 
 ---
 
-### Alternative: Option 2 - Implement Features (Full Implementation)
+### Implementation Details from Corrected Specs
 
-If immediate feature delivery is the priority:
+#### Project Model Updates Needed:
+```python
+class Project:
+    # ... existing fields ...
+    is_active: bool = Field(default=True)  # NEW: Kill switch
+```
 
-**Pros**: 
-- Specs become accurate once implementation completes
-- Delivers planned functionality
-- Follows design vision
+#### PreseededComment Model Updates Needed:
+```python
+class PreseededComment:
+    # ... existing fields ...
+    social_persona_id: UUID = Field(foreign_key="socialaccount.id")  # NEW: FK to persona
+    is_pinned: bool = Field(default=False)  # NEW: Pinned flag
+    link_url: Optional[str] = None  # NEW: Optional link
+    text: str  # Consider renaming from 'body' or keeping both
+```
 
-**Cons**: 
-- Substantial development effort (6+ phases from tasks.md)
-- Backend tests currently broken (Python 3.14 bcrypt issue)
-- No documentation of current state during implementation
-
-**Process**:
-1. Fix test infrastructure (bcrypt compatibility)
-2. Follow tasks.md from Phase 2 onwards
-3. Use TDD per constitution (tests → implementation → refactor)
-4. Validate each phase before proceeding
-
-**Estimated Scope**: 
-- Phase 2 (Foundational): ~20-30 tasks
-- Phases 3-8 (User Stories): ~40-50 tasks
-- Total: ~60-80 tasks
-
----
-
-### Not Recommended: Option 1 - Rewrite Specs to Match Current Code
-
-**Why not recommended**:
-- Loses the carefully designed architecture
-- Would need to redesign later for missing features
-- specs/001-instagram-mockup-feed represents significant design work
-- plan.md explicitly says "Phase 0: Research (complete)" and "Phase 1: Design & Contracts (complete)"
-
-If you chose this path anyway:
-1. Archive current specs to `specs/001-instagram-mockup-feed/ORIGINAL_DESIGN/`
-2. Rewrite data-model.md to match current models.py
-3. Rewrite openapi.yaml to match current routes
-4. Mark all Phase 2+ tasks as "Future Enhancement"
+#### New Endpoints Needed:
+- `PATCH /api/projects/{projectId}` - Update project settings including kill switch
+- `GET /api/experiments/{experimentId}/results` - Results dashboard
+- `POST /api/experiments/{experimentId}/results/export` - CSV/JSON export
+- `PUT /api/videos/{videoId}/pinned-comment` - Set/update pinned comment
+- `POST /api/comments/{commentId}/generate` - Generate comment suggestions
 
 ---
 
-## Decision Point
+## Decision Summary
 
-**Question for project owner (@klueserthan)**:
+**Decision**: Proceed with Option 2 (Implement features) with corrected specs ✅
 
-Which path should we take?
+**Status**: Phase 1 complete, specs corrected, ready for Phase 2 implementation
 
-- [ ] **Option 3 (Recommended)**: Annotate specs with status, create CURRENT_STATE.md, proceed to Phase 2 implementation when ready
-- [ ] **Option 2**: Proceed directly to Phase 2 implementation (fix tests, then implement features)
-- [ ] **Option 1**: Rewrite specs to match current code (not recommended)
-
-Once you decide, I can proceed accordingly.
+**Next Action**: Begin Phase 2 foundational tasks from tasks.md
 
 ---
 
-## Appendix: Test Infrastructure Issue
-
-**Separate from Phase 1 validation**, but blocking Option 2:
+## Appendix: Test Infrastructure Issue ✅ **RESOLUTION DECIDED**
 
 **Issue**: Backend tests fail with Python 3.14 due to passlib/bcrypt compatibility  
 **Error**: `ValueError: password cannot be longer than 72 bytes`  
 **Root Cause**: passlib checks bcrypt version with test that exceeds 72-byte limit  
 
-**Resolution Options**:
-1. Pin Python to 3.12 or 3.13 (quick fix)
-2. Update passlib/bcrypt dependencies (may need newer versions)
-3. Switch to alternative password hashing (e.g., argon2)
+**Resolution**: Pin Python to 3.13 as specified in pyproject.toml (`requires-python = ">=3.13"`)
 
-**Recommendation**: Pin Python 3.13 in CI/docs since pyproject.toml already specifies `requires-python = ">=3.13"`
+This will be addressed as part of Phase 2 implementation setup.
 
 ---
 
-## Files Created by Phase 1
+## Files Updated by Phase 1
 
-- [x] `VALIDATION_REPORT.md` - Detailed comparison of specs vs implementation
-- [x] `PHASE_1_NEXT_STEPS.md` - This file (recommendations and decision tree)
-
-## Files to Create (if Option 3 selected)
-
-- [ ] `specs/001-instagram-mockup-feed/CURRENT_STATE.md` - As-is implementation documentation
-- [ ] `specs/001-instagram-mockup-feed/ROADMAP.md` - Implementation roadmap and phase dependencies
-- [ ] Update `specs/001-instagram-mockup-feed/quickstart.md` - Split current vs planned
-- [ ] Update `specs/001-instagram-mockup-feed/spec.md` - Add status annotations
-- [ ] Update `specs/001-instagram-mockup-feed/data-model.md` - Add status annotations
-- [ ] Update `specs/001-instagram-mockup-feed/contracts/openapi.yaml` - Add status comments
+- [x] `specs/001-instagram-mockup-feed/data-model.md` - Corrected to match implementation architecture
+- [x] `specs/001-instagram-mockup-feed/contracts/openapi.yaml` - Corrected schemas and added ProjectPatch
+- [x] `VALIDATION_REPORT.md` - Updated with corrected findings
+- [x] `PHASE_1_NEXT_STEPS.md` - Updated with decision and implementation plan

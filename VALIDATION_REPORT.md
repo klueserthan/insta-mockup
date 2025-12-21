@@ -26,23 +26,26 @@ Update quickstart.md to clarify current implementation status vs. planned featur
 
 ---
 
-## T002: API Contract vs Implementation ⚠️ **CRITICAL MISALIGNMENT**
+## T002: API Contract vs Implementation ✅ **SPECS UPDATED**
 
 ### Summary
-The OpenAPI contract in `specs/001-instagram-mockup-feed/contracts/openapi.yaml` describes an API that **does not match** the current backend implementation. This appears to be a **forward-looking specification** rather than documentation of existing behavior.
+The OpenAPI contract in `specs/001-instagram-mockup-feed/contracts/openapi.yaml` has been updated to match the current backend implementation architecture. Key corrections made:
+- Settings (`timeLimitSeconds`, `redirectUrl`, `endScreenMessage`, `isActive`, `randomizationSeed`) moved to Project level
+- Video lock changed from `lockedPosition: int` to `isLocked: boolean`
+- PreseededComment now includes `socialPersonaId` foreign key
+
+Remaining implementation gaps documented below.
 
 ### Detailed Mismatches
 
 #### 1. Experiment Model Structure
 
-**OpenAPI Specification:**
+**Updated OpenAPI Specification (after correction):**
 ```yaml
 Experiment:
   id, projectId, name, publicUrlToken
-  isActive: boolean          # Kill switch
-  timeLimitSeconds: int
-  endScreenMessage: string
-  redirectUrl: string
+  persistTimer: boolean
+  showUnmutePrompt: boolean
 ```
 
 **Current Implementation (backend/models.py):**
@@ -50,19 +53,29 @@ Experiment:
 class Experiment(ExperimentBase, table=True):
     id, project_id, name
     public_url: str            # Not publicUrlToken
-    persist_timer: bool        # Different field
-    show_unmute_prompt: bool   # Different field
-    # NO isActive, timeLimitSeconds, endScreenMessage, redirectUrl
+    persist_timer: bool        # ✓ Matches spec
+    show_unmute_prompt: bool   # ✓ Matches spec
 ```
 
-**Finding**: Settings like `timeLimitSeconds`, `redirectUrl`, `endScreenMessage` are currently in the **Project** model, not Experiment. The kill switch (`isActive`) doesn't exist anywhere.
+**Updated Project Model:**
+```yaml
+Project:
+  id, name, queryKey
+  isActive: boolean          # Kill switch at project level
+  timeLimitSeconds: int
+  endScreenMessage: string
+  redirectUrl: string
+  randomizationSeed: int
+```
+
+**Finding**: Specs have been corrected. Settings like `timeLimitSeconds`, `redirectUrl`, `endScreenMessage`, and `isActive` (kill switch) are now correctly specified at the **Project** level, matching the current implementation.
 
 #### 2. Video/Media Model Structure
 
-**OpenAPI Specification:**
+**Updated OpenAPI Specification (after correction):**
 ```yaml
 Video:
-  lockedPosition: int (nullable)  # Position lock semantic
+  isLocked: boolean          # Boolean lock semantic
   position: int
 ```
 
@@ -70,16 +83,17 @@ Video:
 ```python
 class Video(VideoBase, table=True):
     position: int
-    is_locked: bool              # Boolean lock, not position-based
+    is_locked: bool              # ✓ Matches spec
 ```
 
-**Finding**: Lock semantics are different. Spec wants position-based locking; implementation has simple boolean.
+**Finding**: Specs have been corrected. Lock semantics now use a boolean flag (`isLocked`) matching the current implementation.
 
 #### 3. Comment Model Structure
 
-**OpenAPI Specification:**
+**Updated OpenAPI Specification (after correction):**
 ```yaml
 PreseededComment:
+  id, videoId, socialPersonaId
   text: string
   isPinned: boolean
   linkUrl: string (nullable)
@@ -89,16 +103,16 @@ PreseededComment:
 **Current Implementation:**
 ```python
 class PreseededComment(PreseededCommentBase, table=True):
-    body: str                    # Not "text"
+    body: str                    # Called "body" not "text"
     author_name: str            # Extra field
     author_avatar: str          # Extra field  
     likes: int                  # Extra field
     source: str                 # Extra field
     position: int               # ✓ Matches
-    # NO isPinned, NO linkUrl
+    # NO isPinned, NO linkUrl, NO socialPersonaId FK
 ```
 
-**Finding**: Comment structure is completely different. Spec envisions pinned comments with optional links; implementation has author info and likes.
+**Finding**: Comment structure still differs but specs now correctly include `socialPersonaId` foreign key. Implementation needs to be updated to add `isPinned`, `linkUrl` fields and `socialPersonaId` FK, and consider renaming `body` to `text` or keeping both for compatibility.
 
 #### 4. API Routes
 
@@ -155,18 +169,38 @@ Uses `CamelModel` base class with `alias_generator=to_camel`, so **camelCase is 
 
 ---
 
-## T003: Data Model Documentation ⚠️ **MISALIGNED**
+## T003: Data Model Documentation ✅ **SPECS UPDATED**
 
 ### Summary
-The `specs/001-instagram-mockup-feed/data-model.md` describes the **target architecture** for the Instagram MockUp feature, not the current implementation.
+The `specs/001-instagram-mockup-feed/data-model.md` has been updated to reflect the correct architecture with settings at Project level.
 
 ### Entity Comparison
 
 #### Experiment Entity
 
-**data-model.md describes:**
+**Updated data-model.md (after correction):**
 ```
 Experiment:
+  - persistTimer
+  - showUnmutePrompt
+# Settings moved to Project level
+```
+
+**Current models.py has:**
+```python
+Experiment:
+  - persist_timer  # ✓ Matches
+  - show_unmute_prompt  # ✓ Matches
+```
+
+**Finding**: Architecture now aligned - settings are correctly documented at Project level.
+
+#### Project Entity
+
+**Updated data-model.md (after correction):**
+```
+Project:
+  - queryKey
   - isActive (kill switch)
   - timeLimitSeconds
   - endScreenMessage
@@ -176,40 +210,45 @@ Experiment:
 
 **Current models.py has:**
 ```python
-Experiment:
-  - persist_timer
-  - show_unmute_prompt
-# Settings are in Project, not Experiment
+Project:
+  - query_key  # ✓ Matches
+  - time_limit_seconds  # ✓ Matches
+  - redirect_url  # ✓ Matches
+  - end_screen_message  # ✓ Matches
+  - lock_all_positions  # Extra field
+  - randomization_seed  # ✓ Matches
+  # Missing: isActive (kill switch)
 ```
 
-**Finding**: Architecture differs - settings location and fields don't match.
+**Finding**: Mostly aligned. Implementation needs to add `isActive` field to Project model.
 
 #### Media Item (Video) Entity
 
-**data-model.md describes:**
+**Updated data-model.md (after correction):**
 ```
 Media Item:
-  - lockedPosition (position-based lock)
+  - isLocked (boolean lock)
   - socialPersonaId
 ```
 
 **Current models.py has:**
 ```python
 Video:
-  - is_locked (boolean lock)
-  - social_account_id
+  - is_locked  # ✓ Matches
+  - social_account_id  # Same as socialPersonaId
 ```
 
-**Finding**: Lock semantics differ, naming differs.
+**Finding**: Now aligned - boolean lock semantic is correct.
 
 #### Pre-seeded Comment Entity
 
-**data-model.md describes:**
+**Updated data-model.md (after correction):**
 ```
 Pre-seeded Comment:
   - text
   - linkUrl (optional)
   - isPinned (boolean)
+  - socialPersonaId (FK to persona)
   - position
 ```
 
@@ -221,11 +260,11 @@ PreseededComment:
   - author_avatar
   - likes
   - source
-  - position
-  # NO isPinned, NO linkUrl
+  - position  # ✓ Matches
+  # Missing: isPinned, linkUrl, socialPersonaId FK
 ```
 
-**Finding**: Complete structural mismatch.
+**Finding**: Implementation needs updates - add `isPinned`, `linkUrl`, `socialPersonaId` fields.
 
 #### Participant Session
 
@@ -253,74 +292,76 @@ ViewSession:
 
 ### Validation Rules
 
-The data-model.md describes validation rules that **are not implemented**:
+The data-model.md describes validation rules:
 
-❌ **Kill switch enforcement**: `isActive=false` should block public feed - field doesn't exist  
-❌ **Pinned comment uniqueness**: "At most one pinned per media item" - pinned comments not implemented  
-❌ **Session resume logic**: Based on `participantKey` from Project's `queryKey` - partial implementation  
-
----
-
-## Root Cause Analysis
-
-The specs/001-instagram-mockup-feed directory contains **design documentation for a planned feature** that represents a significant evolution from the current implementation:
-
-### Current Implementation
-- Basic reel feed with projects, experiments, videos
-- Settings at Project level
-- Simple boolean locks on videos
-- Basic comments with author info
-- Participant tracking via ViewSession
-- No kill switch, no results export, no pinned comments
-
-### Planned Feature (in specs/)
-- Separation of settings to Experiment level for multi-experiment projects
-- Kill switch per experiment (`isActive`)
-- Position-based video locking for sophisticated ordering
-- Pinned comments with embedded links
-- Link click tracking
-- Results dashboard with CSV/JSON export
-- Assistant-generated comment suggestions
-- Query string key per project for flexible participant ID tracking
+✅ **Upload safety**: 50MB max, file type allowlist - implemented  
+⚠️ **Kill switch enforcement**: `isActive=false` should block public feed - field needs to be added to Project model  
+📋 **Pinned comment uniqueness**: "At most one pinned per media item" - feature not yet implemented  
+✅ **Session resume logic**: Based on `participantKey` from Project's `queryKey` - partially implemented (queryKey exists, resume logic exists)  
+📋 **Lock behavior**: Boolean locks respected during randomization - needs verification  
 
 ---
 
-## Recommendations
+## Root Cause Analysis and Resolution
 
-### Option 1: Update Specs to Match Current Implementation (Quick Fix)
-**Pros**: Documentation becomes accurate immediately  
-**Cons**: Loses the design vision; may need to redesign later
+**Initial Finding**: The specs/001-instagram-mockup-feed directory contained design documentation that didn't match the implementation.
 
-1. Update `data-model.md` to reflect current models.py
-2. Update `openapi.yaml` to match actual routes and schemas
-3. Update `quickstart.md` to remove references to unimplemented features
-4. Mark tasks.md phases as "Not Yet Implemented"
+**Resolution**: After reviewing user feedback, specs have been **corrected** to match the current implementation architecture:
 
-### Option 2: Implement Features to Match Specs (Proper Solution)
-**Pros**: Delivers the planned feature; specs become accurate  
-**Cons**: Significant development work (Phases 2-8 from tasks.md)
+### Corrections Made to Specs:
+1. ✅ **Settings location**: Moved `timeLimitSeconds`, `redirectUrl`, `endScreenMessage`, `isActive`, `randomizationSeed` to Project level (matching implementation)
+2. ✅ **Lock semantics**: Changed from `lockedPosition: int` to `isLocked: boolean` (matching implementation)
+3. ✅ **Comment model**: Added `socialPersonaId` foreign key requirement
 
-1. Keep specs as-is (they represent the target)
-2. Follow tasks.md to implement missing features
-3. Use TDD approach per constitution
-4. Validate after each phase
+### Current Status:
 
-### Option 3: Hybrid Approach (Recommended for Phase 1)
-**Pros**: Clear status, enables parallel work  
-**Cons**: Requires maintaining "current" vs "planned" distinction
+**Implementation mostly aligned with corrected specs**:
+- Project structure ✅
+- Experiment structure ✅
+- Video/Media structure ✅
+- Basic CRUD operations ✅
+- Feed delivery ✅
+- Interaction logging ✅
 
-1. **Add status indicators** to all spec docs:
-   - Mark implemented sections with ✅
-   - Mark planned sections with 📋
-   - Mark partially implemented with ⚠️
+**Remaining gaps to implement**:
+- Project `isActive` field (kill switch)
+- PreseededComment `isPinned`, `linkUrl`, `socialPersonaId` fields
+- Results export endpoints (CSV/JSON)
+- Comment generation assistant endpoint
+- Pinned comment management endpoint
 
-2. **Create current-state docs**:
-   - `specs/001-instagram-mockup-feed/CURRENT_STATE.md` documenting actual implementation
-   - Keep design docs as-is for future implementation
+---
 
-3. **Update quickstart.md** to separate:
-   - "What works now" (current features)
-   - "Coming soon" (planned features from tasks.md)
+## Recommendations ✅ **DECISION MADE**
+
+**User has selected Option 2**: Implement features to match specs (with corrected specs).
+
+### Next Steps:
+
+1. **Specs are now corrected** ✅
+   - Settings at Project level
+   - Boolean lock semantics
+   - Comment model includes socialPersonaId
+
+2. **Proceed to Phase 2 implementation** (from tasks.md):
+   - Add `isActive` field to Project model
+   - Add pinned comment fields to PreseededComment model
+   - Implement results export endpoints
+   - Implement comment generation assistant
+   - Follow TDD approach per constitution
+
+3. **Address test infrastructure** (separate issue):
+   - Pin Python to 3.13 as specified in pyproject.toml
+   - Fix bcrypt compatibility issue
+
+### Implementation Priority (from tasks.md):
+- Phase 2: Foundational tasks (auth boundaries, kill switch, data model alignment)
+- Phase 3: US1 - Researcher create + preview (MVP)
+- Phase 4: US2 - Participant timed feed
+- Phase 5: US3 - Upload + ingest + lock semantics
+- Phase 6: US5 - Results export
+- Phase 7: US4 - Redirect params
+- Phase 8: US6 - Comments + assistant
 
 ---
 

@@ -22,6 +22,11 @@ This document describes the entities, relationships, and validation rules implie
   - `researcherId` (owner)
   - `name`
   - `queryKey` (the query-string parameter name that contains the stable participant identifier value; default: `participantId`)
+  - `isActive` (kill switch for all experiments in project)
+  - `timeLimitSeconds` (time limit applied to experiments)
+  - `endScreenMessage` (message shown at end of experiments)
+  - `redirectUrl` (URL to redirect to after experiments)
+  - `randomizationSeed` (seed for randomizing media order)
   - `createdAt`, `updatedAt` (if tracked)
 - Relationships:
   - Belongs to one Researcher
@@ -29,17 +34,14 @@ This document describes the entities, relationships, and validation rules implie
 
 ### Experiment (Feed)
 
-- Represents a participant-facing reel feed with settings and a public link.
+- Represents a participant-facing reel feed with a public link.
 - Key fields:
   - `id`
   - `projectId`
   - `name`
   - `publicUrlToken` (public link identifier)
-  - `isActive` (kill switch)
-  - `timeLimitSeconds`
-  - `endScreenMessage`
-  - `redirectUrl`
-  - `randomizationSeed`
+  - `persistTimer` (whether timer persists across page reloads)
+  - `showUnmutePrompt` (whether to show unmute prompt)
 - Relationships:
   - Belongs to one Project
   - Has many Media Items
@@ -70,7 +72,7 @@ This document describes the entities, relationships, and validation rules implie
   - Engagement metrics (likes, comments, shares, etc.)
   - Ordering/lock fields:
     - `position` (base ordering)
-    - `lockedPosition` (bool)
+    - `isLocked` (boolean; if true, position is locked and not randomized)
 - Relationships:
   - Belongs to one Experiment
   - Belongs to one Social Persona
@@ -82,12 +84,14 @@ This document describes the entities, relationships, and validation rules implie
 - Key fields:
   - `id`
   - `mediaItemId`
+  - `socialPersonaId` (the persona/account authoring this comment)
   - `text`
   - `linkUrl` (optional)
   - `isPinned` (boolean; at most one pinned per media item)
   - `position` (order among comments)
 - Relationships:
   - Belongs to one Media Item
+  - Belongs to one Social Persona
 
 ### Participant Session
 
@@ -119,8 +123,8 @@ This document describes the entities, relationships, and validation rules implie
 
 ## Validation Rules
 
-- Experiment kill switch:
-  - If `isActive=false`, public feed must not start new sessions.
+- Project kill switch:
+  - If `isActive=false`, public feed must not start new sessions for any experiment in the project.
 - Upload safety:
   - Enforce file type allowlist and max size (50MB).
 - Pinned comment:
@@ -128,12 +132,14 @@ This document describes the entities, relationships, and validation rules implie
 - Comment ordering:
   - Positions should be contiguous per media item for stable ordering.
 - Session resume:
-  - A participant reopening the feed with the same `participantKey` resumes the same session while within the experiment time limit.
+  - A participant reopening the feed with the same `participantKey` resumes the same session while within the project's time limit.
+- Lock behavior:
+  - Media items with `isLocked=true` maintain their position; unlocked items may be randomized based on project's `randomizationSeed`.
 
 ## State Transitions
 
-- Experiment:
-  - Active → Inactive via kill switch
+- Project:
+  - Active → Inactive via kill switch (affects all experiments in project)
   - Inactive → Active (optional if re-enabled)
 - Participant Session:
   - Created → Active → Ended (by timer expiry or participant completion)
