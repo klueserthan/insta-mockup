@@ -7,13 +7,16 @@ import os
 
 from auth import router as auth_router
 from routes import projects, experiments, videos, comments, accounts, storage, feed, interactions, instagram
-from database import create_db_and_tables
-
+from database import create_db_and_tables, engine
+from sqlmodel import Session
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    with Session(engine) as session:
+        from auth import ensure_dev_user
+        ensure_dev_user(session)
     yield
 
 app = FastAPI(title="Insta Mockup API", lifespan=lifespan)

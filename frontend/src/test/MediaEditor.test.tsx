@@ -11,6 +11,7 @@ vi.mock('@/lib/queryClient', async (importOriginal) => {
   return {
     ...actual,
     apiRequest: vi.fn(),
+    fetchWithAuth: vi.fn(),
     queryClient: {
       invalidateQueries: vi.fn(),
     }
@@ -29,20 +30,26 @@ vi.mock('@/components/ObjectUploader', () => ({
 describe('MediaEditor', () => {
   const mockVideo: Video = {
     id: 'v1',
-    url: 'http://test.com/vid.mp4',
-    username: 'user1',
+    filename: 'vid.mp4',
+    socialAccountId: 'acc1',
+    socialAccount: {
+        id: 'acc1',
+        researcherId: 'r1',
+        username: 'user1',
+        displayName: 'User One',
+        avatarUrl: 'http://avatar.jpg'
+    },
     caption: 'Test Caption',
     likes: 10,
     comments: 5,
     shares: 2,
     song: '',
-    userAvatar: '',
     position: 0,
     experimentId: 'e1',
     createdAt: ''
   };
 
-  const newVideo: Video = { ...mockVideo, id: '', url: '' };
+  const newVideo: Video = { ...mockVideo, id: '', filename: '', socialAccountId: '', socialAccount: undefined };
 
   const mockOnOpenChange = vi.fn();
   const mockOnSave = vi.fn();
@@ -56,6 +63,7 @@ describe('MediaEditor', () => {
       <MediaEditor 
         video={mockVideo} 
         experimentId="e1" 
+        projectId="p1"
         open={true} 
         onOpenChange={mockOnOpenChange} 
       />
@@ -71,6 +79,7 @@ describe('MediaEditor', () => {
       <MediaEditor 
         video={newVideo} 
         experimentId="e1" 
+        projectId="p1"
         open={true} 
         onOpenChange={mockOnOpenChange} 
       />
@@ -90,6 +99,7 @@ describe('MediaEditor', () => {
       <MediaEditor 
         video={mockVideo} 
         experimentId="e1" 
+        projectId="p1"
         open={true} 
         onOpenChange={mockOnOpenChange}
         onSave={mockOnSave}
@@ -113,8 +123,13 @@ describe('MediaEditor', () => {
   it('handles instagram ingest', async () => {
     (queryClientModule.apiRequest as any).mockResolvedValue({
       json: () => Promise.resolve({ 
-        url: 'http://insta.com/vid.mp4',
-        username: 'instauser',
+        type: 'single',
+        filename: 'ingested-uuid.mp4',
+        author: {
+            username: 'instauser',
+            full_name: 'Insta User',
+            profile_pic_filename: 'avatar.jpg'
+        },
         caption: 'Insta Caption',
         likes: 100
       })
@@ -124,6 +139,7 @@ describe('MediaEditor', () => {
       <MediaEditor 
         video={newVideo} 
         experimentId="e1" 
+        projectId="p1"
         open={true} 
         onOpenChange={mockOnOpenChange} 
       />
@@ -140,4 +156,46 @@ describe('MediaEditor', () => {
       expect(screen.getByDisplayValue('instauser')).toBeInTheDocument();
     });
   });
+
+  it('handles instagram save directly (no upload needed)', async () => {
+    // 1. Mock Ingest Response
+    (queryClientModule.apiRequest as any).mockResolvedValueOnce({
+        json: () => Promise.resolve({ 
+          type: 'single',
+          filename: 'direct-ingested.mp4',
+          author: { username: 'instauser', full_name: 'User', profile_pic_filename: 'avatar.jpg' },
+          caption: 'My Caption'
+        })
+    });
+
+    const { user } = renderWithProviders(
+      <MediaEditor video={newVideo} experimentId="e1" projectId="p1" open={true} onOpenChange={mockOnOpenChange} onSave={mockOnSave} />
+    );
+
+    // Ingest
+    await user.click(screen.getByText('Instagram'));
+    await user.type(screen.getByTestId('input-instagram-url'), 'http://instagram.com/p/123');
+    await user.click(screen.getByTestId('button-ingest'));
+
+    await waitFor(() => expect(screen.getByDisplayValue('My Caption')).toBeInTheDocument());
+
+    // 2. Mock Create Video
+    (queryClientModule.apiRequest as any).mockResolvedValueOnce({
+        json: () => Promise.resolve({ ...mockVideo, id: 'new-v' })
+    });
+
+    // Save
+    await user.click(screen.getByTestId('button-save-media'));
+
+    await waitFor(() => {
+        // No proxy calls expected
+        expect(queryClientModule.fetchWithAuth).not.toHaveBeenCalledWith(expect.stringContaining('/api/instagram/proxy'));
+        
+        expect(queryClientModule.apiRequest).toHaveBeenCalledWith('POST', '/api/experiments/e1/videos', expect.objectContaining({
+            filename: 'direct-ingested.mp4'
+        }));
+        expect(mockOnSave).toHaveBeenCalled();
+    });
+  });
+
 });

@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { CommentsManager } from '@/components/CommentsManager';
 import { MediaEditor } from './MediaEditor';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DndContext,
   closestCenter,
@@ -50,9 +51,10 @@ interface SortableRowProps {
   onManageComments: (video: Video) => void;
   onToggleLock: (video: Video) => void;
   lockAllPositions: boolean;
+  projectId: string;
 }
 
-function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit, onManageComments, onToggleLock, lockAllPositions }: SortableRowProps) {
+function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit, onManageComments, onToggleLock, lockAllPositions, projectId }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -90,6 +92,12 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
           <GripVertical size={18} className="text-muted-foreground" />
         </div>
       </TableCell>
+      <TableCell>
+        <Avatar className="h-8 w-8">
+           <AvatarImage src={video.socialAccount?.avatarUrl} />
+           <AvatarFallback>{video.socialAccount?.username?.substring(0,2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+      </TableCell>
       <TableCell className="w-[50px]">
         <Button 
           variant="ghost" 
@@ -104,13 +112,17 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
         </Button>
       </TableCell>
       <TableCell>
-        <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden">
-          <img src={video.url} alt="Thumbnail" className="w-full h-full object-cover" />
+        <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden flex items-center justify-center bg-black">
+          {video.filename.endsWith('.mp4') || video.filename.endsWith('.webm') ? (
+               <video src={`/media/${video.filename}`} className="w-full h-full object-cover" muted loop playsInline onMouseOver={e => e.currentTarget.play()} onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }} />
+          ) : (
+               <img src={`/media/${video.filename}`} alt="Thumbnail" className="w-full h-full object-cover" />
+          )}
         </div>
       </TableCell>
       <TableCell className="font-medium">
         <div className="max-w-[300px] truncate">{video.caption}</div>
-        <div className="text-xs text-muted-foreground mt-1">@{video.username}</div>
+        <div className="text-xs text-muted-foreground mt-1">@{video.socialAccount?.username}</div>
       </TableCell>
       <TableCell>
         <div className="flex gap-4 text-sm text-muted-foreground">
@@ -276,14 +288,13 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
   const handleAddNewVideo = () => {
     setEditingVideo({
       id: '',
-      url: '',
-      username: '',
+      filename: '',
+      socialAccountId: '',
       caption: '',
       likes: 0,
       comments: 0,
       shares: 0,
       song: '',
-      userAvatar: '',
       description: undefined,
       position: videos.length,
       experimentId: experiment.id,
@@ -511,7 +522,7 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
                         data-testid="checkbox-select-all"
                       />
                     </TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[50px]">Author</TableHead>
                     <TableHead className="w-[50px]">Lock</TableHead>
                     <TableHead className="w-[100px]">Thumbnail</TableHead>
                     <TableHead>Caption</TableHead>
@@ -533,6 +544,7 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
                         onManageComments={(v) => setManagingCommentsVideo(v)}
                         onToggleLock={(v) => updateVideoMutation.mutate({ id: v.id, data: { isLocked: !v.isLocked } })}
                         lockAllPositions={project.lockAllPositions || false}
+                        projectId={project.id}
                       />
                     ))}
                   </SortableContext>

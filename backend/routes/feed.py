@@ -1,11 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-from typing import List, Optional
+from sqlalchemy.orm import joinedload
+from typing import Optional
 from uuid import UUID
+from datetime import datetime
+from sqlmodel import SQLModel
 
 from database import get_session
-from models import Experiment, Video, Participant
-# We might need a PublicVideo model if we want to hide some fields, but Video is probably fine for now.
+from models import Experiment, Video, SocialAccount, VideoBase, Project
+
+class FeedVideoResponse(VideoBase):
+    id: UUID
+    experiment_id: UUID
+    created_at: datetime
+    social_account: Optional[SocialAccount] = None
 
 router = APIRouter()
 
@@ -20,30 +28,21 @@ def get_public_feed(
     if not experiment:
         raise HTTPException(status_code=404, detail="Feed not found")
 
-    # 2. Get Videos for this experiment
-    # Order by position
-    videos = session.exec(
-        select(Video)
+    # 2. Get Videos for this experiment with SocialAccount
+    results = session.exec(
+        select(Video, SocialAccount)
+        .join(SocialAccount)
         .where(Video.experiment_id == experiment.id)
         .order_by(Video.position)
     ).all()
     
     # 3. Handle Participant (Optional for now, but good to track)
     if participantId and participantId != "preview":
-        # Check if participant exists or create?
-        # For strict tracking, we might want to ensure participant exists.
-        # But for the feed GET, usually we just assume valid ID or create implicit.
         pass
 
     # Fetch project for settings
-    # Assuming relationship is lazy loaded or not explicitly joined in this session query for simplicity
-    # but accessing it might trigger lazy load if relationship defined, or we explicit query.
-    # Experiment model has 'project' relationship.
-    
     project = experiment.project
     if not project:
-         # Explicit fetch if relationship not loaded
-         from models import Project
          project = session.get(Project, experiment.project_id)
 
     return {
@@ -57,5 +56,10 @@ def get_public_feed(
             "redirectUrl": project.redirect_url if project else "",
             "endScreenMessage": project.end_screen_message if project else "Thank you for participating.",
         },
-        "videos": videos,
+        "videos": [
+            FeedVideoResponse(
+                **video.model_dump(),
+                social_account=account
+            ) for video, account in results
+        ],
     }

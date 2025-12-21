@@ -50,6 +50,8 @@ vite.config.ts.*
 *.db
 
 # Uploads
-# uploads/
+uploads/
 
 rocket_test.py
+
+.config/

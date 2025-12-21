@@ -73,12 +73,12 @@ export function CommentsOverlay({ video, isOpen, onOpenChange, onComment }: Comm
           <div className="space-y-6 pb-4">
             <div className="flex gap-3">
               <Avatar className="w-8 h-8 border border-gray-100">
-                <AvatarImage src={video.userAvatar} />
-                <AvatarFallback>{video.username[0]}</AvatarFallback>
+                <AvatarImage src={video.socialAccount?.avatarUrl} />
+                <AvatarFallback>{video.socialAccount?.username?.[0] || '?'}</AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-1">
                 <div className="text-sm">
-                  <span className="font-semibold mr-2">{video.username}</span>
+                  <span className="font-semibold mr-2">{video.socialAccount?.username}</span>
                   {video.caption}
                 </div>
                 <div className="text-xs text-muted-foreground">2d</div>

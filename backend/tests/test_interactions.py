@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 from main import app
 from models import Interaction, Participant, Video, Project, Experiment, Researcher
-from database import get_session
 import uuid
 
 # Re-use client fixture or create new one

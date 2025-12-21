@@ -23,11 +23,20 @@ interface MediaEditorProps {
 
 export function MediaEditor({ video: initialVideo, projectId, experimentId, open, onOpenChange, onSave }: MediaEditorProps & { projectId: string }) {
   const { toast } = useToast();
-  const [video, setVideo] = useState<Video>(initialVideo);
+  const [formData, setFormData] = useState<Video>(initialVideo);
 
-  // Carousel State
-  const [carouselCandidates, setCarouselCandidates] = useState<{id: string, type: string, url: string}[]>([]);
-  const [showCarouselSelection, setShowCarouselSelection] = useState(false);
+  // Helper to proxy Instagram CDN URLs to avoid CORS/CORB issues
+  const getProxiedUrl = (url: string) => {
+    if (!url) return '';
+    if (url.includes('cdninstagram.com') || url.includes('fbcdn.net')) {
+        return `/api/instagram/proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
+  // Carousel State - REMOVED per backend changes
+  // const [carouselCandidates, setCarouselCandidates] = useState<{id: string, type: string, url: string}[]>([]);
+  // const [showCarouselSelection, setShowCarouselSelection] = useState(false);
 
   const [ingestMode, setIngestMode] = useState<'upload' | 'instagram'>('upload');
   const [ingestUrl, setIngestUrl] = useState("");
@@ -43,7 +52,7 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
   const [accountError, setAccountError] = useState<string | null>(null);
   const [avatarMode, setAvatarMode] = useState<'url' | 'upload'>('url');
 
-  const isNewVideo = !video.id;
+  const isNewVideo = !initialVideo.id;
 
   const { data: accounts = [] } = useQuery<SocialAccount[]>({
     queryKey: ['/api/accounts'],
@@ -84,10 +93,9 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
         queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
         setSelectedAccountId(data.id);
         setAccountError(null);
-        setVideo(prev => ({
+        setFormData(prev => ({
             ...prev,
-            username: data.username,
-            userAvatar: data.avatarUrl
+            socialAccountId: data.id
         }));
         toast({ title: "Account created", description: "New social account saved." });
     },
@@ -100,75 +108,131 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
     }
   });
 
+  // Ingested Data State
+  const [ingestedData, setIngestedData] = useState<{
+    filename: string;
+    author: { username: string; full_name: string; profile_pic_filename: string };
+  } | null>(null);
+
   const ingestInstagramMutation = useMutation({
-    mutationFn: async (payload: { url: string, selected_id?: string }) => {
+    mutationFn: async (payload: { url: string }) => {
+      // Backend no longer needs project_id/feed_id for ingest (it's flat/global ingest to uploads now?)
+      // Actually backend request model only has `url`.
       const res = await apiRequest('POST', '/api/instagram/ingest', {
-        ...payload,
-        project_id: projectId,
-        feed_id: experimentId
+        ...payload
       });
       return res.json();
     },
     onSuccess: (data: any) => {
-      if (data.type === 'carousel' && data.candidates) {
-          setCarouselCandidates(data.candidates);
-          setShowCarouselSelection(true);
-          toast({ title: 'Select Media', description: 'Please select one item from the carousel.' });
-          return;
-      }
+      // Backend raises 501 for carousel, so we don't need to handle it here (onError will catch)
       
-      setVideo(prev => ({
+      // Store ingested data (already local filenames)
+      setIngestedData({
+        filename: data.filename,
+        author: data.author
+      });
+
+      setFormData(prev => ({
         ...prev,
-        url: data.url,
-        username: data.username,
-        userAvatar: data.authorAvatar,
-        caption: data.caption,
-        likes: data.likes,
-        comments: data.comments,
-        shares: data.shares
+        filename: data.filename, // Set immediately as it's already downloaded
+        caption: data.caption || '',
+        likes: data.likes || 0,
+        comments: data.comments || 0,
+        shares: data.shares || 0,
       }));
       
-      setNewAccount({
-          username: data.username,
-          displayName: data.authorName,
-          avatarUrl: data.authorAvatar
-      });
-      setSelectedAccountId("new");
+      // Auto-populate new account fields
+      if (data.author) {
+        setNewAccount({
+            username: data.author.username,
+            displayName: data.author.full_name,
+            avatarUrl: `/media/${data.author.profile_pic_filename}` // Use local path
+        });
+        setSelectedAccountId("new");
+      }
       
-      toast({ title: 'Instagram Imported', description: 'Media details populated.' });
-      setShowCarouselSelection(false);
-      setCarouselCandidates([]);
+      toast({ title: 'Instagram Imported', description: 'Media available locally.' });
     },
     onError: (err: any) => {
         toast({ title: 'Import Failed', description: err.message, variant: 'destructive' });
     }
   });
 
-  const handleSave = () => {
-    if (isNewVideo) {
-      const seed = Math.random().toString(36).substring(7);
-      createVideoMutation.mutate({
-        url: video.url,
-        username: video.username,
-        userAvatar: video.userAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${video.username}_${seed}`,
-        caption: video.caption,
-        likes: video.likes || 0,
-        comments: video.comments || 0,
-        shares: video.shares || 0,
-        song: 'Original Audio',
-      });
-    } else {
-      updateVideoMutation.mutate({ 
-        id: video.id, 
-        data: {
-          url: video.url,
-          username: video.username,
-          caption: video.caption,
-          likes: video.likes || 0,
-          comments: video.comments || 0,
-          shares: video.shares || 0,
+  const uploadFileFromUrl = async (url: string): Promise<string> => {
+    // 1. Fetch Blob via Proxy
+    const proxyRes = await fetchWithAuth(`/api/instagram/proxy?url=${encodeURIComponent(url)}`);
+    if (!proxyRes.ok) throw new Error("Failed to fetch media from proxy");
+    const blob = await proxyRes.blob();
+
+    // 2. Upload to Storage
+    const uploadFormData = new FormData();
+    // Guess extension
+    const type = blob.type;
+    const ext = type.includes('video') ? 'mp4' : 'jpg';
+    uploadFormData.append("file", blob, `insta_media.${ext}`);
+
+    const uploadRes = await fetchWithAuth('/api/objects/upload', {
+      method: 'POST',
+      body: uploadFormData
+    });
+    
+    if (!uploadRes.ok) throw new Error("Failed to upload media to storage");
+    const uploadData = await uploadRes.json();
+    return uploadData.filename;
+  };
+
+  const handleSave = async () => {
+    // Wrapping in async function for logic
+    try {
+      let finalFilename = formData.filename;
+      let finalAccountId = formData.socialAccountId;
+
+      // Handle Instagram Ingest Upload - REMOVED (Already downloaded)
+      // if (ingestMode === 'instagram' && ingestedData && !finalFilename) { ... }
+      
+      if (!finalFilename && isNewVideo) {
+         toast({ title: "Error", description: "No media file provided.", variant: "destructive" });
+         return;
+      }
+      
+      // Create Account if needed
+      if (selectedAccountId === "new") {
+        try {
+           // Avatar already handled by backend ingest (local filename provided)
+           // Just verifying path is correct
+           
+           const accRes = await createAccountMutation.mutateAsync(newAccount);
+           finalAccountId = accRes.id;
+        } catch (e) {
+           // Error handled in mutation onError?
+           return; 
         }
-      });
+      }
+
+      setUploadStatus('finalizing');
+
+      const payload = {
+        filename: finalFilename,
+        socialAccountId: finalAccountId,
+        caption: formData.caption,
+        likes: formData.likes || 0,
+        comments: formData.comments || 0,
+        shares: formData.shares || 0,
+        song: formData.song || 'Original Audio',
+        description: formData.description || '',
+      };
+
+      if (isNewVideo) {
+        await createVideoMutation.mutateAsync(payload);
+      } else {
+        await updateVideoMutation.mutateAsync({ id: initialVideo.id, data: payload });
+      }
+      
+      setUploadStatus('done');
+      
+    } catch (e: any) {
+      setUploadStatus('idle');
+      toast({ title: "Save Failed", description: e.message, variant: "destructive" });
     }
   };
 
@@ -195,6 +259,7 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                 </div>
 
                 {ingestMode === 'instagram' ? (
+                    <div className="space-y-2">
                     <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
                         <Label className="text-xs">Instagram Post URL</Label>
                         <div className="flex gap-2">
@@ -214,29 +279,46 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                                 {ingestInstagramMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Import'}
                             </Button>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                            Imports media, caption, metrics, and author details.
-                        </p>
+                    </div>
+                    {/* Preview for Instagram Mode */}
+                    {ingestedData && (
+                        <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
+                            <div className="w-16 h-24 rounded overflow-hidden bg-gray-200 shrink-0">
+                                <img src={`/media/${ingestedData.filename}`} alt="Preview" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 text-sm text-blue-600">
+                                    <CheckCircle2 size={16} />
+                                    <span>Ready to import</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 truncate">@{ingestedData.author.username}</p>
+                            </div>
+                        </div>
+                    )}
                     </div>
                 ) : (
                 <div className="space-y-3">
-                {video.url ? (
+                {formData.filename ? ( // Changed from video.url
                     <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
                     <div className="w-16 h-24 rounded overflow-hidden bg-gray-200 shrink-0">
-                        <img src={video.url} alt="Preview" className="w-full h-full object-cover" />
+                        {/* Use hierarchical path if available, or flat if not (fallback/legacy) - we now expect hierarchical */}
+                        <img src={`/media/${projectId}/${experimentId}/${formData.filename}`} alt="Preview" className="w-full h-full object-cover" onError={(e) => {
+                             // Fallback for legacy flat files if needed, or broken image
+                             (e.target as HTMLImageElement).src = `/media/${formData.filename}`;
+                        }} />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 text-sm text-green-600">
                         <CheckCircle2 size={16} />
                         <span>{isNewVideo ? 'File uploaded successfully' : 'Current media'}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 truncate">{video.url}</p>
+                        <p className="text-xs text-muted-foreground mt-1 truncate">{formData.filename}</p> {/* Changed from video.url */}
                     </div>
                     <Button 
                         variant="ghost" 
                         size="sm"
                         onClick={() => {
-                            setVideo(prev => ({ ...prev, url: '' }));
+                            setFormData(prev => ({ ...prev, filename: '' })); // Changed from url
                             setUploadStatus('idle');
                         }}
                     >
@@ -260,14 +342,14 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                         console.log("Media Upload onComplete:", result);
                         if (result.successful && result.successful.length > 0) {
                         const responseBody = result.successful[0].response?.body as any;
-                        const uploadURL = responseBody?.url;
+                        const uploadURL = responseBody?.filename; // Use 'filename' from storage response, not 'url'
                         
                         if (uploadURL) {
-                            setVideo(prev => ({ ...prev, url: uploadURL }));
+                            setFormData(prev => ({ ...prev, filename: uploadURL })); // Changed from url
                             setUploadStatus('done');
                         } else {
                             setUploadStatus('idle');
-                            toast({ title: 'Upload failed', description: 'No URL returned.', variant: 'destructive' });
+                            toast({ title: 'Upload failed', description: 'No filename returned.', variant: 'destructive' });
                         }
                         } else {
                         setUploadStatus('idle');
@@ -292,14 +374,15 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                 onValueChange={(val) => {
                     setSelectedAccountId(val);
                     if (val !== "new") {
-                        const account = accounts.find(a => a.id === val);
-                        if (account) {
-                            setVideo(prev => ({
-                                ...prev,
-                                username: account.username,
-                                userAvatar: account.avatarUrl
-                            }));
-                        }
+                        setFormData(prev => ({
+                            ...prev,
+                            socialAccountId: val
+                        }));
+                    } else {
+                        setFormData(prev => ({
+                            ...prev,
+                            socialAccountId: '' // Clear socialAccountId if creating new
+                        }));
                     }
                 }}
                 >
@@ -312,7 +395,7 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                     <SelectItem key={acc.id} value={acc.id}>
                         <div className="flex items-center gap-2">
                             <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-200">
-                                <img src={acc.avatarUrl} className="w-full h-full object-cover" />
+                                <img src={getProxiedUrl(acc.avatarUrl)} className="w-full h-full object-cover" />
                             </div>
                             <span>{acc.displayName} (@{acc.username})</span>
                         </div>
@@ -341,8 +424,6 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                                     onChange={e => {
                                         const val = e.target.value;
                                         setNewAccount({...newAccount, username: val});
-                                        // Update preview
-                                        setVideo(prev => ({...prev, username: val}));
                                     }}
                                     placeholder="janedoe"
                                     className="h-8 text-sm"
@@ -383,7 +464,6 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                                             const seed = Math.random().toString(36).substring(7);
                                             const url = `https://api.dicebear.com/7.x/avataaars/svg?seed=${newAccount.username || seed}`;
                                             setNewAccount({...newAccount, avatarUrl: url});
-                                            setVideo(prev => ({ ...prev, userAvatar: url }));
                                         }}
                                     >
                                         <Sparkles size={14} />
@@ -394,7 +474,7 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                                     {newAccount.avatarUrl ? (
                                         <div className="flex items-center gap-2">
                                             <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100">
-                                                <img src={newAccount.avatarUrl} className="w-full h-full object-cover" />
+                                                <img src={getProxiedUrl(newAccount.avatarUrl)} className="w-full h-full object-cover" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-[10px] truncate">{newAccount.avatarUrl.split('/').pop()}</p>
@@ -434,26 +514,42 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                             <span>{accountError}</span>
                         </div>
                         )}
-                        <Button 
-                        size="sm" 
-                        className="w-full h-8" 
-                        variant="secondary"
-                        type="button"
-                        onClick={() => createAccountMutation.mutate(newAccount)}
-                        disabled={!newAccount.username || !newAccount.displayName || !newAccount.avatarUrl || createAccountMutation.isPending}
-                        data-testid="button-create-account"
-                        >
-                        {createAccountMutation.isPending ? 'Saving...' : 'Save Account'}
-                        </Button>
+                        {/* Only show "Save Account" button if NOT in Instagram mode? No, always helpful to create account explicitly?
+                        Actually if we are creating video, we do it in one go?
+                        The createAccountMutation is independent.
+                        Let's keep it but maybe hide if we are auto-handling in handleSave?
+                        Actually handleSave calls createAccountMutation if needed!
+                        So we can hide this button in general or keep it for manual?
+                        Let's keep it for manual creation but `handleSave` creates it too.
+                        Wait, `handleSave` calls `createAccountMutation.mutateAsync`.
+                        So we don't need user to click "Save Account" separately.
+                        */}
                     </div>
                 )}
             </div>
+            {/* Filename Input - Read Only or Editable? For now Editable but logic is tricky */}
+            {ingestMode === 'upload' && (
+                <div className="grid gap-2">
+                <Label htmlFor="filename">Filename</Label>
+                <Input
+                    id="filename"
+                    value={formData.filename}
+                    onChange={(e) => setFormData({ ...formData, filename: e.target.value })}
+                    placeholder="uuid.mp4"
+                    disabled={true}
+                    className="bg-muted"
+                />
+                </div>
+            )}
+
+            {/* Social Account ID - For now text input, ideally a selector */}
+            {/* HIDDEN, handled via Select */}
             <div className="grid gap-2">
                 <Label htmlFor="video-caption">Caption</Label>
                 <Input 
                 id="video-caption" 
-                value={video.caption} 
-                onChange={(e) => setVideo(prev => ({ ...prev, caption: e.target.value }))} 
+                value={formData.caption} 
+                onChange={(e) => setFormData(prev => ({ ...prev, caption: e.target.value }))} 
                 placeholder="Media caption..."
                 data-testid="input-video-caption"
                 />
@@ -464,8 +560,8 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                 <Input 
                     id="video-likes" 
                     type="number" 
-                    value={video.likes} 
-                    onChange={(e) => setVideo(prev => ({ ...prev, likes: parseInt(e.target.value) || 0 }))} 
+                    value={formData.likes} 
+                    onChange={(e) => setFormData(prev => ({ ...prev, likes: parseInt(e.target.value) || 0 }))} 
                     data-testid="input-video-likes"
                 />
                 </div>
@@ -474,8 +570,8 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                 <Input 
                     id="video-comments" 
                     type="number" 
-                    value={video.comments} 
-                    onChange={(e) => setVideo(prev => ({ ...prev, comments: parseInt(e.target.value) || 0 }))} 
+                    value={formData.comments || 0} 
+                    onChange={(e) => setFormData(prev => ({ ...prev, comments: parseInt(e.target.value) || 0 }))} 
                     data-testid="input-video-comments"
                 />
                 </div>
@@ -484,8 +580,8 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                 <Input 
                     id="video-shares" 
                     type="number" 
-                    value={video.shares} 
-                    onChange={(e) => setVideo(prev => ({ ...prev, shares: parseInt(e.target.value) || 0 }))} 
+                    value={formData.shares || 0} 
+                    onChange={(e) => setFormData(prev => ({ ...prev, shares: parseInt(e.target.value) || 0 }))} 
                     data-testid="input-video-shares"
                 />
                 </div>
@@ -513,37 +609,7 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
       </DialogContent>
     </Dialog>
     
-    <Dialog open={showCarouselSelection} onOpenChange={setShowCarouselSelection}>
-        <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-                <DialogTitle>Select Media</DialogTitle>
-                <DialogDescription>This post is a carousel. Please select the image or video you want to import.</DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-3 gap-2 py-4">
-                {carouselCandidates.map((c) => (
-                    <button 
-                        key={c.id}
-                        className="relative aspect-[3/4] bg-muted group overflow-hidden rounded-md border-2 border-transparent hover:border-primary focus:outline-none focus:border-primary transition-all"
-                        onClick={() => ingestInstagramMutation.mutate({ url: ingestUrl, selected_id: c.id })}
-                        disabled={ingestInstagramMutation.isPending}
-                    >
-                        <img src={c.url} className="w-full h-full object-cover" />
-                        {c.type === 'video' && (
-                            <div className="absolute top-2 right-2 bg-black/50 p-1 rounded-full text-white">
-                                <span className="sr-only">Video</span>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                            </div>
-                        )}
-                        {ingestInstagramMutation.isPending && (
-                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                <Loader2 className="animate-spin text-white" />
-                            </div>
-                        )}
-                    </button>
-                ))}
-            </div>
-        </DialogContent>
-    </Dialog>
+    {/* Carousel Dialog Removed */}
     </>
   );
 }

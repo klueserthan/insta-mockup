@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, SQLModel
 from typing import List, Optional
 from uuid import UUID
 from secrets import token_hex
 
 from database import get_session
-from models import Experiment, ExperimentBase, Project, Researcher, Video, CamelModel
+from models import Experiment, Project, Researcher, CamelModel
 from auth import get_current_user
 
 router = APIRouter()

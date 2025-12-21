@@ -1,13 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
-from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from sqlmodel import Session, select
-from typing import Optional
 from uuid import UUID
 
 from database import get_session
-from models import Researcher, ResearcherBase, SocialAccount
+from models import Researcher, ResearcherBase
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -91,3 +89,18 @@ def logout(request: Request):
 @router.get("/user", response_model=Researcher, response_model_exclude={"password"})
 def get_user(current_user: Researcher = Depends(get_current_user)):
     return current_user
+
+def ensure_dev_user(session: Session):
+    dev_email = "test@research.edu"
+    user = session.exec(select(Researcher).where(Researcher.email == dev_email)).first()
+    if not user:
+        # Create dev user
+        dev_user = Researcher(
+            email=dev_email,
+            password=get_password_hash("password123"),
+            name="Dev",
+            lastname="User"
+        )
+        session.add(dev_user)
+        session.commit()
+

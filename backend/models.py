@@ -62,9 +62,7 @@ class Experiment(ExperimentBase, table=True):
 
 # Video
 class VideoBase(CamelModel):
-    url: str
-    username: str
-    user_avatar: str
+    filename: str
     caption: str
     likes: int = Field(default=0)
     comments: int = Field(default=0)
@@ -73,13 +71,22 @@ class VideoBase(CamelModel):
     description: Optional[str] = None
     position: int = Field(default=0)
     is_locked: bool = Field(default=False)
+    # social_account_id is needed for creation, so putting it in Base makes sense, 
+    # but strictly it's a relationship key. 
+    # Let's verify usage in routes/videos.py. create_video takes VideoBase.
+    # So we should include it here or handling it separately.
+    # User selects a social account ID from UI.
+    social_account_id: UUID = Field(foreign_key="socialaccount.id")
 
 class Video(VideoBase, table=True):
     id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
     experiment_id: UUID = Field(foreign_key="experiment.id")
+    # social_account_id is in Base now
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     experiment: Optional["Experiment"] = Relationship(back_populates="videos")
+    social_account: Optional["SocialAccount"] = Relationship()
     preseeded_comments: Optional[List["PreseededComment"]] = Relationship(back_populates="video")
 
 # Participant

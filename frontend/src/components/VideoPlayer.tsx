@@ -327,7 +327,7 @@ export function VideoPlayer({
           <ShareMenu
             isOpen={showShareMenu}
             onClose={() => setShowShareMenu(false)}
-            videoUrl={video.url}
+            videoUrl={`/media/${video.filename}`}
             videoCaption={video.caption}
           />
         </>
@@ -338,10 +338,10 @@ export function VideoPlayer({
         data-testid={`video-container-${video.id}`}
       >
       {/* Video Content */}
-      {video.url.includes('/objects/') || video.url.endsWith('.mp4') || video.url.endsWith('.webm') || video.url.endsWith('.mov') ? (
+      {video.filename.endsWith('.mp4') || video.filename.endsWith('.webm') || video.filename.endsWith('.mov') ? (
         <video 
           ref={videoRef}
-          src={video.url}
+          src={`/media/${video.filename}`}
           className="absolute h-full w-full object-cover"
           loop
           muted={muted}
@@ -349,7 +349,7 @@ export function VideoPlayer({
         />
       ) : (
         <img 
-          src={video.url} 
+          src={`/media/${video.filename}`} 
           alt={video.description || ''}
           className="absolute h-full w-full object-cover" 
         />
@@ -456,8 +456,8 @@ export function VideoPlayer({
         {/* User Avatar Box */}
         <div className="border-2 border-white rounded-lg overflow-hidden w-7 h-7 mt-1">
           <Avatar className="w-full h-full rounded-none">
-            <AvatarImage src={video.userAvatar} className="object-cover" />
-            <AvatarFallback className="rounded-none text-[10px]">{video.username[0]}</AvatarFallback>
+            <AvatarImage src={video.socialAccount?.avatarUrl} className="object-cover" />
+            <AvatarFallback className="rounded-none text-[10px]">{video.socialAccount?.username?.[0] || '?'}</AvatarFallback>
           </Avatar>
         </div>
       </div>
@@ -467,10 +467,10 @@ export function VideoPlayer({
         <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 z-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
           <div className="flex items-center gap-2 mb-3">
             <Avatar className="w-8 h-8 border border-white/20">
-              <AvatarImage src={video.userAvatar} />
-              <AvatarFallback>{video.username[0]}</AvatarFallback>
+              <AvatarImage src={video.socialAccount?.avatarUrl} />
+              <AvatarFallback>{video.socialAccount?.username?.[0] || '?'}</AvatarFallback>
             </Avatar>
-            <span className="font-semibold text-sm drop-shadow-md">{video.username}</span>
+            <span className="font-semibold text-sm drop-shadow-md">{video.socialAccount?.username}</span>
             {previewMode ? (
               <span className="border rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur-sm border-white/30 text-white">
                 Follow
@@ -515,10 +515,10 @@ export function VideoPlayer({
             >
               <div className="flex items-center gap-2 mb-3">
                 <Avatar className="w-8 h-8 border border-white/20">
-                  <AvatarImage src={video.userAvatar} />
-                  <AvatarFallback>{video.username[0]}</AvatarFallback>
+                  <AvatarImage src={video.socialAccount?.avatarUrl} />
+                  <AvatarFallback>{video.socialAccount?.username?.[0] || '?'}</AvatarFallback>
                 </Avatar>
-                <span className="font-semibold text-sm text-white drop-shadow-md">{video.username}</span>
+                <span className="font-semibold text-sm text-white drop-shadow-md">{video.socialAccount?.username}</span>
               </div>
               <div className="text-sm text-white drop-shadow-md max-h-[60vh] overflow-y-auto">
                 {video.caption}

@@ -6,71 +6,80 @@ import os
 import re
 import uuid
 from pathlib import Path
-from typing import List, Optional, Union
-from config import UPLOAD_DIR
+from typing import List, Optional
 from rocketapi import InstagramAPI
+from config import UPLOAD_DIR
+from fastapi.responses import StreamingResponse
+from uuid import uuid4
+from typing import Literal
 
 router = APIRouter()
 
 class InstagramIngestRequest(BaseModel):
     url: str
-    project_id: str
-    feed_id: str
-    selected_id: Optional[str] = None
 
 class CarouselCandidate(BaseModel):
     id: str
     type: str # "image" or "video"
     url: str # thumbnail/preview URL (remote)
 
+class Author(BaseModel):
+    username: str
+    full_name: str
+    profile_pic_filename: str
+
 class InstagramIngestResponse(BaseModel):
     type: str = "single" # "single" or "carousel"
     candidates: Optional[List[CarouselCandidate]] = None
     
     # Fields for single media result
-    url: Optional[str] = None
-    username: Optional[str] = None
-    authorAvatar: Optional[str] = None
-    authorName: Optional[str] = None
+    filename: Optional[str] = None
+    author: Optional[Author] = None
+    
     caption: Optional[str] = None
     likes: Optional[int] = None
     comments: Optional[int] = None
     shares: Optional[int] = None
 
-def download_file(url: str, directory: Path) -> str:
+async def _download_from_cdn_url(url: str, media_type: Literal["image", "video"] = "image") -> str:
+    """
+    Download a file from a CDN URL and save it to the upload directory. Return the filename.
+    """
     if not url:
-        return ""
+        raise HTTPException(status_code=400, detail="URL is required")
+
+    # Generate a unique filename
+    extension = "png" if media_type == "image" else "mp4"
+    unique_filename = f"{uuid.uuid4()}.{extension}"
+
+    # Determine storage path
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    print(f"Downloading {url} to \n\n{file_path}")
+    # Download the file
     try:
-        response = httpx.get(url, timeout=30)
-        response.raise_for_status()
-        
-        # Try to guess extension
-        content_type = response.headers.get("content-type", "")
-        ext = ".jpg"
-        if "video" in content_type:
-            ext = ".mp4"
-        elif "image/png" in content_type:
-            ext = ".png"
-            
-        filename = f"{uuid.uuid4()}{ext}"
-        filepath = directory / filename
-        
-        with open(filepath, "wb") as f:
-            f.write(response.content)
-            
-        # Return relative path for frontend (assuming /media mount points to UPLOAD_DIR)
-        # If directory is UPLOAD_DIR/proj/feed/instagram, and mount is /media -> UPLOAD_DIR
-        # Then URL should be /media/proj/feed/instagram/filename
-        
-        # Calculate relative path from UPLOAD_DIR
-        rel_path = filepath.relative_to(UPLOAD_DIR)
-        return f"/media/{rel_path}"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=30)
+            response.raise_for_status()
+            with open(file_path, "wb") as f:
+                f.write(response.content)
     except Exception as e:
-        print(f"Failed to download {url}: {e}")
-        return ""
+        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+
+    return unique_filename
+
 
 @router.post("/api/instagram/ingest", response_model=InstagramIngestResponse)
-async def ingest_instagram(request: InstagramIngestRequest):
+async def ingest_instagram(
+    request: InstagramIngestRequest,
+):
+    def _check_media_type_of_item(item):
+        if "video_versions" in item:
+            return "video"
+        elif "image_versions2" in item:
+            return "image"
+        else:
+            return None
+    
     api_key = os.environ.get("ROCKET_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="ROCKET_API_KEY not configured")
@@ -97,50 +106,11 @@ async def ingest_instagram(request: InstagramIngestRequest):
         raise HTTPException(status_code=404, detail="Media not found")
         
     media = response_items[0]
-    media_type = media.get("media_type")
     
     # Check for Carousel (Type 8)
-    if media_type == 8:
-        # If no specific ID selected, return candidates
-        if not request.selected_id:
-            carousel_media = media.get("carousel_media", [])
-            candidates = []
-            for item in carousel_media:
-                # Determine type and thumbnail
-                c_type = "image"
-                thumb_url = ""
-                
-                # Check video first
-                if "video_versions" in item:
-                    c_type = "video"
-                    # For video thumbnail, use image_versions2 candidates 0 (highest res cover)
-                    if "image_versions2" in item and "candidates" in item["image_versions2"]:
-                         thumb_url = item["image_versions2"]["candidates"][0]["url"]
-                elif "image_versions2" in item:
-                     c_type = "image"
-                     if "candidates" in item["image_versions2"]:
-                         thumb_url = item["image_versions2"]["candidates"][0]["url"]
-                
-                candidates.append(CarouselCandidate(
-                    id=item.get("id"),
-                    type=c_type,
-                    url=thumb_url
-                ))
-            
-            return InstagramIngestResponse(type="carousel", candidates=candidates)
-        
-        # If ID selected, find that item
-        carousel_media = media.get("carousel_media", [])
-        selected_item = next((item for item in carousel_media if item.get("id") == request.selected_id), None)
-        
-        if not selected_item:
-             raise HTTPException(status_code=404, detail="Selected carousel item not found")
-        
-        # Treat selected_item as the media to download
-        target_media = selected_item
-    else:
-        # Single item
-        target_media = media
+    if media.get("media_type") == 8:
+        # Not implemented yet
+        raise HTTPException(status_code=501, detail="Carousel media not implemented yet")
 
     # Extract Data from the main media object (caption, user, metrics are on parent usually)
     # Be careful: for carousel, caption/user/metrics are on the PARENT `media` object, not necessarily the child.
@@ -169,34 +139,49 @@ async def ingest_instagram(request: InstagramIngestRequest):
     # Download Media URL
     media_url = ""
     # Check video
-    if "video_versions" in target_media:
-        # Highest res is usually first? Or sort by width/height. Sample shows 0 is typically best.
-        media_url = target_media["video_versions"][0]["url"]
-    elif "image_versions2" in target_media:
-        media_url = target_media["image_versions2"]["candidates"][0]["url"]
+    if "video_versions" in media:
+        # Highest res is usually first
+        media_url = media["video_versions"][0]["url"]
+        media_type = "video"
+    elif "image_versions2" in media:
+        media_url = media["image_versions2"]["candidates"][0]["url"]
+        media_type = "image"
         
     if not media_url:
         raise HTTPException(status_code=400, detail="Could not retrieve media URL")
 
-    # Download
-    # Path: UPLOAD_DIR / project_id / feed_id
-    upload_dir = Path(UPLOAD_DIR) / request.project_id / request.feed_id
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    local_media_url = download_file(media_url, upload_dir)
-    local_avatar_url = download_file(author_avatar_url, upload_dir)
-    
-    if not local_media_url:
-         raise HTTPException(status_code=500, detail="Failed to download media file")
+    author = Author(
+        username=username,
+        full_name=full_name,
+        profile_pic_filename=await _download_from_cdn_url(author_avatar_url, "image")
+    )
 
     return InstagramIngestResponse(
         type="single",
-        url=local_media_url,
-        username=username,
-        authorAvatar=local_avatar_url,
-        authorName=full_name,
+        filename=await _download_from_cdn_url(media_url, media_type),
+        author=author,
         caption=caption_text,
         likes=likes,
         comments=comments,
         shares=shares
     )
+
+@router.get("/api/instagram/proxy")
+async def proxy_download(url: str):
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+    
+    async def stream_content():
+        async with httpx.AsyncClient() as client:
+            try:
+                msg = "Proxying content from: " + url
+                print(msg)
+                async with client.stream("GET", url, follow_redirects=True, timeout=30.0) as response:
+                    response.raise_for_status()
+                    async for chunk in response.aiter_bytes():
+                        yield chunk
+            except Exception as e:
+                print(f"Proxy error: {e}")
+                raise HTTPException(status_code=502, detail="Failed to fetch remote content")
+
+    return StreamingResponse(stream_content())

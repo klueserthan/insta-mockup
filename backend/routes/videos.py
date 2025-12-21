@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlmodel import Session, select, func
 from typing import List, Optional
 from uuid import UUID
@@ -29,6 +29,12 @@ def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID):
     if project.researcher_id != user_id:
          raise HTTPException(status_code=403, detail="Not authorized")
     return video
+
+class VideoRead(VideoBase):
+    id: UUID
+    experiment_id: UUID
+    created_at: int # or datetime
+    social_account: Optional["SocialAccount"] = None
 
 @router.get("/api/experiments/{experiment_id}/videos", response_model=List[Video])
 def get_videos(
@@ -69,9 +75,8 @@ def create_video(
     return video
 
 class VideoUpdate(CamelModel):
-    url: Optional[str] = None
-    username: Optional[str] = None
-    user_avatar: Optional[str] = None
+    filename: Optional[str] = None
+    social_account_id: Optional[UUID] = None
     caption: Optional[str] = None
     likes: Optional[int] = None
     comments: Optional[int] = None

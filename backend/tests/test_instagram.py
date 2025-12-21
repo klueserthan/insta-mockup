@@ -2,18 +2,16 @@
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 from main import app
-from config import UPLOAD_DIR
-from pathlib import Path
 
 client = TestClient(app)
 
+
 @patch("os.environ.get")
 @patch("routes.instagram.InstagramAPI") 
-@patch("routes.instagram.download_file")
-def test_ingest_instagram_success_single(mock_download, mock_api_class, mock_env_get):
+def test_ingest_instagram_success_single(mock_api_class, mock_env_get):
     mock_env_get.return_value = "fake_key"
     mock_api_instance = mock_api_class.return_value
-    
+
     # Mock RocketAPI response for single video
     mock_response = {
         "status": "ok",
@@ -36,22 +34,19 @@ def test_ingest_instagram_success_single(mock_download, mock_api_class, mock_env
     }
     mock_api_instance.get_media_info_by_shortcode.return_value = mock_response
     
-    # Mock download return values (relative paths from main mount)
-    # Target: /media/p1/f1/filename
-    mock_download.side_effect = ["/media/p1/f1/video.mp4", "/media/p1/f1/avatar.jpg"]
-    
     response = client.post("/api/instagram/ingest", json={
         "url": "https://www.instagram.com/reel/Cw12345/",
-        "project_id": "p1",
-        "feed_id": "f1"
+        "project_id": "123e4567-e89b-12d3-a456-426614174000",
+        "feed_id": "123e4567-e89b-12d3-a456-426614174001"
     })
     
     assert response.status_code == 200
     data = response.json()
     assert data["type"] == "single"
-    assert data["username"] == "test_user"
-    assert data["url"] == "/media/p1/f1/video.mp4"
-    assert data["authorAvatar"] == "/media/p1/f1/avatar.jpg"
+    assert data["source_url"] == "http://vid.mp4"
+    assert data["author"]["username"] == "test_user"
+    assert data["author"]["full_name"] == "Test User"
+    assert data["author"]["profile_pic_url"] == "http://avatar.jpg"
 
 
 @patch("os.environ.get")
@@ -84,8 +79,8 @@ def test_ingest_instagram_carousel_candidates(mock_api_class, mock_env_get):
     # First call: No selected_id
     response = client.post("/api/instagram/ingest", json={
         "url": "https://www.instagram.com/p/Carr123/",
-        "project_id": "p1",
-        "feed_id": "f1"
+        "project_id": "123e4567-e89b-12d3-a456-426614174000",
+        "feed_id": "123e4567-e89b-12d3-a456-426614174001"
     })
     
     assert response.status_code == 200
@@ -96,8 +91,7 @@ def test_ingest_instagram_carousel_candidates(mock_api_class, mock_env_get):
 
 @patch("os.environ.get")
 @patch("routes.instagram.InstagramAPI")
-@patch("routes.instagram.download_file")
-def test_ingest_instagram_carousel_selection(mock_download, mock_api_class, mock_env_get):
+def test_ingest_instagram_carousel_selection(mock_api_class, mock_env_get):
     mock_env_get.return_value = "fake_key"
     mock_api_instance = mock_api_class.return_value
     
@@ -132,19 +126,42 @@ def test_ingest_instagram_carousel_selection(mock_download, mock_api_class, mock
     }
     mock_api_instance.get_media_info_by_shortcode.return_value = mock_response
     
-    # Stub download
-    mock_download.side_effect = ["/media/p1/f1/img1.jpg", "/media/p1/f1/avatar.jpg"]
-    
     # Second call: With selected_id "123" (Image)
     response = client.post("/api/instagram/ingest", json={
         "url": "https://www.instagram.com/p/Carr123/", 
         "selected_id": "123",
-        "project_id": "p1",
-        "feed_id": "f1"
+        "project_id": "123e4567-e89b-12d3-a456-426614174000",
+        "feed_id": "123e4567-e89b-12d3-a456-426614174001"
     })
     
     assert response.status_code == 200
     data = response.json()
     assert data["type"] == "single"
-    assert data["url"] == "/media/p1/f1/img1.jpg"
+    assert "source_url" in data
+    assert data["source_url"] == "http://img1.jpg"
+    assert data["author"]["username"] == "c_user"
+    assert data["author"]["full_name"] == "C User"
+    assert data["author"]["profile_pic_url"] == "http://avatar.jpg"
 
+@patch("httpx.AsyncClient")
+def test_proxy_download(mock_client_cls):
+    # Mock AsyncClient context manager
+    mock_client = MagicMock()
+    mock_client_cls.return_value.__aenter__.return_value = mock_client
+    
+    # Mock response stream
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    
+    async def mock_aiter_bytes():
+        yield b'chunk1'
+        yield b'chunk2'
+    
+    mock_response.aiter_bytes = mock_aiter_bytes
+    mock_client.stream.return_value.__aenter__.return_value = mock_response
+    
+    # Since StreamingResponse is async, using TestClient usually works if the app handles it.
+    response = client.get("/api/instagram/proxy?url=http://example.com/file")
+    
+    assert response.status_code == 200
+    assert response.content == b'chunk1chunk2'

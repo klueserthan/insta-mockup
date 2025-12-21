@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, func
 from typing import List, Optional
 from uuid import UUID

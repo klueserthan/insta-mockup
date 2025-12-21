@@ -34,9 +34,9 @@ export interface Experiment {
 export interface Video {
   id: string;
   experimentId: string;
-  url: string;
-  username: string;
-  userAvatar: string;
+  filename: string;
+  socialAccountId: string;
+  socialAccount?: SocialAccount;
   caption: string;
   likes?: number;
   comments?: number;
@@ -86,4 +86,18 @@ export interface Participant {
   experimentId: string;
   participantId: string;
   createdAt?: string;
+}
+
+export interface InstagramIngestResponse {
+  type: "single" | "carousel";
+  filename?: string;
+  author?: {
+    username: string;
+    full_name: string;
+    profile_pic_filename: string;
+  };
+  caption?: string;
+  likes?: number;
+  comments?: number;
+  shares?: number;
 }

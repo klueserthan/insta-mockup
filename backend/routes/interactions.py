@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends
 from sqlmodel import Session
 from typing import Dict, Any, Optional
 from uuid import UUID
 
 from database import get_session
-from models import Interaction, CamelModel, Participant, Video, Experiment
+from models import Interaction, CamelModel, Participant
 # We assume implicit participant tracking for now, or use the participantId passed in body.
 
 class InteractionCreate(CamelModel):

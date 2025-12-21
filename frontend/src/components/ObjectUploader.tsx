@@ -29,7 +29,8 @@ export function ObjectUploader({
   onComplete,
   buttonClassName,
   children,
-}: ObjectUploaderProps) {
+  extraData = {},
+}: ObjectUploaderProps & { extraData?: Record<string, string> }) {
   const [showModal, setShowModal] = useState(false);
   const [uppy] = useState(() =>
     new Uppy({
@@ -38,6 +39,7 @@ export function ObjectUploader({
         maxFileSize,
         allowedFileTypes,
       },
+      meta: extraData,
       autoProceed: true,
     })
       .use(XHRUpload, {

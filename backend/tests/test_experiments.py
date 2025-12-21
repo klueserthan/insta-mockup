@@ -1,5 +1,4 @@
 from fastapi.testclient import TestClient
-from uuid import uuid4
 
 def test_create_get_experiments(client: TestClient):
     # Setup User and Project
