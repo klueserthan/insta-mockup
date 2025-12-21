@@ -6,7 +6,7 @@ InstaReel Research is a full-stack web application for conducting research exper
 
 ## Prerequisites
 
-- Node.js (v20 or later)
+- Node.js (v18 or later recommended)
 - PostgreSQL database
 - npm or similar package manager
 
@@ -15,7 +15,7 @@ InstaReel Research is a full-stack web application for conducting research exper
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd insta-mockup
+   cd <repository-directory>
    ```
 
 2. **Install dependencies**

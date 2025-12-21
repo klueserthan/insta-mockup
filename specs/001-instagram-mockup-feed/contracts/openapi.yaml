@@ -7,7 +7,6 @@ info:
   version: 1.0.0
   contact:
     name: Instagram MockUp Feed
-    url: https://github.com/klueserthan/insta-mockup
 
 servers:
   - url: http://localhost:5000

@@ -16,7 +16,7 @@ User accounts for research administrators who create and manage experiments.
 |--------|------|-------------|-------------|
 | id | varchar (UUID) | PRIMARY KEY, default: gen_random_uuid() | Unique identifier |
 | email | text | NOT NULL, UNIQUE | Researcher's email address |
-| password | text | NOT NULL | Bcrypt hashed password (scrypt algorithm) |
+| password | text | NOT NULL | Hashed password using scrypt algorithm |
 | name | text | NOT NULL | Researcher's display name |
 | createdAt | timestamp | NOT NULL, default: now() | Account creation timestamp |
 
