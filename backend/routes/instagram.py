@@ -1,45 +1,48 @@
-
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-import httpx
 import os
 import re
 import uuid
-from pathlib import Path
-from typing import List, Optional
-from rocketapi import InstagramAPI
-from config import UPLOAD_DIR
+from typing import List, Literal, Optional
+
+import httpx
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from uuid import uuid4
-from typing import Literal
+from pydantic import BaseModel
+from rocketapi import InstagramAPI
+
+from config import UPLOAD_DIR
 
 router = APIRouter()
+
 
 class InstagramIngestRequest(BaseModel):
     url: str
 
+
 class CarouselCandidate(BaseModel):
     id: str
-    type: str # "image" or "video"
-    url: str # thumbnail/preview URL (remote)
+    type: str  # "image" or "video"
+    url: str  # thumbnail/preview URL (remote)
+
 
 class Author(BaseModel):
     username: str
     full_name: str
     profile_pic_filename: str
 
+
 class InstagramIngestResponse(BaseModel):
-    type: str = "single" # "single" or "carousel"
+    type: str = "single"  # "single" or "carousel"
     candidates: Optional[List[CarouselCandidate]] = None
-    
+
     # Fields for single media result
     filename: Optional[str] = None
     author: Optional[Author] = None
-    
+
     caption: Optional[str] = None
     likes: Optional[int] = None
     comments: Optional[int] = None
     shares: Optional[int] = None
+
 
 async def _download_from_cdn_url(url: str, media_type: Literal["image", "video"] = "image") -> str:
     """
@@ -79,7 +82,7 @@ async def ingest_instagram(
             return "image"
         else:
             return None
-    
+
     api_key = os.environ.get("ROCKET_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="ROCKET_API_KEY not configured")
@@ -88,25 +91,25 @@ async def ingest_instagram(
     match = re.search(r"/(?:p|reel|tv)/([A-Za-z0-9_-]+)", request.url)
     if not match:
         raise HTTPException(status_code=400, detail="Could not parse Instagram shortcode from URL")
-    
+
     shortcode = match.group(1)
-    
+
     client = InstagramAPI(token=api_key)
     try:
         # This is a synchronous call in the library, might block event loop slightly but acceptable for this use case
         data = client.get_media_info_by_shortcode(shortcode)
     except Exception as e:
-         raise HTTPException(status_code=502, detail=f"RocketAPI error: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"RocketAPI error: {str(e)}")
 
     if data.get("status") != "ok":
         raise HTTPException(status_code=400, detail="RocketAPI returned error status")
-        
+
     response_items = data.get("items", [])
     if not response_items:
         raise HTTPException(status_code=404, detail="Media not found")
-        
+
     media = response_items[0]
-    
+
     # Check for Carousel (Type 8)
     if media.get("media_type") == 8:
         # Not implemented yet
@@ -115,7 +118,7 @@ async def ingest_instagram(
     # Extract Data from the main media object (caption, user, metrics are on parent usually)
     # Be careful: for carousel, caption/user/metrics are on the PARENT `media` object, not necessarily the child.
     # The child `selected_item` has the visual content.
-    
+
     # User Info (from Caption object usually, or flat user object on media)
     # The user provided path: response.items[0].caption.user
     caption_obj = media.get("caption", {})
@@ -123,19 +126,19 @@ async def ingest_instagram(
         user_obj = caption_obj.get("user", {})
         caption_text = caption_obj.get("text", "")
     else:
-         # Fallback if caption is None (can happen) -> check media.user directly
-         user_obj = media.get("user", {})
-         caption_text = ""
+        # Fallback if caption is None (can happen) -> check media.user directly
+        user_obj = media.get("user", {})
+        caption_text = ""
 
     username = user_obj.get("username", "")
     full_name = user_obj.get("full_name", "")
     author_avatar_url = user_obj.get("profile_pic_url", "")
-    
+
     # Metrics (from parent media)
     likes = media.get("like_count", 0)
     comments = media.get("comment_count", 0)
     shares = media.get("reshare_count", 0)
-    
+
     # Download Media URL
     media_url = ""
     # Check video
@@ -146,14 +149,14 @@ async def ingest_instagram(
     elif "image_versions2" in media:
         media_url = media["image_versions2"]["candidates"][0]["url"]
         media_type = "image"
-        
+
     if not media_url:
         raise HTTPException(status_code=400, detail="Could not retrieve media URL")
 
     author = Author(
         username=username,
         full_name=full_name,
-        profile_pic_filename=await _download_from_cdn_url(author_avatar_url, "image")
+        profile_pic_filename=await _download_from_cdn_url(author_avatar_url, "image"),
     )
 
     return InstagramIngestResponse(
@@ -163,20 +166,23 @@ async def ingest_instagram(
         caption=caption_text,
         likes=likes,
         comments=comments,
-        shares=shares
+        shares=shares,
     )
+
 
 @router.get("/api/instagram/proxy")
 async def proxy_download(url: str):
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
-    
+
     async def stream_content():
         async with httpx.AsyncClient() as client:
             try:
                 msg = "Proxying content from: " + url
                 print(msg)
-                async with client.stream("GET", url, follow_redirects=True, timeout=30.0) as response:
+                async with client.stream(
+                    "GET", url, follow_redirects=True, timeout=30.0
+                ) as response:
                     response.raise_for_status()
                     async for chunk in response.aiter_bytes():
                         yield chunk

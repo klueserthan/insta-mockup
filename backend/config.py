@@ -1,4 +1,5 @@
 import os
+
 import dotenv
 
 dotenv.load_dotenv()
@@ -26,4 +27,3 @@ if not os.path.exists(UPLOAD_DIR):
 ROCKET_API_KEY = os.getenv("ROCKET_API_KEY")
 if not ROCKET_API_KEY:
     raise ValueError("ROCKET_API_KEY must be set in environment variables")
-

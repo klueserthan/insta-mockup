@@ -1,23 +1,37 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
-from config import UPLOAD_DIR
-import os
+from sqlmodel import Session
+from starlette.middleware.sessions import SessionMiddleware
 
 from auth import router as auth_router
-from routes import projects, experiments, videos, comments, accounts, storage, feed, interactions, instagram
+from config import UPLOAD_DIR
 from database import create_db_and_tables, engine
-from sqlmodel import Session
-from contextlib import asynccontextmanager
+from routes import (
+    accounts,
+    comments,
+    experiments,
+    feed,
+    instagram,
+    interactions,
+    projects,
+    storage,
+    videos,
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     with Session(engine) as session:
         from auth import ensure_dev_user
+
         ensure_dev_user(session)
     yield
+
 
 app = FastAPI(title="Insta Mockup API", lifespan=lifespan)
 
@@ -29,7 +43,7 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://0.0.0.0:5173"], 
+    allow_origins=["http://localhost:5173", "http://0.0.0.0:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,6 +63,7 @@ app.include_router(instagram.router)
 # Mount uploads directory to /media to serve files locally
 if os.path.exists(UPLOAD_DIR):
     app.mount("/media", StaticFiles(directory=UPLOAD_DIR), name="media")
+
 
 @app.get("/api/health")
 def health_check():

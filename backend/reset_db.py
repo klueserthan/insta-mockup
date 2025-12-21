@@ -1,16 +1,19 @@
 import os
 import shutil
 import sys
+
 from sqlmodel import Session
-from database import create_db_and_tables, engine, DATABASE_URL
-from config import UPLOAD_DIR
+
 from auth import ensure_dev_user
+from config import UPLOAD_DIR
+from database import DATABASE_URL, create_db_and_tables, engine
+
 
 def reset_db():
     print("WARNING: This will delete the entire database and all uploaded files.")
     confirmation = input("Are you sure you want to proceed? (y/n): ")
-    
-    if confirmation.lower() != 'y':
+
+    if confirmation.lower() != "y":
         print("Operation cancelled.")
         return
 
@@ -65,6 +68,7 @@ def reset_db():
         print(f"Error seeding user: {e}")
 
     print("\nReset complete!")
+
 
 if __name__ == "__main__":
     reset_db()

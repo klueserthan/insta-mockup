@@ -12,5 +12,16 @@
     "builder.command": "cd frontend && npm run dev",
     "builder.runDevServer": true,
     "builder.autoDetectDevServer": true,
-    "builder.launchType": "browser"
+    "builder.launchType": "browser",
+    "chat.promptFilesRecommendations": {
+        "speckit.constitution": true,
+        "speckit.specify": true,
+        "speckit.plan": true,
+        "speckit.tasks": true,
+        "speckit.implement": true
+    },
+    "chat.tools.terminal.autoApprove": {
+        ".specify/scripts/bash/": true,
+        ".specify/scripts/powershell/": true
+    }
 }

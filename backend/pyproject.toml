@@ -1,0 +1,46 @@
+[project]
+name = "insta-mockup-backend"
+version = "0.1.0"
+description = "FastAPI backend for the Insta Mockup experimental reels feed"
+requires-python = ">=3.13"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "sqlmodel",
+  "psycopg2-binary",
+  "passlib[bcrypt]",
+  "python-multipart",
+  "python-jose[cryptography]",
+  "boto3",
+  "httpx",
+  "requests",
+  "itsdangerous",
+  "rocketapi",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.14.9",
+    "pyright>=1.1.390",
+]
+
+[tool.pyright]
+include = ["wikidata_collector", "tests"]
+exclude = ["**/__pycache__", ".venv", "venv", "htmlcov"]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]

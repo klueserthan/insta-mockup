@@ -1,0 +1,558 @@
+openapi: 3.0.3
+info:
+  title: Insta Mockup API (Feature 001)
+  version: 0.1.0
+  description: |
+    Contract for the Instagram MockUp Experimental Reel Feed feature.
+    Scope includes researcher configuration, public feed delivery, interaction logging,
+    comment seeding (including pinned comment link clicks), and results exports.
+servers:
+  - url: /api
+
+tags:
+  - name: auth
+  - name: projects
+  - name: experiments
+  - name: videos
+  - name: comments
+  - name: feed
+  - name: interactions
+  - name: results
+
+paths:
+  /login:
+    post:
+      tags: [auth]
+      summary: Login researcher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Logged in
+        '401':
+          description: Invalid credentials
+
+  /logout:
+    post:
+      tags: [auth]
+      summary: Logout researcher
+      responses:
+        '200':
+          description: Logged out
+
+  /projects:
+    get:
+      tags: [projects]
+      summary: List projects for current researcher
+      responses:
+        '200':
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      tags: [projects]
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '200':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  /projects/{projectId}/experiments:
+    get:
+      tags: [experiments]
+      summary: List experiments in project
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Experiments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Experiment'
+    post:
+      tags: [experiments]
+      summary: Create experiment
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperimentCreate'
+      responses:
+        '200':
+          description: Experiment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experiment'
+
+  /experiments/{experimentId}:
+    patch:
+      tags: [experiments]
+      summary: Update experiment settings (includes kill switch)
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperimentPatch'
+      responses:
+        '200':
+          description: Experiment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experiment'
+
+  /experiments/{experimentId}/videos:
+    get:
+      tags: [videos]
+      summary: List media items for an experiment
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+      responses:
+        '200':
+          description: Videos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Video'
+    post:
+      tags: [videos]
+      summary: Create media item
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoCreate'
+      responses:
+        '200':
+          description: Video created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+
+  /videos/reorder:
+    post:
+      tags: [videos]
+      summary: Reorder media items within an experiment
+      description: Updates positions/locks to reflect the feed overview ordering.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoReorderRequest'
+      responses:
+        '200':
+          description: Reordered
+
+  /videos/{videoId}/comments:
+    get:
+      tags: [comments]
+      summary: List pre-seeded comments for a media item
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: Comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreseededComment'
+    post:
+      tags: [comments]
+      summary: Create pre-seeded comment
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreseededCommentCreate'
+      responses:
+        '200':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreseededComment'
+
+  /videos/{videoId}/pinned-comment:
+    put:
+      tags: [comments]
+      summary: Set/replace the pinned comment for a media item
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PinnedCommentUpsert'
+      responses:
+        '200':
+          description: Pinned comment set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreseededComment'
+
+  /comments/{commentId}/generate:
+    post:
+      tags: [comments]
+      summary: Generate suggested comments for a media item
+      description: Returns suggestions; caller must accept/edit and save separately.
+      parameters:
+        - $ref: '#/components/parameters/CommentId'
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentSuggestions'
+
+  /feed/{publicUrlToken}:
+    get:
+      tags: [feed]
+      summary: Public feed delivery
+      description: |
+        Returns experiment settings and ordered videos for a participant.
+
+        Participant identity and session resumption are keyed by a stable participant identifier value taken from the incoming request query string.
+        The query parameter name that contains that identifier is configured per project via the “Query String Key” setting (`Project.queryKey`).
+        Default key name: `participantId`.
+      parameters:
+        - name: publicUrlToken
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Feed payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPayload'
+        '410':
+          description: Experiment inactive (kill switch) or unavailable
+
+  /interactions:
+    post:
+      tags: [interactions]
+      summary: Log an interaction event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InteractionCreate'
+      responses:
+        '200':
+          description: Logged
+
+  /interactions/heartbeat:
+    post:
+      tags: [interactions]
+      summary: Upsert session timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+      responses:
+        '200':
+          description: Updated
+
+  /experiments/{experimentId}/results:
+    get:
+      tags: [results]
+      summary: List participant sessions + summary metrics
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultsSummary'
+
+  /experiments/{experimentId}/results/export:
+    post:
+      tags: [results]
+      summary: Export results (CSV or JSON)
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: Export file
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: CSV content
+            application/json:
+              schema:
+                type: object
+                description: JSON export object
+
+components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: integer
+    ExperimentId:
+      name: experimentId
+      in: path
+      required: true
+      schema:
+        type: integer
+    VideoId:
+      name: videoId
+      in: path
+      required: true
+      schema:
+        type: integer
+    CommentId:
+      name: commentId
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string }
+
+    Project:
+      type: object
+      required: [id, name, queryKey]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        queryKey:
+          type: string
+          description: Query-string parameter name that contains the stable participant identifier value (default: participantId).
+
+    ProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        queryKey:
+          type: string
+          nullable: true
+          description: Optional override for the project's Query String Key.
+
+    Experiment:
+      type: object
+      required: [id, projectId, publicUrlToken, isActive]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        name: { type: string }
+        publicUrlToken: { type: string }
+        isActive: { type: boolean }
+        timeLimitSeconds: { type: integer, nullable: true }
+        endScreenMessage: { type: string, nullable: true }
+        redirectUrl: { type: string, nullable: true }
+
+    ExperimentCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+
+    ExperimentPatch:
+      type: object
+      properties:
+        name: { type: string }
+        isActive: { type: boolean }
+        timeLimitSeconds: { type: integer, nullable: true }
+        endScreenMessage: { type: string, nullable: true }
+        redirectUrl: { type: string, nullable: true }
+
+    Video:
+      type: object
+      required: [id, experimentId, filename, position]
+      properties:
+        id: { type: integer }
+        experimentId: { type: integer }
+        filename: { type: string }
+        caption: { type: string, nullable: true }
+        position: { type: integer }
+        lockedPosition: { type: integer, nullable: true }
+
+    VideoCreate:
+      type: object
+      required: [filename]
+      properties:
+        filename: { type: string }
+        caption: { type: string, nullable: true }
+        socialAccountId: { type: integer, nullable: true }
+        likes: { type: integer, nullable: true }
+        comments: { type: integer, nullable: true }
+        shares: { type: integer, nullable: true }
+
+    VideoReorderRequest:
+      type: object
+      required: [experimentId, orderedVideoIds]
+      properties:
+        experimentId: { type: integer }
+        orderedVideoIds:
+          type: array
+          items: { type: integer }
+
+    PreseededComment:
+      type: object
+      required: [id, videoId, text, position]
+      properties:
+        id: { type: integer }
+        videoId: { type: integer }
+        text: { type: string }
+        position: { type: integer }
+        isPinned: { type: boolean, nullable: true }
+        linkUrl: { type: string, nullable: true }
+
+    PreseededCommentCreate:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string }
+        position: { type: integer, nullable: true }
+        linkUrl: { type: string, nullable: true }
+
+    PinnedCommentUpsert:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string }
+        linkUrl: { type: string, nullable: true }
+
+    FeedPayload:
+      type: object
+      required: [experiment, videos]
+      properties:
+        experiment:
+          $ref: '#/components/schemas/Experiment'
+        videos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Video'
+
+    InteractionCreate:
+      type: object
+      required: [participantId, experimentId, interactionType]
+      properties:
+        participantId: { type: string }
+        experimentId: { type: integer }
+        videoId: { type: integer, nullable: true }
+        interactionType: { type: string }
+        interactionData:
+          type: object
+          additionalProperties: true
+
+    Heartbeat:
+      type: object
+      required: [sessionId, participantId, videoId, durationMs]
+      properties:
+        sessionId: { type: string }
+        participantId: { type: string }
+        videoId: { type: integer }
+        durationMs: { type: integer }
+
+    ResultsSummary:
+      type: object
+      required: [experimentId, sessions]
+      properties:
+        experimentId: { type: integer }
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParticipantSessionSummary'
+
+    ParticipantSessionSummary:
+      type: object
+      required: [participantId, startedAt]
+      properties:
+        participantId: { type: string }
+        startedAt: { type: string }
+        endedAt: { type: string, nullable: true }
+        totalDurationMs: { type: integer, nullable: true }
+
+    ExportRequest:
+      type: object
+      required: [format]
+      properties:
+        format:
+          type: string
+          enum: [csv, json]
+        participantIds:
+          type: array
+          items: { type: string }
+        includeInteractions:
+          type: boolean
+          default: true
+
+    CommentSuggestions:
+      type: object
+      required: [suggestions]
+      properties:
+        suggestions:
+          type: array
+          items:
+            type: object
+            required: [text]
+            properties:
+              text: { type: string }
+              linkUrl: { type: string, nullable: true }

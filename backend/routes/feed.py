@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
-from sqlalchemy.orm import joinedload
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
-from sqlmodel import SQLModel
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
 
 from database import get_session
-from models import Experiment, Video, SocialAccount, VideoBase, Project
+from models import Experiment, Project, SocialAccount, Video, VideoBase
+
 
 class FeedVideoResponse(VideoBase):
     id: UUID
@@ -15,13 +15,13 @@ class FeedVideoResponse(VideoBase):
     created_at: datetime
     social_account: Optional[SocialAccount] = None
 
+
 router = APIRouter()
+
 
 @router.get("/api/feed/{public_url}")
 def get_public_feed(
-    public_url: str,
-    participantId: Optional[str] = None,
-    session: Session = Depends(get_session)
+    public_url: str, participantId: Optional[str] = None, session: Session = Depends(get_session)
 ):
     # 1. Find Experiment by public_url
     experiment = session.exec(select(Experiment).where(Experiment.public_url == public_url)).first()
@@ -35,7 +35,7 @@ def get_public_feed(
         .where(Video.experiment_id == experiment.id)
         .order_by(Video.position)
     ).all()
-    
+
     # 3. Handle Participant (Optional for now, but good to track)
     if participantId and participantId != "preview":
         pass
@@ -43,7 +43,7 @@ def get_public_feed(
     # Fetch project for settings
     project = experiment.project
     if not project:
-         project = session.get(Project, experiment.project_id)
+        project = session.get(Project, experiment.project_id)
 
     return {
         "experimentId": experiment.id,
@@ -54,12 +54,12 @@ def get_public_feed(
             "queryKey": project.query_key if project else "participantId",
             "timeLimitSeconds": project.time_limit_seconds if project else 300,
             "redirectUrl": project.redirect_url if project else "",
-            "endScreenMessage": project.end_screen_message if project else "Thank you for participating.",
+            "endScreenMessage": project.end_screen_message
+            if project
+            else "Thank you for participating.",
         },
         "videos": [
-            FeedVideoResponse(
-                **video.model_dump(),
-                social_account=account
-            ) for video, account in results
+            FeedVideoResponse(**video.model_dump(), social_account=account)
+            for video, account in results
         ],
     }
