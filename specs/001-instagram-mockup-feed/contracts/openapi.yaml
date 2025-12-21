@@ -1,0 +1,1074 @@
+openapi: 3.0.3
+info:
+  title: Instagram MockUp Feed API
+  description: |
+    RESTful API for the Instagram MockUp Feed research platform.
+    Enables researchers to create video feed experiments and collect participant interaction data.
+  version: 1.0.0
+  contact:
+    name: Instagram MockUp Feed
+    url: https://github.com/klueserthan/insta-mockup
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: Projects
+    description: Research project management
+  - name: Experiments
+    description: Experiment (feed) management within projects
+  - name: Videos
+    description: Video content management
+  - name: Comments
+    description: Preseeded comment management
+  - name: Interactions
+    description: Participant interaction logging
+  - name: Public Feed
+    description: Public-facing participant feed
+  - name: Object Storage
+    description: File upload and serving
+
+paths:
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate researcher
+      description: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Researcher'
+        '401':
+          description: Invalid credentials
+
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout researcher
+      description: Invalidate current session
+      responses:
+        '200':
+          description: Successfully logged out
+
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new researcher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertResearcher'
+      responses:
+        '201':
+          description: Researcher created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Researcher'
+        '400':
+          description: Validation error
+
+  /api/projects:
+    get:
+      tags: [Projects]
+      summary: List all projects
+      description: Get all projects for authenticated researcher
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+        '401':
+          description: Not authenticated
+
+    post:
+      tags: [Projects]
+      summary: Create new project
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertProject'
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+
+  /api/projects/{projectId}:
+    get:
+      tags: [Projects]
+      summary: Get project by ID
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+
+    patch:
+      tags: [Projects]
+      summary: Update project
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertProject'
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+
+    delete:
+      tags: [Projects]
+      summary: Delete project
+      description: Deletes project and all associated experiments, videos, and data
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      responses:
+        '204':
+          description: Project deleted successfully
+        '401':
+          description: Not authenticated
+
+  /api/projects/{projectId}/experiments:
+    get:
+      tags: [Experiments]
+      summary: List experiments for project
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      responses:
+        '200':
+          description: List of experiments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Experiment'
+
+    post:
+      tags: [Experiments]
+      summary: Create new experiment
+      description: Creates experiment with auto-generated public URL
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertExperiment'
+      responses:
+        '201':
+          description: Experiment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experiment'
+
+  /api/experiments/{experimentId}:
+    patch:
+      tags: [Experiments]
+      summary: Update experiment
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/experimentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertExperiment'
+      responses:
+        '200':
+          description: Experiment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experiment'
+        '404':
+          description: Experiment not found
+
+    delete:
+      tags: [Experiments]
+      summary: Delete experiment
+      description: Deletes experiment and all associated videos and data
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/experimentId'
+      responses:
+        '204':
+          description: Experiment deleted successfully
+
+  /api/experiments/{experimentId}/videos:
+    get:
+      tags: [Videos]
+      summary: List videos for experiment
+      description: Returns all videos in original position order
+      parameters:
+        - $ref: '#/components/parameters/experimentId'
+      responses:
+        '200':
+          description: List of videos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Video'
+
+    post:
+      tags: [Videos]
+      summary: Add video to experiment
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/experimentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertVideo'
+      responses:
+        '201':
+          description: Video created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+
+  /api/videos/{videoId}:
+    patch:
+      tags: [Videos]
+      summary: Update video
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/videoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertVideo'
+      responses:
+        '200':
+          description: Video updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+
+    delete:
+      tags: [Videos]
+      summary: Delete video
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/videoId'
+      responses:
+        '204':
+          description: Video deleted successfully
+
+  /api/videos/bulk-delete:
+    post:
+      tags: [Videos]
+      summary: Bulk delete videos
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [videoIds]
+              properties:
+                videoIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '204':
+          description: Videos deleted successfully
+        '400':
+          description: Invalid request
+
+  /api/videos/bulk-generate-comments:
+    post:
+      tags: [Videos, Comments]
+      summary: Bulk generate AI comments for videos
+      description: Generates realistic comments using OpenAI for multiple videos
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [videoIds]
+              properties:
+                videoIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                count:
+                  type: integer
+                  default: 5
+                  minimum: 1
+                  maximum: 20
+                tone:
+                  type: string
+                  default: mixed
+                  enum: [positive, negative, mixed]
+      responses:
+        '201':
+          description: Comments generated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    videoId:
+                      type: string
+                      format: uuid
+                    comments:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/PreseededComment'
+                    error:
+                      type: string
+
+  /api/videos/reorder:
+    post:
+      tags: [Videos]
+      summary: Reorder videos
+      description: Update positions of multiple videos
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [updates]
+              properties:
+                updates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      position:
+                        type: integer
+      responses:
+        '200':
+          description: Videos reordered successfully
+
+  /api/videos/{videoId}/comments:
+    get:
+      tags: [Comments]
+      summary: Get comments for video
+      parameters:
+        - $ref: '#/components/parameters/videoId'
+      responses:
+        '200':
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreseededComment'
+
+    post:
+      tags: [Comments]
+      summary: Add comment to video
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/videoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertPreseededComment'
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreseededComment'
+
+  /api/videos/{videoId}/comments/generate:
+    post:
+      tags: [Comments]
+      summary: Generate AI comments for video
+      description: Uses OpenAI to generate realistic comments
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/videoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count:
+                  type: integer
+                  default: 5
+                  minimum: 1
+                  maximum: 20
+                tone:
+                  type: string
+                  default: mixed
+                  enum: [positive, negative, mixed]
+      responses:
+        '201':
+          description: Comments generated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreseededComment'
+        '404':
+          description: Video not found
+
+  /api/comments/{commentId}:
+    patch:
+      tags: [Comments]
+      summary: Update comment
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/commentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertPreseededComment'
+      responses:
+        '200':
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreseededComment'
+        '404':
+          description: Comment not found
+
+    delete:
+      tags: [Comments]
+      summary: Delete comment
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/commentId'
+      responses:
+        '204':
+          description: Comment deleted successfully
+
+  /api/comments/reorder:
+    post:
+      tags: [Comments]
+      summary: Reorder comments
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [updates]
+              properties:
+                updates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      position:
+                        type: integer
+      responses:
+        '200':
+          description: Comments reordered successfully
+
+  /api/feed/{publicUrl}:
+    get:
+      tags: [Public Feed]
+      summary: Get public participant feed
+      description: |
+        Returns feed configuration and videos for participant consumption.
+        Video order is determined by project randomization settings and participant ID.
+        This endpoint does not require authentication.
+      parameters:
+        - name: publicUrl
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique public URL for the experiment
+        - name: participantId
+          in: query
+          schema:
+            type: string
+          description: Participant identifier (query key is configurable per project)
+      responses:
+        '200':
+          description: Feed data with videos and settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResponse'
+        '404':
+          description: Experiment not found
+
+  /api/interactions:
+    post:
+      tags: [Interactions]
+      summary: Log participant interaction
+      description: Records participant interactions with videos (views, likes, comments, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [participantId, experimentId, videoId, interactionType]
+              properties:
+                participantId:
+                  type: string
+                  description: External participant identifier
+                experimentId:
+                  type: string
+                  format: uuid
+                videoId:
+                  type: string
+                  format: uuid
+                interactionType:
+                  type: string
+                  enum: [view, like, comment, share, scroll]
+                metadata:
+                  type: object
+                  description: Additional interaction data (flexible JSON)
+      responses:
+        '201':
+          description: Interaction logged successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interaction'
+        '400':
+          description: Validation error
+
+  /api/objects/upload:
+    post:
+      tags: [Object Storage]
+      summary: Get upload URL for file
+      description: Returns signed URL for uploading files to object storage
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Upload URL generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadURL:
+                    type: string
+                    format: uri
+
+  /api/objects/finalize:
+    put:
+      tags: [Object Storage]
+      summary: Finalize file upload
+      description: Sets ACL policy and returns public object path
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uploadURL]
+              properties:
+                uploadURL:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Upload finalized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  objectPath:
+                    type: string
+
+  /objects/{objectPath}:
+    get:
+      tags: [Object Storage]
+      summary: Download uploaded object
+      description: Serves uploaded files with ACL check
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Object path (wildcard)
+      responses:
+        '200':
+          description: Object file content
+        '403':
+          description: Access denied
+        '404':
+          description: Object not found
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Session-based authentication using Passport.js
+
+  parameters:
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    experimentId:
+      name: experimentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    videoId:
+      name: videoId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    commentId:
+      name: commentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Researcher:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    InsertResearcher:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        name:
+          type: string
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        researcherId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        queryKey:
+          type: string
+          default: participantId
+        timeLimitSeconds:
+          type: integer
+          default: 300
+        redirectUrl:
+          type: string
+        endScreenMessage:
+          type: string
+        lockAllPositions:
+          type: boolean
+          default: false
+        randomizationSeed:
+          type: integer
+          default: 42
+        createdAt:
+          type: string
+          format: date-time
+
+    InsertProject:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        queryKey:
+          type: string
+          default: participantId
+        timeLimitSeconds:
+          type: integer
+          default: 300
+        redirectUrl:
+          type: string
+          default: ""
+        endScreenMessage:
+          type: string
+          default: "Thank you for participating in this study. You will be redirected shortly."
+        lockAllPositions:
+          type: boolean
+          default: false
+        randomizationSeed:
+          type: integer
+          default: 42
+
+    Experiment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        publicUrl:
+          type: string
+        persistTimer:
+          type: boolean
+          default: false
+        showUnmutePrompt:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+
+    InsertExperiment:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        persistTimer:
+          type: boolean
+          default: false
+        showUnmutePrompt:
+          type: boolean
+          default: true
+
+    Video:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        experimentId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        username:
+          type: string
+        userAvatar:
+          type: string
+          format: uri
+        caption:
+          type: string
+        likes:
+          type: integer
+          default: 0
+        comments:
+          type: integer
+          default: 0
+        shares:
+          type: integer
+          default: 0
+        song:
+          type: string
+        description:
+          type: string
+          nullable: true
+        position:
+          type: integer
+          default: 0
+        isLocked:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+
+    InsertVideo:
+      type: object
+      required: [url, username, userAvatar, caption, song]
+      properties:
+        url:
+          type: string
+          format: uri
+        username:
+          type: string
+        userAvatar:
+          type: string
+          format: uri
+        caption:
+          type: string
+        likes:
+          type: integer
+          default: 0
+        comments:
+          type: integer
+          default: 0
+        shares:
+          type: integer
+          default: 0
+        song:
+          type: string
+        description:
+          type: string
+        position:
+          type: integer
+        isLocked:
+          type: boolean
+          default: false
+
+    PreseededComment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        videoId:
+          type: string
+          format: uuid
+        authorName:
+          type: string
+        authorAvatar:
+          type: string
+          format: uri
+        body:
+          type: string
+        likes:
+          type: integer
+          default: 0
+        source:
+          type: string
+          enum: [manual, ai]
+          default: manual
+        position:
+          type: integer
+          default: 0
+        createdAt:
+          type: string
+          format: date-time
+
+    InsertPreseededComment:
+      type: object
+      required: [authorName, authorAvatar, body]
+      properties:
+        authorName:
+          type: string
+        authorAvatar:
+          type: string
+          format: uri
+        body:
+          type: string
+        likes:
+          type: integer
+          default: 0
+        source:
+          type: string
+          default: manual
+        position:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    Participant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        experimentId:
+          type: string
+          format: uuid
+        participantId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Interaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        participantUuid:
+          type: string
+          format: uuid
+        videoId:
+          type: string
+          format: uuid
+        interactionType:
+          type: string
+        metadata:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    FeedResponse:
+      type: object
+      properties:
+        experimentId:
+          type: string
+          format: uuid
+        experimentName:
+          type: string
+        persistTimer:
+          type: boolean
+        showUnmutePrompt:
+          type: boolean
+        projectSettings:
+          type: object
+          properties:
+            queryKey:
+              type: string
+            timeLimitSeconds:
+              type: integer
+            redirectUrl:
+              type: string
+            endScreenMessage:
+              type: string
+        videos:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Video'
+              - type: object
+                properties:
+                  preseededComments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreseededComment'
