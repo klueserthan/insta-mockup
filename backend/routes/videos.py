@@ -4,7 +4,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from database import get_session
-from models import Video, VideoBase, Experiment, Project, Researcher, CamelModel
+from models import Video, VideoBase, Experiment, Project, Researcher, CamelModel, SocialAccountBase
 from auth import get_current_user
 
 router = APIRouter()
@@ -30,13 +30,14 @@ def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID):
          raise HTTPException(status_code=403, detail="Not authorized")
     return video
 
-class VideoRead(VideoBase):
+class VideoResponse(VideoBase):
     id: UUID
     experiment_id: UUID
     created_at: int # or datetime
-    social_account: Optional["SocialAccount"] = None
+    social_account: SocialAccountBase
 
-@router.get("/api/experiments/{experiment_id}/videos", response_model=List[Video])
+
+@router.get("/api/experiments/{experiment_id}/videos", response_model=List[VideoResponse])
 def get_videos(
     experiment_id: UUID,
     session: Session = Depends(get_session),
@@ -47,7 +48,12 @@ def get_videos(
 ):
     verify_experiment_ownership(session, experiment_id, current_user.id)
     # Order by position
-    videos = session.exec(select(Video).where(Video.experiment_id == experiment_id).order_by(Video.position)).all()
+    videos = (
+        session.exec(select(Video, SocialAccount)
+        .where(Video.experiment_id == experiment_id)
+        .join(SocialAccount, Video.social_account_id == SocialAccount.id)
+        .order_by(Video.position)).all()
+    )
     return videos
 
 @router.post("/api/experiments/{experiment_id}/videos", response_model=Video, status_code=201)
