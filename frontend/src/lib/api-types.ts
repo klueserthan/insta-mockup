@@ -28,6 +28,7 @@ export interface Experiment {
   publicUrl?: string;
   persistTimer?: boolean;
   showUnmutePrompt?: boolean;
+  isActive?: boolean;
   createdAt?: string;
 }
 

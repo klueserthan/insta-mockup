@@ -359,6 +359,20 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
                   </div>
                   <div className="flex items-center justify-between py-2">
                     <div>
+                      <Label htmlFor="is-active">Feed Active (Kill Switch)</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        When disabled, participants cannot access this feed and will see a friendly message that the study is not active.
+                      </p>
+                    </div>
+                    <Switch
+                      id="is-active"
+                      checked={editingExperiment.isActive ?? true}
+                      onCheckedChange={(checked) => setEditingExperiment({ ...editingExperiment, isActive: checked })}
+                      data-testid="switch-is-active"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <div>
                       <Label htmlFor="persist-timer">Persist Timer Across Reloads</Label>
                       <p className="text-sm text-muted-foreground mt-1">
                         When enabled, the timer continues from where it left off if a participant refreshes the page. If time has expired, they will be redirected immediately.
@@ -401,7 +415,7 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
                 <Button 
                   onClick={() => updateExperimentMutation.mutate({ 
                     id: editingExperiment!.id, 
-                    data: { name: editingExperiment!.name, persistTimer: editingExperiment!.persistTimer, showUnmutePrompt: editingExperiment!.showUnmutePrompt } 
+                    data: { name: editingExperiment!.name, persistTimer: editingExperiment!.persistTimer, showUnmutePrompt: editingExperiment!.showUnmutePrompt, isActive: editingExperiment!.isActive } 
                   })}
                   disabled={updateExperimentMutation.isPending}
                   data-testid="button-save-feed-settings"
