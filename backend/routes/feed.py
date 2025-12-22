@@ -28,7 +28,14 @@ def get_public_feed(
     if not experiment:
         raise HTTPException(status_code=404, detail="Feed not found")
 
-    # 2. Get Videos for this experiment with SocialAccount
+    # 2. Check if experiment is active (kill switch)
+    if not experiment.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="This study is not currently active. Please contact the researcher for more information."
+        )
+
+    # 3. Get Videos for this experiment with SocialAccount
     results = session.exec(
         select(Video, SocialAccount)
         .join(SocialAccount)
@@ -36,7 +43,7 @@ def get_public_feed(
         .order_by(Video.position)
     ).all()
 
-    # 3. Handle Participant (Optional for now, but good to track)
+    # 4. Handle Participant (Optional for now, but good to track)
     if participantId and participantId != "preview":
         pass
 

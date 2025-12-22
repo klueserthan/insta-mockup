@@ -64,6 +64,7 @@ class ExperimentUpdate(CamelModel):
     public_url: Optional[str] = None
     persist_timer: Optional[bool] = None
     show_unmute_prompt: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 @router.patch("/api/experiments/{experiment_id}", response_model=Experiment)
