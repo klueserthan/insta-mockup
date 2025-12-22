@@ -415,7 +415,12 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
                 <Button 
                   onClick={() => updateExperimentMutation.mutate({ 
                     id: editingExperiment!.id, 
-                    data: { name: editingExperiment!.name, persistTimer: editingExperiment!.persistTimer, showUnmutePrompt: editingExperiment!.showUnmutePrompt, isActive: editingExperiment!.isActive } 
+                    data: { 
+                      name: editingExperiment!.name,
+                      persistTimer: editingExperiment!.persistTimer,
+                      showUnmutePrompt: editingExperiment!.showUnmutePrompt,
+                      isActive: editingExperiment!.isActive
+                    } 
                   })}
                   disabled={updateExperimentMutation.isPending}
                   data-testid="button-save-feed-settings"

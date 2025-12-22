@@ -38,6 +38,7 @@ class ExperimentCreate(SQLModel):
     name: str
     persist_timer: bool = False
     show_unmute_prompt: bool = True
+    is_active: bool = True
 
 
 @router.post("/api/projects/{project_id}/experiments", response_model=Experiment, status_code=201)
