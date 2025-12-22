@@ -3,7 +3,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Session, select
 
 from auth import get_current_user
 from database import get_session
@@ -34,11 +34,11 @@ def get_experiments(
 
 
 # Redefining models for Request Body locally to avoid Import Cycles or just for clarity
-class ExperimentCreate(SQLModel):
+class ExperimentCreate(CamelModel):
     name: str
     persist_timer: bool = False
     show_unmute_prompt: bool = True
-    is_active: bool = True
+    is_active: bool = False
 
 
 @router.post("/api/projects/{project_id}/experiments", response_model=Experiment, status_code=201)

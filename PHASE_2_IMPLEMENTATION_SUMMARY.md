@@ -47,21 +47,21 @@ This document summarizes the implementation of Phase 2 foundational work for the
 #### T009: Add kill-switch enforcement ✅
 - **Location**: `backend/routes/feed.py`, `backend/models.py`
 - **Implementation**: 
-  - Added `is_active` field to Experiment model (defaults to True)
+  - Added `is_active` field to Experiment model (defaults to False)
   - Feed endpoint checks `experiment.is_active` before serving content
   - Returns 403 with friendly message when inactive
-- **Behavior**: Researchers can deactivate experiments to prevent participant access
+- **Behavior**: Researchers can activate experiments to allow participant access (inactive by default)
 - **Testing**: 
   - `test_feed.py::test_feed_rejects_inactive_experiment`
   - `test_feed.py::test_feed_accepts_active_experiment`
-- **Error Message**: "This study is not currently active. Please contact the researcher for more information."
+- **Error Message**: "This study is not currently active."
 
 #### T009a: Add consistent error response shapes ✅
 - **Location**: `backend/routes/feed.py`
 - **Implementation**: All participant-facing errors use HTTPException with clear detail messages
 - **Behavior**: 
   - 404: "Feed not found"
-  - 403: "This study is not currently active..."
+  - 403: "This study is not currently active."
 - **Testing**: `test_feed.py::test_feed_not_found_friendly_error`
 
 ### Frontend Tasks
@@ -122,12 +122,12 @@ Executed comprehensive API testing script to verify all Phase 2 functionality:
 ```bash
 ✅ Test 1: Register and Login
 ✅ Test 2: Create Project with custom queryKey "userId"
-✅ Test 3: Create Experiment (isActive defaults to true)
-✅ Test 4: Access Feed Without Auth (publicly accessible)
-✅ Test 5: Deactivate Experiment via API
-✅ Test 6: Access Deactivated Feed (403 with friendly message)
-✅ Test 7: Reactivate Experiment via API
-✅ Test 8: Access Reactivated Feed (200 OK)
+✅ Test 3: Create Experiment (isActive defaults to false)
+✅ Test 4: Access Feed Without Auth (publicly accessible when active)
+✅ Test 5: Activate Experiment via API
+✅ Test 6: Access Inactive Feed (403 with friendly message by default)
+✅ Test 7: Activate Experiment via API
+✅ Test 8: Access Activated Feed (200 OK)
 ```
 
 ## API Changes
@@ -159,7 +159,7 @@ Executed comprehensive API testing script to verify all Phase 2 functionality:
 **Error Response** (new):
 ```json
 {
-  "detail": "This study is not currently active. Please contact the researcher for more information."
+  "detail": "This study is not currently active."
 }
 ```
 
@@ -174,7 +174,7 @@ Executed comprehensive API testing script to verify all Phase 2 functionality:
 ```
 
 #### POST `/api/projects/{id}/experiments` (Extended)
-**New Field**: `isActive: boolean` (optional, defaults to true)
+**New Field**: `isActive: boolean` (optional, defaults to false)
 
 **Request Body**:
 ```json
@@ -187,21 +187,21 @@ Executed comprehensive API testing script to verify all Phase 2 functionality:
 ### Data Model Changes
 
 #### Experiment Model
-**New Field**: `is_active: bool` (Field default=True)
+**New Field**: `is_active: bool` (Field default=False)
 
 **Impact**: 
-- Backward compatible (defaults to True)
-- Existing experiments will be active by default
+- Breaking change: experiments now default to inactive
+- Existing experiments will need to be explicitly activated
 - Can be toggled via UI or API
 
 ## Database Migration
 
-No explicit migration needed due to SQLModel's automatic schema updates on startup. The new `is_active` field will be added automatically with default value `True`.
+No explicit migration needed due to SQLModel's automatic schema updates on startup. The new `is_active` field will be added automatically with default value `False`.
 
 For production deployments using explicit migrations:
 ```python
 # Migration pseudo-code
-ALTER TABLE experiment ADD COLUMN is_active BOOLEAN DEFAULT TRUE NOT NULL;
+ALTER TABLE experiment ADD COLUMN is_active BOOLEAN DEFAULT FALSE NOT NULL;
 ```
 
 ## Compliance with Constitution
@@ -210,15 +210,13 @@ ALTER TABLE experiment ADD COLUMN is_active BOOLEAN DEFAULT TRUE NOT NULL;
 ✅ **Frontend-as-contract**: Preserved camelCase payloads and existing routes  
 ✅ **Auth boundaries**: Public participant endpoints vs authenticated researcher endpoints  
 ✅ **Quality gates**: ruff, pyright, pytest all executed  
-✅ **Backward compatibility**: No breaking changes  
+✅ **Backward compatibility**: Breaking change - experiments now default to inactive
 
 ## Known Limitations
 
 1. **Query Parameter Flexibility**: While `Project.queryKey` is configurable, the feed endpoint currently only accepts `participantId` as the parameter name in the function signature. Future enhancement could make this fully dynamic by accepting arbitrary query parameters.
 
-2. **Pre-existing Type Issues**: Some pyright type errors exist in the codebase (e.g., in experiments.py helper functions) but are unrelated to Phase 2 work.
-
-3. **Pre-existing Linting Issues**: One bare except clause in videos.py predates this work and was not addressed to minimize scope.
+2. **Breaking Change**: Experiments now default to `is_active=False`. Existing experiments will need to be explicitly activated by researchers before participants can access them. This is a safer default that prevents accidental exposure of unpublished experiments.
 
 ## Next Steps
 

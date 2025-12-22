@@ -34,7 +34,7 @@ def get_public_feed(
     if not experiment.is_active:
         raise HTTPException(
             status_code=403,
-            detail="This study is not currently active. Please contact the researcher for more information.",
+            detail="This study is not currently active.",
         )
 
     # 3. Get Videos for this experiment with SocialAccount

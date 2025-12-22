@@ -23,9 +23,10 @@ def test_feed_accessible_without_auth(client: TestClient):
     assert response.status_code == 201
     project = response.json()
 
-    # Create experiment
+    # Create experiment with isActive=True
     response = client.post(
-        f"/api/projects/{project['id']}/experiments", json={"name": "Test Experiment"}
+        f"/api/projects/{project['id']}/experiments",
+        json={"name": "Test Experiment", "isActive": True},
     )
     assert response.status_code == 201
     experiment = response.json()
@@ -53,9 +54,10 @@ def test_feed_returns_project_query_key(client: TestClient):
     assert response.status_code == 201
     project = response.json()
 
-    # Create experiment
+    # Create experiment with isActive=True
     response = client.post(
-        f"/api/projects/{project['id']}/experiments", json={"name": "Test Experiment"}
+        f"/api/projects/{project['id']}/experiments",
+        json={"name": "Test Experiment", "isActive": True},
     )
     assert response.status_code == 201
     experiment = response.json()
@@ -79,17 +81,13 @@ def test_feed_rejects_inactive_experiment(client: TestClient):
     assert response.status_code == 201
     project = response.json()
 
-    # Create experiment
+    # Create experiment (defaults to inactive)
     response = client.post(
         f"/api/projects/{project['id']}/experiments", json={"name": "Test Experiment"}
     )
     assert response.status_code == 201
     experiment = response.json()
     public_url = experiment["publicUrl"]
-
-    # Deactivate experiment
-    response = client.patch(f"/api/experiments/{experiment['id']}", json={"isActive": False})
-    assert response.status_code == 200
 
     # Logout and try to access feed as participant
     client.post("/api/logout")
@@ -111,9 +109,10 @@ def test_feed_accepts_active_experiment(client: TestClient):
     assert response.status_code == 201
     project = response.json()
 
-    # Create experiment (defaults to active)
+    # Create experiment with isActive=True
     response = client.post(
-        f"/api/projects/{project['id']}/experiments", json={"name": "Test Experiment"}
+        f"/api/projects/{project['id']}/experiments",
+        json={"name": "Test Experiment", "isActive": True},
     )
     assert response.status_code == 201
     experiment = response.json()
@@ -146,8 +145,10 @@ def test_interaction_logging_accessible_without_auth(client: TestClient):
     assert response.status_code == 201
     project = response.json()
 
+    # Create experiment with isActive=True
     response = client.post(
-        f"/api/projects/{project['id']}/experiments", json={"name": "Test Experiment"}
+        f"/api/projects/{project['id']}/experiments",
+        json={"name": "Test Experiment", "isActive": True},
     )
     assert response.status_code == 201
     experiment = response.json()
