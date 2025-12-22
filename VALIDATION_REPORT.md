@@ -44,8 +44,7 @@ Remaining implementation gaps documented below.
 ```yaml
 Experiment:
   id, projectId, name, publicUrlToken
-  persistTimer: boolean
-  showUnmutePrompt: boolean
+  isActive: boolean          # Kill switch at experiment level
 ```
 
 **Current Implementation (backend/models.py):**
@@ -53,22 +52,24 @@ Experiment:
 class Experiment(ExperimentBase, table=True):
     id, project_id, name
     public_url: str            # Not publicUrlToken
-    persist_timer: bool        # ✓ Matches spec
-    show_unmute_prompt: bool   # ✓ Matches spec
+    persist_timer: bool        # Should be at project level
+    show_unmute_prompt: bool   # Should be at project level
+    # Missing: isActive
 ```
 
 **Updated Project Model:**
 ```yaml
 Project:
   id, name, queryKey
-  isActive: boolean          # Kill switch at project level
-  timeLimitSeconds: int
+  timeLimitSeconds: int      # Settings at project level
   endScreenMessage: string
   redirectUrl: string
   randomizationSeed: int
+  persistTimer: boolean      # Moved from Experiment
+  showUnmutePrompt: boolean  # Moved from Experiment
 ```
 
-**Finding**: Specs have been corrected. Settings like `timeLimitSeconds`, `redirectUrl`, `endScreenMessage`, and `isActive` (kill switch) are now correctly specified at the **Project** level, matching the current implementation.
+**Finding**: Specs have been corrected. Kill switch (`isActive`) should be at Experiment level. Settings (`timeLimitSeconds`, `redirectUrl`, `endScreenMessage`, `randomizationSeed`) and UI preferences (`persistTimer`, `showUnmutePrompt`) should be at Project level.
 
 #### 2. Video/Media Model Structure
 
@@ -172,7 +173,7 @@ Uses `CamelModel` base class with `alias_generator=to_camel`, so **camelCase is 
 ## T003: Data Model Documentation ✅ **SPECS UPDATED**
 
 ### Summary
-The `specs/001-instagram-mockup-feed/data-model.md` has been updated to reflect the correct architecture with settings at Project level.
+The `specs/001-instagram-mockup-feed/data-model.md` has been updated to reflect the correct architecture with settings at Project level and kill switch at Experiment level.
 
 ### Entity Comparison
 
@@ -181,19 +182,18 @@ The `specs/001-instagram-mockup-feed/data-model.md` has been updated to reflect 
 **Updated data-model.md (after correction):**
 ```
 Experiment:
-  - persistTimer
-  - showUnmutePrompt
-# Settings moved to Project level
+  - isActive (kill switch per experiment)
 ```
 
 **Current models.py has:**
 ```python
 Experiment:
-  - persist_timer  # ✓ Matches
-  - show_unmute_prompt  # ✓ Matches
+  - persist_timer  # Should be at project level
+  - show_unmute_prompt  # Should be at project level
+  # Missing: isActive
 ```
 
-**Finding**: Architecture now aligned - settings are correctly documented at Project level.
+**Finding**: Implementation needs to be updated - move `persist_timer` and `show_unmute_prompt` to Project model, add `isActive` to Experiment model.
 
 #### Project Entity
 
@@ -201,11 +201,12 @@ Experiment:
 ```
 Project:
   - queryKey
-  - isActive (kill switch)
   - timeLimitSeconds
   - endScreenMessage
   - redirectUrl
   - randomizationSeed
+  - persistTimer (moved from Experiment)
+  - showUnmutePrompt (moved from Experiment)
 ```
 
 **Current models.py has:**
@@ -217,10 +218,10 @@ Project:
   - end_screen_message  # ✓ Matches
   - lock_all_positions  # Extra field
   - randomization_seed  # ✓ Matches
-  # Missing: isActive (kill switch)
+  # Missing: persistTimer, showUnmutePrompt (currently in Experiment)
 ```
 
-**Finding**: Mostly aligned. Implementation needs to add `isActive` field to Project model.
+**Finding**: Mostly aligned. Implementation needs to add `persistTimer` and `showUnmutePrompt` fields to Project model (move from Experiment).
 
 #### Media Item (Video) Entity
 
@@ -295,7 +296,7 @@ ViewSession:
 The data-model.md describes validation rules:
 
 ✅ **Upload safety**: 50MB max, file type allowlist - implemented  
-⚠️ **Kill switch enforcement**: `isActive=false` should block public feed - field needs to be added to Project model  
+⚠️ **Kill switch enforcement**: `isActive=false` should block public feed - field needs to be added to Experiment model  
 📋 **Pinned comment uniqueness**: "At most one pinned per media item" - feature not yet implemented  
 ✅ **Session resume logic**: Based on `participantKey` from Project's `queryKey` - partially implemented (queryKey exists, resume logic exists)  
 📋 **Lock behavior**: Boolean locks respected during randomization - needs verification  
@@ -306,26 +307,28 @@ The data-model.md describes validation rules:
 
 **Initial Finding**: The specs/001-instagram-mockup-feed directory contained design documentation that didn't match the implementation.
 
-**Resolution**: After reviewing user feedback, specs have been **corrected** to match the current implementation architecture:
+**Resolution**: After reviewing user feedback, specs have been **corrected** to align with proper architecture:
 
 ### Corrections Made to Specs:
-1. ✅ **Settings location**: Moved `timeLimitSeconds`, `redirectUrl`, `endScreenMessage`, `isActive`, `randomizationSeed` to Project level (matching implementation)
-2. ✅ **Lock semantics**: Changed from `lockedPosition: int` to `isLocked: boolean` (matching implementation)
-3. ✅ **Comment model**: Added `socialPersonaId` foreign key requirement
+1. ✅ **Settings location**: `timeLimitSeconds`, `redirectUrl`, `endScreenMessage`, `randomizationSeed` at Project level (matching implementation)
+2. ✅ **UI preferences location**: `persistTimer`, `showUnmutePrompt` moved to Project level (needs implementation update)
+3. ✅ **Kill switch location**: `isActive` at Experiment level (needs implementation update)
+4. ✅ **Lock semantics**: Changed from `lockedPosition: int` to `isLocked: boolean` (matching implementation)
+5. ✅ **Comment model**: Added `socialPersonaId` foreign key requirement
 
 ### Current Status:
 
 **Implementation mostly aligned with corrected specs**:
-- Project structure ✅
-- Experiment structure ✅
-- Video/Media structure ✅
+- Project structure with settings ✅
+- Video/Media structure with boolean locks ✅
 - Basic CRUD operations ✅
 - Feed delivery ✅
 - Interaction logging ✅
 
 **Remaining gaps to implement**:
-- Project `isActive` field (kill switch)
-- PreseededComment `isPinned`, `linkUrl`, `socialPersonaId` fields
+- Move `persistTimer`, `showUnmutePrompt` from Experiment to Project model
+- Add `isActive` field to Experiment model (kill switch)
+- Add PreseededComment `isPinned`, `linkUrl`, `socialPersonaId` fields
 - Results export endpoints (CSV/JSON)
 - Comment generation assistant endpoint
 - Pinned comment management endpoint

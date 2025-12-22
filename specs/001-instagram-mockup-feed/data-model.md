@@ -22,11 +22,12 @@ This document describes the entities, relationships, and validation rules implie
   - `researcherId` (owner)
   - `name`
   - `queryKey` (the query-string parameter name that contains the stable participant identifier value; default: `participantId`)
-  - `isActive` (kill switch for all experiments in project)
   - `timeLimitSeconds` (time limit applied to experiments)
   - `endScreenMessage` (message shown at end of experiments)
   - `redirectUrl` (URL to redirect to after experiments)
   - `randomizationSeed` (seed for randomizing media order)
+  - `persistTimer` (whether timer persists across page reloads)
+  - `showUnmutePrompt` (whether to show unmute prompt)
   - `createdAt`, `updatedAt` (if tracked)
 - Relationships:
   - Belongs to one Researcher
@@ -40,8 +41,7 @@ This document describes the entities, relationships, and validation rules implie
   - `projectId`
   - `name`
   - `publicUrlToken` (public link identifier)
-  - `persistTimer` (whether timer persists across page reloads)
-  - `showUnmutePrompt` (whether to show unmute prompt)
+  - `isActive` (kill switch for this experiment)
 - Relationships:
   - Belongs to one Project
   - Has many Media Items
@@ -123,8 +123,8 @@ This document describes the entities, relationships, and validation rules implie
 
 ## Validation Rules
 
-- Project kill switch:
-  - If `isActive=false`, public feed must not start new sessions for any experiment in the project.
+- Experiment kill switch:
+  - If `isActive=false`, public feed must not start new sessions for that experiment.
 - Upload safety:
   - Enforce file type allowlist and max size (50MB).
 - Pinned comment:
@@ -138,8 +138,8 @@ This document describes the entities, relationships, and validation rules implie
 
 ## State Transitions
 
-- Project:
-  - Active → Inactive via kill switch (affects all experiments in project)
+- Experiment:
+  - Active → Inactive via kill switch (per experiment)
   - Inactive → Active (optional if re-enabled)
 - Participant Session:
   - Created → Active → Ended (by timer expiry or participant completion)

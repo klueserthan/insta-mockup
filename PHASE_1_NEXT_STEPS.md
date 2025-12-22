@@ -18,7 +18,7 @@
 - Backend with FastAPI + SQLModel
 - Researcher authentication (session-based)
 - Projects with settings (queryKey, timeLimitSeconds, redirectUrl, endScreenMessage, randomizationSeed)
-- Experiments with public URLs (persistTimer, showUnmutePrompt)
+- Experiments with public URLs and UI preferences (persistTimer, showUnmutePrompt - currently in Experiment, should be in Project)
 - Videos with boolean locks (isLocked)
 - Basic feed delivery at `/api/feed/{public_url}`
 - Social accounts (personas)
@@ -29,8 +29,12 @@
 ### 📋 What Needs to Be Implemented (from Corrected Specs)
 Per the updated design specs in `specs/001-instagram-mockup-feed/`:
 
+**Experiment enhancements**:
+- `isActive` field (kill switch at experiment level)
+
 **Project enhancements**:
-- `isActive` field (kill switch at project level)
+- `persistTimer` field (move from Experiment)
+- `showUnmutePrompt` field (move from Experiment)
 
 **Comment enhancements**:
 - `socialPersonaId` foreign key
@@ -41,7 +45,7 @@ Per the updated design specs in `specs/001-instagram-mockup-feed/`:
 - AI-generated comment suggestions
 
 **Participant features**:
-- Kill switch enforcement (blocked feed access when project.isActive=false)
+- Kill switch enforcement (blocked feed access when experiment.isActive=false)
 - Query parameter preservation on redirect
 
 **Results & Analytics**:
@@ -55,12 +59,14 @@ User has chosen **Option 2 - Implement Features** with corrected specs.
 
 ### ✅ Completed Actions (Phase 1)
 
-1. **Specs corrected to match implementation architecture** ✅
-   - Settings moved to Project level in data-model.md and openapi.yaml
+1. **Specs corrected to match proper architecture** ✅
+   - Settings (timeLimitSeconds, redirectUrl, endScreenMessage, randomizationSeed) at Project level
+   - UI preferences (persistTimer, showUnmutePrompt) moved to Project level in specs
+   - Kill switch (`isActive`) at Experiment level in specs
    - Lock semantics changed to boolean (`isLocked`) in data-model.md and openapi.yaml
    - `socialPersonaId` foreign key added to PreseededComment in data-model.md and openapi.yaml
-   - Kill switch (`isActive`) moved to Project level
    - Added `ProjectPatch` schema for updating project settings
+   - Added `ExperimentPatch` schema for updating experiment (including isActive)
 
 2. **Validation documentation updated** ✅
    - VALIDATION_REPORT.md reflects corrected specs
@@ -110,8 +116,18 @@ Then deliver user stories in priority order:
 #### Project Model Updates Needed:
 ```python
 class Project:
+    # ... existing fields (query_key, time_limit_seconds, etc.) ...
+    persist_timer: bool = Field(default=False)  # NEW: Move from Experiment
+    show_unmute_prompt: bool = Field(default=True)  # NEW: Move from Experiment
+```
+
+#### Experiment Model Updates Needed:
+```python
+class Experiment:
     # ... existing fields ...
-    is_active: bool = Field(default=True)  # NEW: Kill switch
+    is_active: bool = Field(default=True)  # NEW: Kill switch per experiment
+    # REMOVE: persist_timer (move to Project)
+    # REMOVE: show_unmute_prompt (move to Project)
 ```
 
 #### PreseededComment Model Updates Needed:
@@ -125,7 +141,8 @@ class PreseededComment:
 ```
 
 #### New Endpoints Needed:
-- `PATCH /api/projects/{projectId}` - Update project settings including kill switch
+- `PATCH /api/projects/{projectId}` - Update project settings (persistTimer, showUnmutePrompt, etc.)
+- `PATCH /api/experiments/{experimentId}` - Update experiment (isActive kill switch)
 - `GET /api/experiments/{experimentId}/results` - Results dashboard
 - `POST /api/experiments/{experimentId}/results/export` - CSV/JSON export
 - `PUT /api/videos/{videoId}/pinned-comment` - Set/update pinned comment

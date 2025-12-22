@@ -77,7 +77,7 @@ paths:
   /projects/{projectId}:
     patch:
       tags: [projects]
-      summary: Update project settings (includes kill switch)
+      summary: Update project settings (timer, unmute prompt, etc.)
       parameters:
         - $ref: '#/components/parameters/ProjectId'
       requestBody:
@@ -131,7 +131,7 @@ paths:
   /experiments/{experimentId}:
     patch:
       tags: [experiments]
-      summary: Update experiment settings
+      summary: Update experiment settings (includes kill switch)
       parameters:
         - $ref: '#/components/parameters/ExperimentId'
       requestBody:
@@ -276,6 +276,8 @@ paths:
         Participant identity and session resumption are keyed by a stable participant identifier value taken from the incoming request query string.
         The query parameter name that contains that identifier is configured per project via the “Query String Key” setting (`Project.queryKey`).
         Default key name: `participantId`.
+        
+        Note: If the experiment's `isActive` flag is false (kill switch), the feed will return 410 Gone.
       parameters:
         - name: publicUrlToken
           in: path
@@ -288,9 +290,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FeedPayload'
+          description: Experiment inactive (isActive=false) or unavailable
         '410':
-          description: Project inactive (kill switch) or unavailable
+          description: Experiment inactive (isActive=false) or unavailable
 
   /interactions:
     post:
@@ -396,16 +398,13 @@ components:
 
     Project:
       type: object
-      required: [id, name, queryKey, isActive, timeLimitSeconds, redirectUrl, endScreenMessage, randomizationSeed]
+      required: [id, name, queryKey, timeLimitSeconds, redirectUrl, endScreenMessage, randomizationSeed, persistTimer, showUnmutePrompt]
       properties:
         id: { type: integer }
         name: { type: string }
         queryKey:
           type: string
           description: Query-string parameter name that contains the stable participant identifier value (default: participantId).
-        isActive: 
-          type: boolean
-          description: Kill switch - if false, all experiments in this project are disabled
         timeLimitSeconds:
           type: integer
           description: Time limit in seconds for experiments in this project
@@ -418,6 +417,12 @@ components:
         randomizationSeed:
           type: integer
           description: Seed for randomizing media order in experiments
+        persistTimer:
+          type: boolean
+          description: Whether timer persists across page reloads
+        showUnmutePrompt:
+          type: boolean
+          description: Whether to show unmute prompt to participants
 
     ProjectCreate:
       type: object
@@ -428,9 +433,6 @@ components:
           type: string
           nullable: true
           description: Optional override for the project's Query String Key.
-        isActive:
-          type: boolean
-          default: true
         timeLimitSeconds:
           type: integer
           default: 300
@@ -443,38 +445,6 @@ components:
         randomizationSeed:
           type: integer
           default: 42
-
-    ProjectPatch:
-      type: object
-      properties:
-        name: { type: string }
-        queryKey: { type: string }
-        isActive: { type: boolean }
-        timeLimitSeconds: { type: integer }
-        redirectUrl: { type: string }
-        endScreenMessage: { type: string }
-        randomizationSeed: { type: integer }
-
-    Experiment:
-      type: object
-      required: [id, projectId, publicUrlToken]
-      properties:
-        id: { type: integer }
-        projectId: { type: integer }
-        name: { type: string }
-        publicUrlToken: { type: string }
-        persistTimer: 
-          type: boolean
-          description: Whether timer persists across page reloads
-        showUnmutePrompt:
-          type: boolean
-          description: Whether to show unmute prompt to participants
-
-    ExperimentCreate:
-      type: object
-      required: [name]
-      properties:
-        name: { type: string }
         persistTimer:
           type: boolean
           default: false
@@ -482,12 +452,44 @@ components:
           type: boolean
           default: true
 
+    ProjectPatch:
+      type: object
+      properties:
+        name: { type: string }
+        queryKey: { type: string }
+        timeLimitSeconds: { type: integer }
+        redirectUrl: { type: string }
+        endScreenMessage: { type: string }
+        randomizationSeed: { type: integer }
+        persistTimer: { type: boolean }
+        showUnmutePrompt: { type: boolean }
+
+    Experiment:
+      type: object
+      required: [id, projectId, publicUrlToken, isActive]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        name: { type: string }
+        publicUrlToken: { type: string }
+        isActive: 
+          type: boolean
+          description: Kill switch - if false, this experiment is disabled
+
+    ExperimentCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        isActive:
+          type: boolean
+          default: true
+
     ExperimentPatch:
       type: object
       properties:
         name: { type: string }
-        persistTimer: { type: boolean }
-        showUnmutePrompt: { type: boolean }
+        isActive: { type: boolean }
 
     Video:
       type: object
