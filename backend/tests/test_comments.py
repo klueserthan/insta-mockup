@@ -58,7 +58,9 @@ def test_comments(client: TestClient):
     assert len(response.json()) == 1
 
     # Update Comment
-    response = client.patch(f"/api/comments/{com_id}", json={"body": "Updated Body"}, headers=headers)
+    response = client.patch(
+        f"/api/comments/{com_id}", json={"body": "Updated Body"}, headers=headers
+    )
     assert response.status_code == 200
     assert response.json()["body"] == "Updated Body"
 

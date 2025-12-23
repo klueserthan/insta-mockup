@@ -13,7 +13,8 @@ router = APIRouter()
 
 @router.get("/api/accounts", response_model=List[SocialAccount])
 def get_accounts(
-    session: Session = Depends(get_session), current_user: Researcher = Depends(get_current_researcher)
+    session: Session = Depends(get_session),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     accounts = session.exec(
         select(SocialAccount).where(SocialAccount.researcher_id == current_user.id)

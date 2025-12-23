@@ -175,9 +175,7 @@ def login(login_data: LoginRequest, request: Request, session: Session = Depends
 
     # Create JWT token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
 
     # Also set session for backward compatibility
     request.session["user_id"] = str(user.id)

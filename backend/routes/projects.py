@@ -13,7 +13,8 @@ router = APIRouter(prefix="/api/projects")
 
 @router.get("", response_model=List[Project])
 def get_projects(
-    session: Session = Depends(get_session), current_user: Researcher = Depends(get_current_researcher)
+    session: Session = Depends(get_session),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     projects = session.exec(select(Project).where(Project.researcher_id == current_user.id)).all()
     return projects

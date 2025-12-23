@@ -1,4 +1,5 @@
 """Shared test helpers for JWT-based authentication"""
+
 from fastapi.testclient import TestClient
 
 
