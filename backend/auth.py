@@ -17,7 +17,14 @@ from models import Researcher, ResearcherBase
 pwd_hasher = PasswordHash.recommended()
 
 # JWT configuration
-SECRET_KEY = os.environ.get("SESSION_SECRET", "supersecretkey")
+SESSION_SECRET = os.environ.get("SESSION_SECRET")
+ENVIRONMENT = os.environ.get("ENV", os.environ.get("APP_ENV", "development")).lower()
+if ENVIRONMENT == "production" and not SESSION_SECRET:
+    raise RuntimeError(
+        "SESSION_SECRET environment variable must be set in production; "
+        "refusing to use insecure default JWT secret."
+    )
+SECRET_KEY = SESSION_SECRET or "supersecretkey"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 ALGORITHM = "HS256"
 
