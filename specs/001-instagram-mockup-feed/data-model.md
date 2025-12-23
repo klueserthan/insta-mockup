@@ -14,6 +14,16 @@ This document describes the entities, relationships, and validation rules implie
   - Owns many Projects
   - Owns many Social Personas
 
+### Token Response (Auth)
+
+- Represents a successful authentication response.
+- Key fields:
+  - `accessToken` (JWT bearer token issued upon login)
+  - `tokenType` (always "bearer")
+  - Optional: `expiresIn` (seconds until expiration, typically 1800 for 30 min default)
+- Created by: Login endpoint upon valid researcher credentials
+- Consumed by: Frontend stores in memory (not localStorage/sessionStorage for security) and includes in subsequent requests as `Authorization: Bearer <token>`
+
 ### Project
 
 - Represents a container for experiments.

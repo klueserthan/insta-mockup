@@ -30,6 +30,9 @@
 - [ ] T009 Add kill-switch enforcement: public feed endpoint rejects requests if `experiment.isActive == False` and returns a friendly "study not active" message in backend/routes/feed.py
 - [ ] T009a Add consistent error response shapes/messages for participant-facing failures (inactive feed, empty feed, invalid token) in backend/routes/feed.py
 - [ ] T010 [P] Align frontend API types with backend camelCase payloads in frontend/src/lib/api-types.ts
+- [ ] T052 Implement JWT-based researcher auth (password hashing with Argon2, token issuance, and `get_current_researcher` dependency) aligned with plan.md and contracts/openapi.yaml in backend/auth.py and backend/main.py
+- [ ] T053 Ensure all researcher-only routes require JWT Bearer auth via `get_current_researcher` dependency in backend/routes/projects.py, backend/routes/experiments.py, backend/routes/videos.py, backend/routes/comments.py, backend/routes/interactions.py, backend/routes/storage.py, backend/routes/instagram.py, and backend/routes/accounts.py
+- [ ] T054 [P] Verify participant-facing feed and interaction endpoints remain public (no JWT required) and add pytest coverage for authorized vs unauthorized access in backend/routes/feed.py, backend/routes/interactions.py, and backend/tests/test_auth.py
 
 **Checkpoint**: After Phase 2, user stories can be implemented independently.
 

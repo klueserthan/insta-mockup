@@ -9,6 +9,9 @@ info:
 servers:
   - url: /api
 
+security:
+  - BearerAuth: []
+
 tags:
   - name: auth
   - name: projects
@@ -32,7 +35,11 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Logged in
+          description: Logged in, returns JWT bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
         '401':
           description: Invalid credentials
 
@@ -276,8 +283,9 @@ paths:
         Participant identity and session resumption are keyed by a stable participant identifier value taken from the incoming request query string.
         The query parameter name that contains that identifier is configured per project via the "Query String Key" setting (`Project.queryKey`).
         Default key name: `participantId`.
-        
+
         Note: If the experiment's `isActive` flag is false (kill switch), the feed will return 403 Forbidden.
+      security: []
       parameters:
         - name: publicUrlToken
           in: path
@@ -309,6 +317,7 @@ paths:
     post:
       tags: [interactions]
       summary: Log an interaction event
+      security: []
       requestBody:
         required: true
         content:
@@ -373,6 +382,13 @@ paths:
                 description: JSON export object
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT bearer token obtained from /login endpoint. Include as 'Authorization: Bearer <token>'"
+
   parameters:
     ProjectId:
       name: projectId
@@ -406,6 +422,14 @@ components:
       properties:
         email: { type: string }
         password: { type: string }
+
+    Token:
+      type: object
+      required: [accessToken, tokenType]
+      properties:
+        accessToken: { type: string, description: "JWT bearer token for authentication" }
+        tokenType: { type: string, enum: [bearer], description: "Token type, always 'bearer'" }
+        expiresIn: { type: integer, nullable: true, description: "Token expiration time in seconds" }
 
     Project:
       type: object

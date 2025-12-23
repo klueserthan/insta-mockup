@@ -13,7 +13,7 @@ Key decision: participant identity is derived from the query parameter whose nam
 
 **Language/Version**: Python 3.13 (backend), TypeScript/React (frontend)
 **Primary Dependencies**:
-- Backend: FastAPI, SQLModel, Starlette SessionMiddleware, httpx/requests, rocketapi
+- Backend: FastAPI, SQLModel, PyJWT, pwdlib (Argon2), httpx/requests, rocketapi
 - Frontend: React + Vite, Wouter, TanStack Query, shadcn/ui-style components
 **Storage**: SQLModel DB (SQLite default, Postgres supported via `DATABASE_URL`), filesystem for uploads in `UPLOAD_DIR` served at `/media`
 **Testing**: pytest (backend), Vitest + Testing Library (frontend)
@@ -30,11 +30,25 @@ Key decision: participant identity is derived from the query parameter whose nam
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 - Backend work plans MUST start with tests (pytest) before implementation and include ruff + pyright in the quality gate.
-- Plans must preserve existing frontend-defined behavior: camelCase payloads, session-cookie auth (`credentials: include`), and current routes/redirects.
-- All backend routes must require authenticated access (session-based) for researcher-owned resources; participant-facing endpoints (feed, interaction logging) are scoped exceptions gated by experiment public_url token (see Complexity Tracking below).
-- Any data mutation must account for researcher ownership checks using existing helpers; seeded dev user flow must remain usable.
+- Plans must preserve existing frontend-defined behavior: camelCase payloads and current routes/redirects. **Auth method change**: migrate from session cookies to OAuth2 Bearer tokens (requires frontend API client updates to use `Authorization: Bearer` header instead of `credentials: include`).
+- All backend routes must require authenticated access (JWT Bearer token) for researcher-owned resources; participant-facing endpoints (feed, interaction logging) are scoped exceptions gated by experiment public_url token (see Complexity Tracking below).
+- Any data mutation must account for researcher ownership checks using existing helpers; seeded dev user flow must remain usable (with hashed password).
 - Media handling must respect validator limits (50MB, allowed extensions) and keep uploads within `UPLOAD_DIR` served at `/media`; RocketAPI ingest needs `ROCKET_API_KEY`.
 - Frontend plans MUST use the existing design system and styling conventions (shared components, utility classes, spacing, and color tokens); avoid introducing bespoke visual patterns unless explicitly extending the design system.
+
+### Security & Auth Model (Aligned with FastAPI Best Practices)
+
+Researcher endpoints use **OAuth2 with Password and Bearer JWT tokens**:
+- Password hashing: `pwdlib` with Argon2 algorithm (via `PasswordHash.recommended()`)
+- Token generation: `PyJWT` signs tokens with `SECRET_KEY` (from env `SESSION_SECRET` or generated via `openssl rand -hex 32`)
+- Token expiration: configurable via `ACCESS_TOKEN_EXPIRE_MINUTES` (default 30 min per FastAPI tutorial)
+- Token validation: async `get_current_user()` dependency decodes and validates JWT, returns `Researcher` or raises `HTTPException(401)`
+- Frontend: request headers include `Authorization: Bearer <token>` (not cookies)
+
+Participant endpoints remain **public + link-gated** (no auth):
+- Public feed and interaction endpoints are accessible without JWT
+- Access is scoped by `public_url` token in the URL path
+- No session or user context required for participant-facing routes
 
 ## Project Structure
 
