@@ -12,14 +12,26 @@ from models import CamelModel, Experiment, Project, Researcher
 router = APIRouter()
 
 
-# Helper to checking project ownership
-def verify_project_ownership(session: Session, project_id: UUID, user_id: UUID):
+# Helper functions for ownership verification
+def verify_project_ownership(session: Session, project_id: UUID, user_id: UUID) -> Project:
+    """Verify that the user owns the project. Returns project if authorized."""
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     if project.researcher_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     return project
+
+
+def verify_experiment_ownership(session: Session, experiment_id: UUID, user_id: UUID) -> Experiment:
+    """Verify that the user owns the experiment (via its project). Returns experiment if authorized."""
+    experiment = session.get(Experiment, experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    project = session.get(Project, experiment.project_id)
+    if not project or project.researcher_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return experiment
 
 
 @router.get("/api/projects/{project_id}/experiments", response_model=List[Experiment])
@@ -75,12 +87,8 @@ def update_experiment(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    db_experiment = session.get(Experiment, experiment_id)
-    if not db_experiment:
-        raise HTTPException(status_code=404, detail="Experiment not found")
-
-    # Verify ownership via project
-    verify_project_ownership(session, db_experiment.project_id, current_user.id)
+    # Verify ownership and get experiment in one step
+    db_experiment = verify_experiment_ownership(session, experiment_id, current_user.id)
 
     experiment_data = experiment_update.dict(exclude_unset=True)
     for key, value in experiment_data.items():
@@ -98,11 +106,9 @@ def delete_experiment(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    db_experiment = session.get(Experiment, experiment_id)
-    if not db_experiment:
-        return
-
-    verify_project_ownership(session, db_experiment.project_id, current_user.id)
+    # Verify ownership and get experiment in one step
+    # If experiment doesn't exist or user doesn't own it, will raise appropriate error
+    db_experiment = verify_experiment_ownership(session, experiment_id, current_user.id)
 
     session.delete(db_experiment)
     session.commit()

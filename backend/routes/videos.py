@@ -20,8 +20,9 @@ from models import (
 router = APIRouter()
 
 
-# Helper
-def verify_experiment_ownership(session: Session, experiment_id: UUID, user_id: UUID):
+# Helper functions for ownership verification
+def verify_experiment_ownership(session: Session, experiment_id: UUID, user_id: UUID) -> Experiment:
+    """Verify that the user owns the experiment (via project). Returns experiment if authorized."""
     experiment = session.get(Experiment, experiment_id)
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
@@ -31,7 +32,8 @@ def verify_experiment_ownership(session: Session, experiment_id: UUID, user_id: 
     return experiment
 
 
-def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID):
+def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID) -> Video:
+    """Verify that the user owns the video (via experiment → project). Returns video if authorized."""
     video = session.get(Video, video_id)
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
@@ -138,11 +140,9 @@ def delete_video(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    db_video = session.get(Video, video_id)
-    if not db_video:
-        return
-
-    verify_video_ownership(session, video_id, current_user.id)
+    # Verify ownership and get video in one step
+    # Will raise 404 if not found, 403 if not authorized
+    db_video = verify_video_ownership(session, video_id, current_user.id)
 
     session.delete(db_video)
     session.commit()

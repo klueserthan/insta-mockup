@@ -19,8 +19,9 @@ from models import (
 router = APIRouter()
 
 
-# Helper
-def verify_comment_ownership(session: Session, comment_id: UUID, user_id: UUID):
+# Helper functions for ownership verification
+def verify_comment_ownership(session: Session, comment_id: UUID, user_id: UUID) -> PreseededComment:
+    """Verify that the user owns the comment (via video → experiment → project). Returns comment if authorized."""
     comment = session.get(PreseededComment, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -33,7 +34,8 @@ def verify_comment_ownership(session: Session, comment_id: UUID, user_id: UUID):
     return comment
 
 
-def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID):
+def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID) -> Video:
+    """Verify that the user owns the video (via experiment → project). Returns video if authorized."""
     video = session.get(Video, video_id)
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
@@ -122,10 +124,10 @@ def delete_comment(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    db_comment = session.get(PreseededComment, comment_id)
-    if not db_comment:
-        return
+    # Verify ownership and get comment in one step
+    # Will raise 404 if not found, 403 if not authorized
+    db_comment = verify_comment_ownership(session, comment_id, current_user.id)
 
-    verify_comment_ownership(session, comment_id, current_user.id)
     session.delete(db_comment)
+    session.commit()
     session.commit()
