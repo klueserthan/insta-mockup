@@ -188,6 +188,6 @@ def reorder_videos(
                     verify_video_ownership(session, UUID(str(vid)), current_user.id)
                     db_video.position = pos
                     session.add(db_video)
-                except:
+                except Exception:
                     pass
     session.commit()

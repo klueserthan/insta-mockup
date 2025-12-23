@@ -55,6 +55,7 @@ class ExperimentBase(CamelModel):
     public_url: str = Field(unique=True)
     persist_timer: bool = Field(default=False)
     show_unmute_prompt: bool = Field(default=True)
+    is_active: bool = Field(default=False)
 
 
 class Experiment(ExperimentBase, table=True):

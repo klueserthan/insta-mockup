@@ -21,14 +21,23 @@ router = APIRouter()
 
 @router.get("/api/feed/{public_url}")
 def get_public_feed(
-    public_url: str, participantId: Optional[str] = None, session: Session = Depends(get_session)
+    public_url: str,
+    participantId: Optional[str] = None,  # noqa: N803 - camelCase for API consistency
+    session: Session = Depends(get_session),
 ):
     # 1. Find Experiment by public_url
     experiment = session.exec(select(Experiment).where(Experiment.public_url == public_url)).first()
     if not experiment:
         raise HTTPException(status_code=404, detail="Feed not found")
 
-    # 2. Get Videos for this experiment with SocialAccount
+    # 2. Check if experiment is active (kill switch)
+    if not experiment.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="This study is not currently active.",
+        )
+
+    # 3. Get Videos for this experiment with SocialAccount
     results = session.exec(
         select(Video, SocialAccount)
         .join(SocialAccount)
@@ -36,7 +45,7 @@ def get_public_feed(
         .order_by(Video.position)
     ).all()
 
-    # 3. Handle Participant (Optional for now, but good to track)
+    # 4. Handle Participant (Optional for now, but good to track)
     if participantId and participantId != "preview":
         pass
 

@@ -274,10 +274,10 @@ paths:
         Returns experiment settings and ordered videos for a participant.
 
         Participant identity and session resumption are keyed by a stable participant identifier value taken from the incoming request query string.
-        The query parameter name that contains that identifier is configured per project via the “Query String Key” setting (`Project.queryKey`).
+        The query parameter name that contains that identifier is configured per project via the "Query String Key" setting (`Project.queryKey`).
         Default key name: `participantId`.
         
-        Note: If the experiment's `isActive` flag is false (kill switch), the feed will return 410 Gone.
+        Note: If the experiment's `isActive` flag is false (kill switch), the feed will return 403 Forbidden.
       parameters:
         - name: publicUrlToken
           in: path
@@ -290,9 +290,20 @@ paths:
           content:
             application/json:
               schema:
-          description: Experiment inactive (isActive=false) or unavailable
-        '410':
-          description: Experiment inactive (isActive=false) or unavailable
+                $ref: '#/components/schemas/FeedResponse'
+        '403':
+          description: Experiment inactive (isActive=false)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: "This study is not currently active."
+        '404':
+          description: Experiment not found
+
 
   /interactions:
     post:
@@ -483,7 +494,8 @@ components:
         name: { type: string }
         isActive:
           type: boolean
-          default: true
+          default: false
+          description: Kill switch - experiments default to inactive and must be explicitly activated
 
     ExperimentPatch:
       type: object
@@ -523,6 +535,27 @@ components:
         orderedVideoIds:
           type: array
           items: { type: integer }
+
+    FeedResponse:
+      type: object
+      required: [experimentId, experimentName, persistTimer, showUnmutePrompt, projectSettings, videos]
+      properties:
+        experimentId: { type: string }
+        experimentName: { type: string }
+        persistTimer: { type: boolean }
+        showUnmutePrompt: { type: boolean }
+        projectSettings:
+          type: object
+          required: [queryKey, timeLimitSeconds, redirectUrl, endScreenMessage]
+          properties:
+            queryKey: { type: string }
+            timeLimitSeconds: { type: integer }
+            redirectUrl: { type: string }
+            endScreenMessage: { type: string }
+        videos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Video'
 
     PreseededComment:
       type: object
