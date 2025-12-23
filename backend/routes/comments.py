@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, func, select
 
-from auth import get_current_user
+from auth import get_current_researcher
 from database import get_session
 from models import (
     CamelModel,
@@ -64,7 +64,7 @@ def create_comment(
     video_id: UUID,
     comment_base: PreseededCommentBase,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     verify_video_ownership(session, video_id, current_user.id)
 
@@ -103,7 +103,7 @@ def update_comment(
     comment_id: UUID,
     comment_update: CommentUpdate,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     db_comment = verify_comment_ownership(session, comment_id, current_user.id)
 
@@ -120,7 +120,7 @@ def update_comment(
 def delete_comment(
     comment_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     db_comment = session.get(PreseededComment, comment_id)
     if not db_comment:

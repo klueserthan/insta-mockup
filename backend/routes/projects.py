@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from auth import get_current_user
+from auth import get_current_researcher
 from database import get_session
 from models import CamelModel, Project, ProjectBase, Researcher
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/projects")
 
 @router.get("", response_model=List[Project])
 def get_projects(
-    session: Session = Depends(get_session), current_user: Researcher = Depends(get_current_user)
+    session: Session = Depends(get_session), current_user: Researcher = Depends(get_current_researcher)
 ):
     projects = session.exec(select(Project).where(Project.researcher_id == current_user.id)).all()
     return projects
@@ -23,7 +23,7 @@ def get_projects(
 def get_project(
     project_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     project = session.get(Project, project_id)
     if not project:
@@ -37,7 +37,7 @@ def get_project(
 def create_project(
     project_base: ProjectBase,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     project = Project(**project_base.dict(), researcher_id=current_user.id)
     session.add(project)
@@ -61,7 +61,7 @@ def update_project(
     project_id: UUID,
     project_update: ProjectUpdate,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     db_project = session.get(Project, project_id)
     if not db_project:
@@ -84,7 +84,7 @@ def update_project(
 def delete_project(
     project_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     db_project = session.get(Project, project_id)
     if not db_project:

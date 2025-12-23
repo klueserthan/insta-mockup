@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from auth import get_current_user
+from auth import get_current_researcher
 from database import get_session
 from models import Researcher, SocialAccount, SocialAccountBase
 
@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get("/api/accounts", response_model=List[SocialAccount])
 def get_accounts(
-    session: Session = Depends(get_session), current_user: Researcher = Depends(get_current_user)
+    session: Session = Depends(get_session), current_user: Researcher = Depends(get_current_researcher)
 ):
     accounts = session.exec(
         select(SocialAccount).where(SocialAccount.researcher_id == current_user.id)
@@ -25,7 +25,7 @@ def get_accounts(
 def create_account(
     account_base: SocialAccountBase,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     # Check uniqueness of username? DB constraint will handle it, but maybe better to check manually to avoid 500
     existing = session.exec(
@@ -46,7 +46,7 @@ def create_account(
 def delete_account(
     account_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     account = session.get(SocialAccount, account_id)
     if not account:

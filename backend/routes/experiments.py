@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from auth import get_current_user
+from auth import get_current_researcher
 from database import get_session
 from models import CamelModel, Experiment, Project, Researcher
 
@@ -26,7 +26,7 @@ def verify_project_ownership(session: Session, project_id: UUID, user_id: UUID):
 def get_experiments(
     project_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     verify_project_ownership(session, project_id, current_user.id)
     experiments = session.exec(select(Experiment).where(Experiment.project_id == project_id)).all()
@@ -46,7 +46,7 @@ def create_experiment_implementation(  # Renamed to avoid using the decorative o
     project_id: UUID,
     experiment_create: ExperimentCreate,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     verify_project_ownership(session, project_id, current_user.id)
 
@@ -73,7 +73,7 @@ def update_experiment(
     experiment_id: UUID,
     experiment_update: ExperimentUpdate,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     db_experiment = session.get(Experiment, experiment_id)
     if not db_experiment:
@@ -96,7 +96,7 @@ def update_experiment(
 def delete_experiment(
     experiment_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     db_experiment = session.get(Experiment, experiment_id)
     if not db_experiment:

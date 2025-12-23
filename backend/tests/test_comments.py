@@ -1,16 +1,9 @@
 from fastapi.testclient import TestClient
 
-
-def _register_and_login(client: TestClient, *, email: str) -> None:
-    client.post(
-        "/api/register",
-        json={"email": email, "password": "password123", "name": "Test", "lastname": "User"},
-    )
-    resp = client.post("/api/login", json={"email": email, "password": "password123"})
-    assert resp.status_code == 200, resp.text
+from tests.helpers import auth_headers, register_and_login
 
 
-def _create_account(client: TestClient) -> dict:
+def _create_account(client: TestClient, token: str) -> dict:
     resp = client.post(
         "/api/accounts",
         json={
@@ -18,6 +11,7 @@ def _create_account(client: TestClient) -> dict:
             "displayName": "Commenter",
             "avatarUrl": "/media/avatar.png",
         },
+        headers=auth_headers(token),
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
@@ -25,10 +19,13 @@ def _create_account(client: TestClient) -> dict:
 
 def test_comments(client: TestClient):
     # Setup
-    _register_and_login(client, email="com@e.com")
-    account = _create_account(client)
-    p1 = client.post("/api/projects", json={"name": "P1"}).json()
-    e1 = client.post(f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}).json()
+    token = register_and_login(client, email="com@e.com")
+    headers = auth_headers(token)
+    account = _create_account(client, token)
+    p1 = client.post("/api/projects", json={"name": "P1"}, headers=headers).json()
+    e1 = client.post(
+        f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}, headers=headers
+    ).json()
     v1 = client.post(
         f"/api/experiments/{e1['id']}/videos",
         json={
@@ -40,6 +37,7 @@ def test_comments(client: TestClient):
             "shares": 0,
             "song": "s",
         },
+        headers=headers,
     ).json()
     vid_id = v1["id"]
 
@@ -47,6 +45,7 @@ def test_comments(client: TestClient):
     response = client.post(
         f"/api/videos/{vid_id}/comments",
         json={"authorName": "Author", "authorAvatar": "http://avatar", "body": "Comment Body"},
+        headers=headers,
     )
     assert response.status_code == 201
     comment = response.json()
@@ -54,15 +53,15 @@ def test_comments(client: TestClient):
     com_id = comment["id"]
 
     # Get Comments
-    response = client.get(f"/api/videos/{vid_id}/comments")
+    response = client.get(f"/api/videos/{vid_id}/comments", headers=headers)
     assert response.status_code == 200
     assert len(response.json()) == 1
 
     # Update Comment
-    response = client.patch(f"/api/comments/{com_id}", json={"body": "Updated Body"})
+    response = client.patch(f"/api/comments/{com_id}", json={"body": "Updated Body"}, headers=headers)
     assert response.status_code == 200
     assert response.json()["body"] == "Updated Body"
 
     # Delete Comment
-    response = client.delete(f"/api/comments/{com_id}")
+    response = client.delete(f"/api/comments/{com_id}", headers=headers)
     assert response.status_code == 204
