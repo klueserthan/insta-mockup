@@ -5,6 +5,8 @@ psycopg2-binary
 passlib[bcrypt]
 python-multipart
 python-jose[cryptography]
+pwdlib[argon2]
+PyJWT
 pytest
 boto3
 httpx
