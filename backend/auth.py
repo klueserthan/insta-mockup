@@ -4,14 +4,14 @@ from typing import Optional
 from uuid import UUID
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from pwdlib import PasswordHash
 from sqlmodel import Session, select
 
 from database import get_session
-from models import Researcher, ResearcherBase
+from models import CamelModel, Researcher, ResearcherBase
 
 # Password hashing using pwdlib with Argon2 (per plan.md)
 pwd_hasher = PasswordHash.recommended()
@@ -108,23 +108,6 @@ async def get_current_researcher(
     return user
 
 
-# Legacy session-cookie dependency (kept for backward compatibility during migration)
-def get_current_user(request: Request, session: Session = Depends(get_session)):
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    user = session.get(Researcher, UUID(user_id))
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-    return user
-
-
 class ResearcherRegister(ResearcherBase):
     password: str
 
@@ -132,9 +115,7 @@ class ResearcherRegister(ResearcherBase):
 @router.post(
     "/register", status_code=201, response_model=Researcher, response_model_exclude={"password"}
 )
-def register(
-    registration_data: ResearcherRegister, request: Request, session: Session = Depends(get_session)
-):
+def register(registration_data: ResearcherRegister, session: Session = Depends(get_session)):
     # Check if user exists
     existing_user = session.exec(
         select(Researcher).where(Researcher.email == registration_data.email)
@@ -150,18 +131,12 @@ def register(
     session.commit()
     session.refresh(db_researcher)
 
-    # Log them in (set session)
-    request.session["user_id"] = str(db_researcher.id)
-
     return db_researcher
 
 
 class LoginRequest(BaseModel):
     email: str
     password: str
-
-
-from models import CamelModel
 
 
 class Token(CamelModel):
@@ -171,7 +146,7 @@ class Token(CamelModel):
 
 
 @router.post("/login", response_model=Token)
-def login(login_data: LoginRequest, request: Request, session: Session = Depends(get_session)):
+def login(login_data: LoginRequest, session: Session = Depends(get_session)):
     """Login researcher and return JWT token"""
     user = session.exec(select(Researcher).where(Researcher.email == login_data.email)).first()
     if not user or not verify_password(login_data.password, user.password):
@@ -184,9 +159,6 @@ def login(login_data: LoginRequest, request: Request, session: Session = Depends
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
 
-    # Also set session for backward compatibility
-    request.session["user_id"] = str(user.id)
-
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -195,8 +167,8 @@ def login(login_data: LoginRequest, request: Request, session: Session = Depends
 
 
 @router.post("/logout")
-def logout(request: Request):
-    request.session.clear()
+def logout():
+    """Logout endpoint (JWT tokens are stateless, client should discard token)"""
     return {"message": "Logged out"}
 
 

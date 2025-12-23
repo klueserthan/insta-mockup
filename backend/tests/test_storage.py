@@ -14,15 +14,19 @@ def clean_uploads():
     yield
 
 
-def test_simple_upload_flow(client: TestClient):
-    # Mock Auth - create a fake researcher object
+@pytest.fixture
+def fake_researcher():
+    """Create a fake researcher for testing authenticated endpoints"""
     from models import Researcher
     from uuid import uuid4
 
-    fake_researcher = Researcher(
+    return Researcher(
         id=uuid4(), email="test@example.com", name="Test", lastname="User", password="hashed"
     )
 
+
+def test_simple_upload_flow(client: TestClient, fake_researcher):
+    # Mock Auth using the fixture
     app.dependency_overrides[get_current_researcher] = lambda: fake_researcher
 
     # 1. Upload valid image via POST (multipart)
@@ -55,14 +59,8 @@ def test_simple_upload_flow(client: TestClient):
     app.dependency_overrides.pop(get_current_researcher)
 
 
-def test_upload_invalid_type(client: TestClient):
-    from models import Researcher
-    from uuid import uuid4
-
-    fake_researcher = Researcher(
-        id=uuid4(), email="test@example.com", name="Test", lastname="User", password="hashed"
-    )
-
+def test_upload_invalid_type(client: TestClient, fake_researcher):
+    # Mock Auth using the fixture
     app.dependency_overrides[get_current_researcher] = lambda: fake_researcher
 
     # Text file -> should fail
