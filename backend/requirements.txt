@@ -2,7 +2,6 @@ fastapi
 uvicorn[standard]
 sqlmodel
 psycopg2-binary
-passlib[bcrypt]
 python-multipart
 python-jose[cryptography]
 pwdlib[argon2]
