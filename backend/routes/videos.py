@@ -185,11 +185,20 @@ def reorder_videos(
     current_user: Researcher = Depends(get_current_researcher),
 ):
     """Reorder videos by updating their positions. Verifies ownership before updating."""
+    missing_ids: List[UUID] = []
     for update in request.updates:
         db_video = session.get(Video, update.id)
-        if db_video:
-            # Check ownership
-            verify_video_ownership(session, update.id, current_user.id)
-            db_video.position = update.position
-            session.add(db_video)
+        if not db_video:
+            missing_ids.append(str(update.id))
+            continue
+        # Check ownership
+        verify_video_ownership(session, update.id, current_user.id)
+        db_video.position = update.position
+        session.add(db_video)
+    if missing_ids:
+        # Fail the request if any requested video IDs do not exist, to avoid partial updates.
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "One or more videos do not exist", "missingVideoIds": missing_ids},
+        )
     session.commit()
