@@ -128,9 +128,10 @@ def test_jwt_protected_endpoint_with_invalid_token(client: TestClient):
 
 def test_jwt_protected_endpoint_with_expired_token(client: TestClient):
     """Test that protected endpoints reject expired JWT tokens"""
-    import jwt
-    from datetime import datetime, timedelta, timezone
     import os
+    from datetime import datetime, timedelta, timezone
+
+    import jwt
 
     # Create an expired token manually
     secret_key = os.environ.get("SESSION_SECRET", "supersecretkey")

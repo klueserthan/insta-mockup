@@ -1,13 +1,12 @@
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from uuid import UUID
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
 from pwdlib import PasswordHash
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from database import get_session

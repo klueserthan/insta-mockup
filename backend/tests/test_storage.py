@@ -17,8 +17,9 @@ def clean_uploads():
 @pytest.fixture
 def fake_researcher():
     """Create a fake researcher for testing authenticated endpoints"""
-    from models import Researcher
     from uuid import uuid4
+
+    from models import Researcher
 
     return Researcher(
         id=uuid4(), email="test@example.com", name="Test", lastname="User", password="hashed"
