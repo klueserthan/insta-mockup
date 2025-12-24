@@ -187,13 +187,17 @@ def reorder_videos(
     """Reorder videos by updating their positions.
     
     Args:
-        request: VideoReorderRequest containing a list of updates, where each update
-                 has an 'id' (video UUID) and 'position' (integer). The positions
-                 determine the order videos appear in the feed.
-        session: Database session (injected)
-        current_user: Authenticated researcher (injected)
+        request: Contains list of updates with video id and position.
+        session: Database session (injected).
+        current_user: Authenticated researcher (injected).
     
-    The endpoint verifies ownership of each video before updating its position.
+    Returns:
+        None (status 200 on success).
+    
+    Raises:
+        HTTPException: 404 if video not found, 403 if not authorized.
+    
+    Verifies ownership of each video before updating.
     """
     for update in request.updates:
         db_video = session.get(Video, update.id)
