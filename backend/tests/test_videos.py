@@ -116,11 +116,8 @@ def test_reorder_videos(client: TestClient):
 
     # Reorder: move video 2 to position 0, video 0 to position 1, video 1 to position 2
     reorder_payload = {
-        "updates": [
-            {"id": videos[2]["id"], "position": 0},
-            {"id": videos[0]["id"], "position": 1},
-            {"id": videos[1]["id"], "position": 2},
-        ]
+        "experimentId": e1["id"],
+        "orderedVideoIds": [videos[2]["id"], videos[0]["id"], videos[1]["id"]],
     }
     response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers)
     assert response.status_code == 200
@@ -133,3 +130,44 @@ def test_reorder_videos(client: TestClient):
     assert reordered_videos[0]["caption"] == "Video 2"
     assert reordered_videos[1]["caption"] == "Video 0"
     assert reordered_videos[2]["caption"] == "Video 1"
+
+
+def test_reorder_videos_ownership_check(client: TestClient):
+    """Test that users cannot reorder videos in experiments they don't own."""
+    # Create first user and their experiment
+    token1 = register_and_login(client, email="user1@test.com")
+    headers1 = auth_headers(token1)
+    account1 = _create_account(client, token1)
+    p1 = client.post("/api/projects", json={"name": "P1"}, headers=headers1).json()
+    e1 = client.post(
+        f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}, headers=headers1
+    ).json()
+
+    # Create a video
+    video_response = client.post(
+        f"/api/experiments/{e1['id']}/videos",
+        json={
+            "filename": "video.mp4",
+            "socialAccountId": account1["id"],
+            "caption": "Video",
+            "likes": 0,
+            "comments": 0,
+            "shares": 0,
+            "song": "Song",
+        },
+        headers=headers1,
+    )
+    assert video_response.status_code == 201
+    video = video_response.json()
+
+    # Create second user
+    token2 = register_and_login(client, email="user2@test.com")
+    headers2 = auth_headers(token2)
+
+    # Try to reorder first user's videos as second user
+    reorder_payload = {
+        "experimentId": e1["id"],
+        "orderedVideoIds": [video["id"]],
+    }
+    response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers2)
+    assert response.status_code == 403  # Forbidden

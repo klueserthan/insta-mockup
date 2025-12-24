@@ -225,8 +225,11 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
   });
 
   const reorderVideosMutation = useMutation({
-    mutationFn: async (updates: { id: string; position: number }[]) => {
-      await apiRequest('POST', '/api/videos/reorder', { updates });
+    mutationFn: async (orderedVideoIds: string[]) => {
+      await apiRequest('POST', '/api/videos/reorder', { 
+        experimentId: experiment.id,
+        orderedVideoIds 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/experiments', experiment.id, 'videos'] });
@@ -314,8 +317,8 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
       const oldIndex = videos.findIndex((v) => v.id === active.id);
       const newIndex = videos.findIndex((v) => v.id === over.id);
       const reordered = arrayMove(videos, oldIndex, newIndex);
-      const updates = reordered.map((v, i) => ({ id: v.id, position: i }));
-      reorderVideosMutation.mutate(updates);
+      const orderedVideoIds = reordered.map((v) => v.id);
+      reorderVideosMutation.mutate(orderedVideoIds);
     }
   }
 

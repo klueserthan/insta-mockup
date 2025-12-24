@@ -169,13 +169,9 @@ def bulk_delete_videos(
     session.commit()
 
 
-class VideoReorderUpdate(CamelModel):
-    id: UUID
-    position: int
-
-
 class VideoReorderRequest(CamelModel):
-    updates: List[VideoReorderUpdate]
+    experiment_id: UUID
+    ordered_video_ids: List[UUID]
 
 
 @router.post("/api/videos/reorder", status_code=200)
@@ -184,21 +180,39 @@ def reorder_videos(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    """Reorder videos by updating their positions. Verifies ownership before updating."""
-    missing_ids: List[UUID] = []
-    for update in request.updates:
-        db_video = session.get(Video, update.id)
-        if not db_video:
-            missing_ids.append(str(update.id))
-            continue
-        # Check ownership
-        verify_video_ownership(session, update.id, current_user.id)
-        db_video.position = update.position
-        session.add(db_video)
+    """Reorder videos by providing an ordered list of video IDs. Verifies ownership before updating.
+
+    The position of each video is determined by its index in the orderedVideoIds array.
+    All videos must exist and belong to the specified experiment.
+    """
+    # Verify experiment ownership
+    verify_experiment_ownership(session, request.experiment_id, current_user.id)
+
+    # Fetch all videos for this experiment
+    videos = session.exec(select(Video).where(Video.experiment_id == request.experiment_id)).all()
+
+    video_map = {str(v.id): v for v in videos}
+
+    # Validate all requested video IDs exist and belong to this experiment
+    missing_ids: List[str] = []
+    for video_id in request.ordered_video_ids:
+        video_id_str = str(video_id)
+        if video_id_str not in video_map:
+            missing_ids.append(video_id_str)
+
     if missing_ids:
-        # Fail the request if any requested video IDs do not exist, to avoid partial updates.
         raise HTTPException(
             status_code=400,
-            detail={"error": "One or more videos do not exist", "missingVideoIds": missing_ids},
+            detail={
+                "error": "One or more videos do not exist in this experiment",
+                "missingVideoIds": missing_ids,
+            },
         )
+
+    # Update positions based on order in the list
+    for position, video_id in enumerate(request.ordered_video_ids):
+        video = video_map[str(video_id)]
+        video.position = position
+        session.add(video)
+
     session.commit()

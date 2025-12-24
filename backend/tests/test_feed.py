@@ -272,11 +272,8 @@ def test_feed_respects_video_ordering(client: TestClient):
 
     # Reorder videos: reverse the order
     reorder_payload = {
-        "updates": [
-            {"id": videos[2]["id"], "position": 0},
-            {"id": videos[1]["id"], "position": 1},
-            {"id": videos[0]["id"], "position": 2},
-        ]
+        "experimentId": experiment["id"],
+        "orderedVideoIds": [videos[2]["id"], videos[1]["id"], videos[0]["id"]],
     }
     response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers)
     assert response.status_code == 200
