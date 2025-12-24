@@ -211,7 +211,13 @@ def test_researcher_routes_require_auth(client: TestClient):
 
 
 def test_feed_respects_video_ordering(client: TestClient):
-    """T018: Feed should return videos in the order specified by position field."""
+    """Test that the feed endpoint returns videos in the correct order after reordering.
+    
+    This test verifies that:
+    1. The feed initially returns videos in creation order (position 0, 1, 2)
+    2. After reordering via the API, the feed returns videos in the new order
+    3. The ordering persists across multiple feed requests
+    """
     token = register_and_login(client, email="ordering@test.com")
     headers = auth_headers(token)
 

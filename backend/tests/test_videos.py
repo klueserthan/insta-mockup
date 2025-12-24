@@ -76,7 +76,13 @@ def test_create_get_videos(client: TestClient):
 
 
 def test_reorder_videos(client: TestClient):
-    """Test that videos can be reordered and positions are persisted."""
+    """Test that videos can be reordered via the API and the new positions are correctly persisted in the database.
+    
+    This test verifies that the /api/videos/reorder endpoint:
+    1. Accepts a list of video ID and position updates
+    2. Persists the new positions to the database
+    3. Returns videos in the updated order on subsequent queries
+    """
     # Setup
     token = register_and_login(client, email="reorder@test.com")
     headers = auth_headers(token)

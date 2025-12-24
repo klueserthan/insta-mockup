@@ -184,7 +184,17 @@ def reorder_videos(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    """Reorder videos by updating their positions."""
+    """Reorder videos by updating their positions.
+    
+    Args:
+        request: VideoReorderRequest containing a list of updates, where each update
+                 has an 'id' (video UUID) and 'position' (integer). The positions
+                 determine the order videos appear in the feed.
+        session: Database session (injected)
+        current_user: Authenticated researcher (injected)
+    
+    The endpoint verifies ownership of each video before updating its position.
+    """
     for update in request.updates:
         db_video = session.get(Video, update.id)
         if db_video:
