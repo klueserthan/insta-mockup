@@ -169,25 +169,27 @@ def bulk_delete_videos(
     session.commit()
 
 
+class VideoReorderUpdate(CamelModel):
+    id: UUID
+    position: int
+
+
+class VideoReorderRequest(CamelModel):
+    updates: List[VideoReorderUpdate]
+
+
 @router.post("/api/videos/reorder", status_code=200)
 def reorder_videos(
-    updates: List[dict],  # Should be validation model really
+    request: VideoReorderRequest,
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    for update in updates:
-        vid = update.get("id")
-        pos = update.get("position")
-        if vid is not None and pos is not None:
-            db_video = session.get(Video, vid)
-            if db_video:
-                # Check ownership
-                # verify_video_ownership(session, vid, current_user.id)
-                # Optimization: skip check for now or assume batch belongs to same context
-                try:
-                    verify_video_ownership(session, UUID(str(vid)), current_user.id)
-                    db_video.position = pos
-                    session.add(db_video)
-                except Exception:
-                    pass
+    """Reorder videos by updating their positions."""
+    for update in request.updates:
+        db_video = session.get(Video, update.id)
+        if db_video:
+            # Check ownership
+            verify_video_ownership(session, update.id, current_user.id)
+            db_video.position = update.position
+            session.add(db_video)
     session.commit()

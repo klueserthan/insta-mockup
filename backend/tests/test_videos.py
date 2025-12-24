@@ -73,3 +73,63 @@ def test_create_get_videos(client: TestClient):
     # response = client.post("/api/videos/bulk-delete", json={"videoIds": [video_id]})
 
     # Reorder (test later)
+
+
+def test_reorder_videos(client: TestClient):
+    """Test that videos can be reordered and positions are persisted."""
+    # Setup
+    token = register_and_login(client, email="reorder@test.com")
+    headers = auth_headers(token)
+    account = _create_account(client, token)
+    p1 = client.post("/api/projects", json={"name": "P1"}, headers=headers).json()
+    e1 = client.post(
+        f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}, headers=headers
+    ).json()
+    
+    # Create three videos
+    videos = []
+    for i in range(3):
+        response = client.post(
+            f"/api/experiments/{e1['id']}/videos",
+            json={
+                "filename": f"video{i}.mp4",
+                "socialAccountId": account["id"],
+                "caption": f"Video {i}",
+                "likes": 0,
+                "comments": 0,
+                "shares": 0,
+                "song": "Song",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 201
+        videos.append(response.json())
+    
+    # Verify initial order
+    response = client.get(f"/api/experiments/{e1['id']}/videos", headers=headers)
+    assert response.status_code == 200
+    initial_videos = response.json()
+    assert len(initial_videos) == 3
+    assert initial_videos[0]["caption"] == "Video 0"
+    assert initial_videos[1]["caption"] == "Video 1"
+    assert initial_videos[2]["caption"] == "Video 2"
+    
+    # Reorder: move video 2 to position 0, video 0 to position 1, video 1 to position 2
+    reorder_payload = {
+        "updates": [
+            {"id": videos[2]["id"], "position": 0},
+            {"id": videos[0]["id"], "position": 1},
+            {"id": videos[1]["id"], "position": 2},
+        ]
+    }
+    response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers)
+    assert response.status_code == 200
+    
+    # Verify new order
+    response = client.get(f"/api/experiments/{e1['id']}/videos", headers=headers)
+    assert response.status_code == 200
+    reordered_videos = response.json()
+    assert len(reordered_videos) == 3
+    assert reordered_videos[0]["caption"] == "Video 2"
+    assert reordered_videos[1]["caption"] == "Video 0"
+    assert reordered_videos[2]["caption"] == "Video 1"

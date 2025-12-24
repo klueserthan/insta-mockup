@@ -57,3 +57,4 @@ rocket_test.py
 .config/
 
 __pycache__/
+*.egg-info/

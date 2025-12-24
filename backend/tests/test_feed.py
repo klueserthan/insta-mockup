@@ -208,3 +208,84 @@ def test_researcher_routes_require_auth(client: TestClient):
         "/api/accounts", json={"username": "test", "displayName": "Test", "avatarUrl": "test.jpg"}
     )
     assert response.status_code == 401
+
+
+def test_feed_respects_video_ordering(client: TestClient):
+    """T018: Feed should return videos in the order specified by position field."""
+    token = register_and_login(client, email="ordering@test.com")
+    headers = auth_headers(token)
+
+    # Create project
+    response = client.post("/api/projects", json={"name": "Test Project"}, headers=headers)
+    assert response.status_code == 201
+    project = response.json()
+
+    # Create experiment with isActive=True
+    response = client.post(
+        f"/api/projects/{project['id']}/experiments",
+        json={"name": "Test Experiment", "isActive": True},
+        headers=headers,
+    )
+    assert response.status_code == 201
+    experiment = response.json()
+
+    # Create a social account
+    response = client.post(
+        "/api/accounts",
+        json={
+            "username": "testuser",
+            "displayName": "Test User",
+            "avatarUrl": "https://example.com/avatar.jpg",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    account = response.json()
+
+    # Create three videos
+    videos = []
+    for i in range(3):
+        response = client.post(
+            f"/api/experiments/{experiment['id']}/videos",
+            json={
+                "filename": f"video{i}.mp4",
+                "caption": f"Video {i}",
+                "likes": i * 10,
+                "comments": i,
+                "shares": i,
+                "song": "Test Song",
+                "socialAccountId": account["id"],
+            },
+            headers=headers,
+        )
+        assert response.status_code == 201
+        videos.append(response.json())
+
+    # Get initial feed order
+    response = client.get(f"/api/feed/{experiment['publicUrl']}")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["videos"]) == 3
+    assert data["videos"][0]["caption"] == "Video 0"
+    assert data["videos"][1]["caption"] == "Video 1"
+    assert data["videos"][2]["caption"] == "Video 2"
+
+    # Reorder videos: reverse the order
+    reorder_payload = {
+        "updates": [
+            {"id": videos[2]["id"], "position": 0},
+            {"id": videos[1]["id"], "position": 1},
+            {"id": videos[0]["id"], "position": 2},
+        ]
+    }
+    response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers)
+    assert response.status_code == 200
+
+    # Get feed again to verify new order
+    response = client.get(f"/api/feed/{experiment['publicUrl']}")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["videos"]) == 3
+    assert data["videos"][0]["caption"] == "Video 2"
+    assert data["videos"][1]["caption"] == "Video 1"
+    assert data["videos"][2]["caption"] == "Video 0"
