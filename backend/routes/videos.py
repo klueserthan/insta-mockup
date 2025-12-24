@@ -184,21 +184,7 @@ def reorder_videos(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    """Reorder videos by updating their positions.
-    
-    Args:
-        request: Contains list of updates with video id and position.
-        session: Database session (injected).
-        current_user: Authenticated researcher (injected).
-    
-    Returns:
-        None (status 200 on success).
-    
-    Raises:
-        HTTPException: 404 if video not found, 403 if not authorized.
-    
-    Verifies ownership of each video before updating.
-    """
+    """Reorder videos by updating their positions. Verifies ownership before updating."""
     for update in request.updates:
         db_video = session.get(Video, update.id)
         if db_video:

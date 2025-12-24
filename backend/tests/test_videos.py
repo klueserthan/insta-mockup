@@ -85,7 +85,7 @@ def test_reorder_videos(client: TestClient):
     e1 = client.post(
         f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}, headers=headers
     ).json()
-    
+
     # Create three videos
     videos = []
     for i in range(3):
@@ -104,7 +104,7 @@ def test_reorder_videos(client: TestClient):
         )
         assert response.status_code == 201
         videos.append(response.json())
-    
+
     # Verify initial order
     response = client.get(f"/api/experiments/{e1['id']}/videos", headers=headers)
     assert response.status_code == 200
@@ -113,7 +113,7 @@ def test_reorder_videos(client: TestClient):
     assert initial_videos[0]["caption"] == "Video 0"
     assert initial_videos[1]["caption"] == "Video 1"
     assert initial_videos[2]["caption"] == "Video 2"
-    
+
     # Reorder: move video 2 to position 0, video 0 to position 1, video 1 to position 2
     reorder_payload = {
         "updates": [
@@ -124,7 +124,7 @@ def test_reorder_videos(client: TestClient):
     }
     response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers)
     assert response.status_code == 200
-    
+
     # Verify new order
     response = client.get(f"/api/experiments/{e1['id']}/videos", headers=headers)
     assert response.status_code == 200
