@@ -1,25 +1,21 @@
 from fastapi.testclient import TestClient
 
-
-def _register_and_login(client: TestClient, *, email: str) -> None:
-    client.post(
-        "/api/register",
-        json={"email": email, "password": "password123", "name": "Test", "lastname": "User"},
-    )
-    resp = client.post("/api/login", json={"email": email, "password": "password123"})
-    assert resp.status_code == 200, resp.text
+from tests.helpers import auth_headers, register_and_login
 
 
 def test_create_get_experiments(client: TestClient):
     # Setup User and Project
-    _register_and_login(client, email="exp@e.com")
-    response = client.post("/api/projects", json={"name": "P1"})
+    token = register_and_login(client, email="exp@e.com")
+    headers = auth_headers(token)
+    response = client.post("/api/projects", json={"name": "P1"}, headers=headers)
     assert response.status_code == 201, f"Create P1 failed: {response.text}"
     p1 = response.json()
     project_id = p1["id"]
 
     # Create Experiment
-    response = client.post(f"/api/projects/{project_id}/experiments", json={"name": "E1"})
+    response = client.post(
+        f"/api/projects/{project_id}/experiments", json={"name": "E1"}, headers=headers
+    )
     assert response.status_code == 201
     exp = response.json()
     assert exp["name"] == "E1"
@@ -28,7 +24,7 @@ def test_create_get_experiments(client: TestClient):
     experiment_id = exp["id"]
 
     # Get Experiments for Project
-    response = client.get(f"/api/projects/{project_id}/experiments")
+    response = client.get(f"/api/projects/{project_id}/experiments", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -36,14 +32,16 @@ def test_create_get_experiments(client: TestClient):
 
     # Update Experiment
     response = client.patch(
-        f"/api/experiments/{experiment_id}", json={"name": "E1 Updated", "persistTimer": True}
+        f"/api/experiments/{experiment_id}",
+        json={"name": "E1 Updated", "persistTimer": True},
+        headers=headers,
     )
     assert response.status_code == 200
     assert response.json()["name"] == "E1 Updated"
     assert response.json()["persistTimer"] is True
 
     # Delete Experiment
-    response = client.delete(f"/api/experiments/{experiment_id}")
+    response = client.delete(f"/api/experiments/{experiment_id}", headers=headers)
     assert response.status_code == 204
 
     # Verify Deletion
@@ -52,6 +50,6 @@ def test_create_get_experiments(client: TestClient):
     # It had GET /api/projects/:projectId/experiments.
     # And GET /api/feed/:publicUrl.
     # So I should check list again.
-    response = client.get(f"/api/projects/{project_id}/experiments")
+    response = client.get(f"/api/projects/{project_id}/experiments", headers=headers)
     assert response.status_code == 200
     assert len(response.json()) == 0

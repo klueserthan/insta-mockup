@@ -4,16 +4,28 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from auth import get_current_user
+from auth import get_current_researcher
 from database import get_session
 from models import CamelModel, Project, ProjectBase, Researcher
 
 router = APIRouter(prefix="/api/projects")
 
 
+# Helper function for ownership verification
+def verify_project_ownership(session: Session, project_id: UUID, user_id: UUID) -> Project:
+    """Verify that the user owns the project. Returns project if authorized."""
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.researcher_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return project
+
+
 @router.get("", response_model=List[Project])
 def get_projects(
-    session: Session = Depends(get_session), current_user: Researcher = Depends(get_current_user)
+    session: Session = Depends(get_session),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     projects = session.exec(select(Project).where(Project.researcher_id == current_user.id)).all()
     return projects
@@ -23,21 +35,17 @@ def get_projects(
 def get_project(
     project_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
-    project = session.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if project.researcher_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
+    # Verify ownership and return project in one step
+    return verify_project_ownership(session, project_id, current_user.id)
 
 
 @router.post("", response_model=Project, status_code=201)
 def create_project(
     project_base: ProjectBase,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     project = Project(**project_base.dict(), researcher_id=current_user.id)
     session.add(project)
@@ -61,14 +69,10 @@ def update_project(
     project_id: UUID,
     project_update: ProjectUpdate,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
-    db_project = session.get(Project, project_id)
-    if not db_project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    if db_project.researcher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    # Verify ownership and get project in one step
+    db_project = verify_project_ownership(session, project_id, current_user.id)
 
     project_data = project_update.dict(exclude_unset=True)
     for key, value in project_data.items():
@@ -84,15 +88,11 @@ def update_project(
 def delete_project(
     project_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
-    db_project = session.get(Project, project_id)
-    if not db_project:
-        # Idempotent or 404
-        return
-
-    if db_project.researcher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    # Verify ownership and get project in one step
+    # Will raise 404 if not found, 403 if not authorized
+    db_project = verify_project_ownership(session, project_id, current_user.id)
 
     session.delete(db_project)
     session.commit()

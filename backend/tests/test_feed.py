@@ -2,24 +2,17 @@
 
 from fastapi.testclient import TestClient
 
-
-def _register_and_login(client: TestClient, *, email: str) -> None:
-    """Helper to register and login a researcher."""
-    client.post(
-        "/api/register",
-        json={"email": email, "password": "password123", "name": "Test", "lastname": "User"},
-    )
-    resp = client.post("/api/login", json={"email": email, "password": "password123"})
-    assert resp.status_code == 200, resp.text
+from tests.helpers import auth_headers, register_and_login
 
 
 def test_feed_accessible_without_auth(client: TestClient):
     """T006: Public feed endpoint should be accessible without researcher authentication."""
     # Setup: Create authenticated researcher, project, and experiment
-    _register_and_login(client, email="feed@test.com")
+    token = register_and_login(client, email="feed@test.com")
+    headers = auth_headers(token)
 
     # Create project
-    response = client.post("/api/projects", json={"name": "Test Project"})
+    response = client.post("/api/projects", json={"name": "Test Project"}, headers=headers)
     assert response.status_code == 201
     project = response.json()
 
@@ -27,15 +20,13 @@ def test_feed_accessible_without_auth(client: TestClient):
     response = client.post(
         f"/api/projects/{project['id']}/experiments",
         json={"name": "Test Experiment", "isActive": True},
+        headers=headers,
     )
     assert response.status_code == 201
     experiment = response.json()
     public_url = experiment["publicUrl"]
 
-    # Logout to simulate anonymous participant
-    client.post("/api/logout")
-
-    # Verify feed is accessible without auth
+    # Verify feed is accessible without auth (no headers)
     response = client.get(f"/api/feed/{public_url}")
     assert response.status_code == 200
     data = response.json()
@@ -45,11 +36,12 @@ def test_feed_accessible_without_auth(client: TestClient):
 
 def test_feed_returns_project_query_key(client: TestClient):
     """T004/T005: Feed should return the project's queryKey configuration."""
-    _register_and_login(client, email="querykey@test.com")
+    token = register_and_login(client, email="querykey@test.com")
+    headers = auth_headers(token)
 
     # Create project with custom queryKey
     response = client.post(
-        "/api/projects", json={"name": "Custom Key Project", "queryKey": "userId"}
+        "/api/projects", json={"name": "Custom Key Project", "queryKey": "userId"}, headers=headers
     )
     assert response.status_code == 201
     project = response.json()
@@ -58,12 +50,10 @@ def test_feed_returns_project_query_key(client: TestClient):
     response = client.post(
         f"/api/projects/{project['id']}/experiments",
         json={"name": "Test Experiment", "isActive": True},
+        headers=headers,
     )
     assert response.status_code == 201
     experiment = response.json()
-
-    # Logout and access feed as participant
-    client.post("/api/logout")
 
     # Get feed
     response = client.get(f"/api/feed/{experiment['publicUrl']}")
@@ -74,23 +64,23 @@ def test_feed_returns_project_query_key(client: TestClient):
 
 def test_feed_rejects_inactive_experiment(client: TestClient):
     """T009: Feed should reject requests if experiment.isActive == False."""
-    _register_and_login(client, email="killswitch@test.com")
+    token = register_and_login(client, email="killswitch@test.com")
+    headers = auth_headers(token)
 
     # Create project
-    response = client.post("/api/projects", json={"name": "Test Project"})
+    response = client.post("/api/projects", json={"name": "Test Project"}, headers=headers)
     assert response.status_code == 201
     project = response.json()
 
     # Create experiment (defaults to inactive)
     response = client.post(
-        f"/api/projects/{project['id']}/experiments", json={"name": "Test Experiment"}
+        f"/api/projects/{project['id']}/experiments",
+        json={"name": "Test Experiment"},
+        headers=headers,
     )
     assert response.status_code == 201
     experiment = response.json()
     public_url = experiment["publicUrl"]
-
-    # Logout and try to access feed as participant
-    client.post("/api/logout")
 
     # Should receive friendly error message
     response = client.get(f"/api/feed/{public_url}")
@@ -102,10 +92,11 @@ def test_feed_rejects_inactive_experiment(client: TestClient):
 
 def test_feed_accepts_active_experiment(client: TestClient):
     """T009: Feed should accept requests if experiment.isActive == True."""
-    _register_and_login(client, email="active@test.com")
+    token = register_and_login(client, email="active@test.com")
+    headers = auth_headers(token)
 
     # Create project
-    response = client.post("/api/projects", json={"name": "Test Project"})
+    response = client.post("/api/projects", json={"name": "Test Project"}, headers=headers)
     assert response.status_code == 201
     project = response.json()
 
@@ -113,12 +104,10 @@ def test_feed_accepts_active_experiment(client: TestClient):
     response = client.post(
         f"/api/projects/{project['id']}/experiments",
         json={"name": "Test Experiment", "isActive": True},
+        headers=headers,
     )
     assert response.status_code == 201
     experiment = response.json()
-
-    # Logout and access feed as participant
-    client.post("/api/logout")
 
     # Should succeed
     response = client.get(f"/api/feed/{experiment['publicUrl']}")
@@ -139,9 +128,10 @@ def test_feed_not_found_friendly_error(client: TestClient):
 def test_interaction_logging_accessible_without_auth(client: TestClient):
     """T006: Interaction logging should be accessible without researcher authentication."""
     # Setup: Create experiment
-    _register_and_login(client, email="interaction@test.com")
+    token = register_and_login(client, email="interaction@test.com")
+    headers = auth_headers(token)
 
-    response = client.post("/api/projects", json={"name": "Test Project"})
+    response = client.post("/api/projects", json={"name": "Test Project"}, headers=headers)
     assert response.status_code == 201
     project = response.json()
 
@@ -149,6 +139,7 @@ def test_interaction_logging_accessible_without_auth(client: TestClient):
     response = client.post(
         f"/api/projects/{project['id']}/experiments",
         json={"name": "Test Experiment", "isActive": True},
+        headers=headers,
     )
     assert response.status_code == 201
     experiment = response.json()
@@ -161,6 +152,7 @@ def test_interaction_logging_accessible_without_auth(client: TestClient):
             "displayName": "Test User",
             "avatarUrl": "https://example.com/avatar.jpg",
         },
+        headers=headers,
     )
     assert response.status_code == 201
     account = response.json()
@@ -177,12 +169,10 @@ def test_interaction_logging_accessible_without_auth(client: TestClient):
             "song": "Test Song",
             "socialAccountId": account["id"],
         },
+        headers=headers,
     )
     assert response.status_code == 201
     video = response.json()
-
-    # Logout to simulate anonymous participant
-    client.post("/api/logout")
 
     # Try to log an interaction without auth
     response = client.post(
@@ -200,7 +190,7 @@ def test_interaction_logging_accessible_without_auth(client: TestClient):
 
 def test_researcher_routes_require_auth(client: TestClient):
     """T007: All researcher configuration routes should require authentication."""
-    # Try to access researcher routes without logging in
+    # Try to access researcher routes without logging in (no headers/token)
 
     # Projects
     response = client.get("/api/projects")

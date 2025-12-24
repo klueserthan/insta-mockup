@@ -35,4 +35,7 @@ def test_login_dev_user(client: TestClient):
     )
     assert response.status_code == 200, f"Login failed: {response.text}"
     data = response.json()
-    assert data["email"] == "test@research.edu"
+    # Verify JWT token response format
+    assert "accessToken" in data
+    assert "tokenType" in data
+    assert data["tokenType"] == "bearer"

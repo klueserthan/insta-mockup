@@ -32,7 +32,9 @@ def test_interaction_logging_flow(client: TestClient, session: Session):
     session.commit()
 
     unique_url = f"int_test_{uuid.uuid4().hex}"
-    experiment = Experiment(name="Int Exp", public_url=unique_url, project_id=project.id)
+    experiment = Experiment(
+        name="Int Exp", public_url=unique_url, project_id=project.id, is_active=True
+    )
     session.add(experiment)
     session.commit()
 
@@ -100,7 +102,9 @@ def test_heartbeat_flow(client: TestClient, session: Session):
     session.commit()
 
     unique_url = f"heart_{uuid.uuid4().hex}"
-    experiment = Experiment(name="H Exp", public_url=unique_url, project_id=project.id)
+    experiment = Experiment(
+        name="H Exp", public_url=unique_url, project_id=project.id, is_active=True
+    )
     session.add(experiment)
     session.commit()
 

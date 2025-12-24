@@ -3,7 +3,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-from auth import get_current_user
+from auth import get_current_researcher
 from config import BASE_URL, UPLOAD_DIR
 from main import app
 
@@ -14,9 +14,20 @@ def clean_uploads():
     yield
 
 
-def test_simple_upload_flow(client: TestClient):
-    # Mock Auth
-    app.dependency_overrides[get_current_user] = lambda: {"id": "testuser", "username": "test"}
+@pytest.fixture
+def fake_researcher():
+    """Create a fake researcher for testing authenticated endpoints"""
+    from models import Researcher
+    from uuid import uuid4
+
+    return Researcher(
+        id=uuid4(), email="test@example.com", name="Test", lastname="User", password="hashed"
+    )
+
+
+def test_simple_upload_flow(client: TestClient, fake_researcher):
+    # Mock Auth using the fixture
+    app.dependency_overrides[get_current_researcher] = lambda: fake_researcher
 
     # 1. Upload valid image via POST (multipart)
     # Minimal valid PNG header
@@ -45,11 +56,12 @@ def test_simple_upload_flow(client: TestClient):
     assert get_res.status_code == 200
     assert get_res.content == png_content
 
-    app.dependency_overrides.pop(get_current_user)
+    app.dependency_overrides.pop(get_current_researcher)
 
 
-def test_upload_invalid_type(client: TestClient):
-    app.dependency_overrides[get_current_user] = lambda: {"id": "testuser", "username": "test"}
+def test_upload_invalid_type(client: TestClient, fake_researcher):
+    # Mock Auth using the fixture
+    app.dependency_overrides[get_current_researcher] = lambda: fake_researcher
 
     # Text file -> should fail
     files = {"file": ("test.txt", b"some text", "text/plain")}
@@ -58,4 +70,4 @@ def test_upload_invalid_type(client: TestClient):
     assert response.status_code == 400
     assert "not allowed" in response.json()["detail"]
 
-    app.dependency_overrides.pop(get_current_user)
+    app.dependency_overrides.pop(get_current_researcher)

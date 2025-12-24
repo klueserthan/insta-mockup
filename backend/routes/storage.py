@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from auth import get_current_user
+from auth import get_current_researcher
 from config import BASE_URL, UPLOAD_DIR
 from validators import FileValidator
 
@@ -21,7 +21,7 @@ class UploadResponse(BaseModel):
 
 @router.post("/api/objects/upload")
 async def upload_file(
-    file: UploadFile = File(...), current_user=Depends(get_current_user)
+    file: UploadFile = File(...), current_user=Depends(get_current_researcher)
 ) -> UploadResponse:
     """
     Handle file upload. Returns:

@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlmodel import Session, func, select
 
-from auth import get_current_user
+from auth import get_current_researcher
 from database import get_session
 from models import (
     CamelModel,
@@ -20,8 +20,9 @@ from models import (
 router = APIRouter()
 
 
-# Helper
-def verify_experiment_ownership(session: Session, experiment_id: UUID, user_id: UUID):
+# Helper functions for ownership verification
+def verify_experiment_ownership(session: Session, experiment_id: UUID, user_id: UUID) -> Experiment:
+    """Verify that the user owns the experiment (via project). Returns experiment if authorized."""
     experiment = session.get(Experiment, experiment_id)
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
@@ -31,7 +32,8 @@ def verify_experiment_ownership(session: Session, experiment_id: UUID, user_id: 
     return experiment
 
 
-def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID):
+def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID) -> Video:
+    """Verify that the user owns the video (via experiment → project). Returns video if authorized."""
     video = session.get(Video, video_id)
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
@@ -57,7 +59,7 @@ def get_videos(
     # Optional: Allow public access if public feed?
     # Current requirement implies authenticated for management.
     # Public feed is separate route.
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     verify_experiment_ownership(session, experiment_id, current_user.id)
     # Order by position
@@ -75,7 +77,7 @@ def create_video(
     experiment_id: UUID,
     video_base: VideoBase,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     verify_experiment_ownership(session, experiment_id, current_user.id)
 
@@ -119,7 +121,7 @@ def update_video(
     video_id: UUID,
     video_update: VideoUpdate,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     db_video = verify_video_ownership(session, video_id, current_user.id)
 
@@ -136,13 +138,11 @@ def update_video(
 def delete_video(
     video_id: UUID,
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
-    db_video = session.get(Video, video_id)
-    if not db_video:
-        return
-
-    verify_video_ownership(session, video_id, current_user.id)
+    # Verify ownership and get video in one step
+    # Will raise 404 if not found, 403 if not authorized
+    db_video = verify_video_ownership(session, video_id, current_user.id)
 
     session.delete(db_video)
     session.commit()
@@ -152,7 +152,7 @@ def delete_video(
 def bulk_delete_videos(
     video_ids: List[UUID] = Body(..., embed=True, alias="videoIds"),
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     for vid in video_ids:
         db_video = session.get(Video, vid)
@@ -173,7 +173,7 @@ def bulk_delete_videos(
 def reorder_videos(
     updates: List[dict],  # Should be validation model really
     session: Session = Depends(get_session),
-    current_user: Researcher = Depends(get_current_user),
+    current_user: Researcher = Depends(get_current_researcher),
 ):
     for update in updates:
         vid = update.get("id")
