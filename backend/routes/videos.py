@@ -169,25 +169,74 @@ def bulk_delete_videos(
     session.commit()
 
 
+class VideoReorderRequest(CamelModel):
+    experiment_id: UUID
+    ordered_video_ids: List[UUID]
+
+
 @router.post("/api/videos/reorder", status_code=200)
 def reorder_videos(
-    updates: List[dict],  # Should be validation model really
+    request: VideoReorderRequest,
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    for update in updates:
-        vid = update.get("id")
-        pos = update.get("position")
-        if vid is not None and pos is not None:
-            db_video = session.get(Video, vid)
-            if db_video:
-                # Check ownership
-                # verify_video_ownership(session, vid, current_user.id)
-                # Optimization: skip check for now or assume batch belongs to same context
-                try:
-                    verify_video_ownership(session, UUID(str(vid)), current_user.id)
-                    db_video.position = pos
-                    session.add(db_video)
-                except Exception:
-                    pass
+    """Reorder videos by providing an ordered list of video IDs. Verifies ownership before updating.
+
+    The position of each video is determined by its index in the orderedVideoIds array.
+    All videos in the experiment must be included in the reorder request.
+    """
+    # Verify experiment ownership
+    verify_experiment_ownership(session, request.experiment_id, current_user.id)
+
+    # Fetch all videos for this experiment
+    videos = session.exec(select(Video).where(Video.experiment_id == request.experiment_id)).all()
+
+    video_map = {str(v.id): v for v in videos}
+
+    # Allow empty array only if experiment has no videos
+    if len(videos) == 0:
+        # Valid no-op: reordering an experiment with no videos
+        return
+
+    # Validate that all videos in the experiment are included
+    if len(request.ordered_video_ids) != len(videos):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "All videos in the experiment must be included in the reorder request",
+                "expectedCount": len(videos),
+                "providedCount": len(request.ordered_video_ids),
+            },
+        )
+
+    # Validate no duplicate video IDs
+    video_id_strings = [str(vid) for vid in request.ordered_video_ids]
+    if len(video_id_strings) != len(set(video_id_strings)):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "orderedVideoIds contains duplicate video IDs"},
+        )
+
+    # Validate all requested video IDs exist and belong to this experiment
+    missing_ids: List[str] = []
+    for video_id in request.ordered_video_ids:
+        video_id_str = str(video_id)
+        if video_id_str not in video_map:
+            missing_ids.append(video_id_str)
+
+    if missing_ids:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "One or more videos do not exist in this experiment",
+                "missingVideoIds": missing_ids,
+            },
+        )
+
+    # Update positions based on order in the list
+    for position, video_id in enumerate(request.ordered_video_ids):
+        video = video_map[str(video_id)]
+        video.position = position
+        session.add(video)
+
     session.commit()

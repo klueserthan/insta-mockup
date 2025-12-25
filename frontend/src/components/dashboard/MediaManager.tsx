@@ -1,10 +1,10 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { 
     Trash2, Play, Pause, GripVertical, Plus, Upload, Loader2, Sparkles, CheckCircle2, 
     MoreVertical, X, Image as ImageIcon, XCircle, Share2, ExternalLink, Eye, 
-    FolderOpen, Settings, ArrowLeft, Pencil, Heart, MessageCircle, Send, Lock, Unlock 
+    FolderOpen, Settings, ArrowLeft, Pencil, Heart, MessageCircle, Send, Lock, Unlock, Save 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -185,6 +185,14 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
   const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
   const [bulkCommentTone, setBulkCommentTone] = useState<string>("mixed");
   const [bulkCommentCount, setBulkCommentCount] = useState<number>(5);
+  const [localVideoOrder, setLocalVideoOrder] = useState<Video[]>(videos);
+  const [hasUnsavedOrder, setHasUnsavedOrder] = useState(false);
+
+  // Sync local order when videos prop changes (e.g., after save or refresh)
+  useEffect(() => {
+    setLocalVideoOrder(videos);
+    setHasUnsavedOrder(false);
+  }, [videos]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -225,11 +233,27 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
   });
 
   const reorderVideosMutation = useMutation({
-    mutationFn: async (updates: { id: string; position: number }[]) => {
-      await apiRequest('POST', '/api/videos/reorder', { updates });
+    mutationFn: async (orderedVideoIds: string[]) => {
+      await apiRequest('POST', '/api/videos/reorder', { 
+        experimentId: experiment.id,
+        orderedVideoIds 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/experiments', experiment.id, 'videos'] });
+      setHasUnsavedOrder(false);
+      toast({ title: 'Order saved', description: 'Media order has been updated.' });
+    },
+    onError: (error: unknown) => {
+      const description =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Failed to save media order. Please try again.';
+      toast({
+        title: 'Failed to save order',
+        description,
+        variant: 'destructive',
+      });
     },
   });
 
@@ -279,7 +303,7 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedVideoIds(new Set(videos.map(v => v.id)));
+      setSelectedVideoIds(new Set(localVideoOrder.map(v => v.id)));
     } else {
       setSelectedVideoIds(new Set());
     }
@@ -296,7 +320,7 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
       shares: 0,
       song: '',
       description: undefined,
-      position: videos.length,
+      position: localVideoOrder.length,
       experimentId: experiment.id,
       createdAt: new Date().toISOString(),
     } as Video);
@@ -311,13 +335,18 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = videos.findIndex((v) => v.id === active.id);
-      const newIndex = videos.findIndex((v) => v.id === over.id);
-      const reordered = arrayMove(videos, oldIndex, newIndex);
-      const updates = reordered.map((v, i) => ({ id: v.id, position: i }));
-      reorderVideosMutation.mutate(updates);
+      const oldIndex = localVideoOrder.findIndex((v) => v.id === active.id);
+      const newIndex = localVideoOrder.findIndex((v) => v.id === over.id);
+      const reordered = arrayMove(localVideoOrder, oldIndex, newIndex);
+      setLocalVideoOrder(reordered);
+      setHasUnsavedOrder(true);
     }
   }
+
+  const handleSaveOrder = () => {
+    const orderedVideoIds = localVideoOrder.map((v) => v.id);
+    reorderVideosMutation.mutate(orderedVideoIds);
+  };
 
   return (
     <div>
@@ -438,12 +467,30 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
           <div>
             <CardTitle>Feed Media</CardTitle>
             <CardDescription>
-              Manage the media visible to participants. Drag to reorder.
+              Manage the media visible to participants. Drag to reorder, then click Save Order.
             </CardDescription>
           </div>
-          <Button onClick={handleAddNewVideo} className="gap-2 bg-[#E4405F] hover:bg-[#D03050] text-white border-0" data-testid="button-add-video">
-            <Plus size={16} /> Add Media
-          </Button>
+          <div className="flex gap-2">
+            {hasUnsavedOrder && (
+              <Button 
+                onClick={handleSaveOrder} 
+                className="gap-2" 
+                variant="default"
+                disabled={reorderVideosMutation.isPending}
+                data-testid="button-save-order"
+              >
+                {reorderVideosMutation.isPending ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Save size={16} />
+                )}
+                Save Order
+              </Button>
+            )}
+            <Button onClick={handleAddNewVideo} className="gap-2 bg-[#E4405F] hover:bg-[#D03050] text-white border-0" data-testid="button-add-video">
+              <Plus size={16} /> Add Media
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {videos.length === 0 ? (
@@ -536,7 +583,7 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
                   <TableRow>
                     <TableHead className="w-[50px]">
                       <Checkbox
-                        checked={videos.length > 0 && selectedVideoIds.size === videos.length}
+                        checked={localVideoOrder.length > 0 && selectedVideoIds.size === localVideoOrder.length}
                         onCheckedChange={handleSelectAll}
                         data-testid="checkbox-select-all"
                       />
@@ -550,15 +597,15 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <SortableContext items={videos} strategy={verticalListSortingStrategy}>
-                    {videos.map((video) => (
+                  <SortableContext items={localVideoOrder} strategy={verticalListSortingStrategy}>
+                    {localVideoOrder.map((video) => (
                       <SortableRow 
                         key={video.id} 
                         video={video}
                         isSelected={selectedVideoIds.has(video.id)}
                         onSelect={handleVideoSelect}
                         onDelete={(id) => deleteVideoMutation.mutate(id)}
-                        onPreview={(id) => setPreviewingVideo(videos.find(v => v.id === id) || null)}
+                        onPreview={(id) => setPreviewingVideo(localVideoOrder.find(v => v.id === id) || null)}
                         onEdit={(v) => { setEditingVideo(v); }}
                         onManageComments={(v) => setManagingCommentsVideo(v)}
                         onToggleLock={(v) => updateVideoMutation.mutate({ id: v.id, data: { isLocked: !v.isLocked } })}
