@@ -244,6 +244,17 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
       setHasUnsavedOrder(false);
       toast({ title: 'Order saved', description: 'Media order has been updated.' });
     },
+    onError: (error: unknown) => {
+      const description =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Failed to save media order. Please try again.';
+      toast({
+        title: 'Failed to save order',
+        description,
+        variant: 'destructive',
+      });
+    },
   });
 
   const updateVideoMutation = useMutation({
