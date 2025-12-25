@@ -66,7 +66,7 @@ def _create_experiment(session: Session, project_id, **kwargs) -> Experiment:
     return experiment
 
 
-def _create_account(session: Session, researcher_id) -> SocialAccount:
+def _create_account(session: Session, *, researcher_id) -> SocialAccount:
     """Helper to create a social account."""
     acc = SocialAccount(
         username=f"u_{uuid.uuid4().hex}",
