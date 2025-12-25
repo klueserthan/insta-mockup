@@ -20,6 +20,9 @@ class FeedVideoResponse(VideoBase):
 
 router = APIRouter()
 
+# Constant for hash truncation when creating randomization seeds
+HASH_SEED_LENGTH = 16  # Use first 16 hex chars (64 bits) for seed
+
 
 def _randomize_videos_with_locks(
     videos: list[tuple[Video, SocialAccount]],
@@ -61,9 +64,10 @@ def _randomize_videos_with_locks(
     
     # Create a deterministic seed for this participant
     # Combine project seed and participant ID for consistent but unique ordering per participant
+    # Using SHA-256 for robust, deterministic hashing (not for security)
     seed_string = f"{randomization_seed}-{participant_id}"
-    seed_hash = hashlib.md5(seed_string.encode()).hexdigest()
-    seed_value = int(seed_hash[:8], 16)  # Use first 8 hex chars as integer seed
+    seed_hash = hashlib.sha256(seed_string.encode()).hexdigest()
+    seed_value = int(seed_hash[:HASH_SEED_LENGTH], 16)
     
     # Randomize unlocked videos with the participant-specific seed
     rng = random.Random(seed_value)
