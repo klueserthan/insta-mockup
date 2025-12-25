@@ -193,11 +193,16 @@ def reorder_videos(
 
     video_map = {str(v.id): v for v in videos}
 
-    # Validate that orderedVideoIds is not empty
+    # Allow empty array only if experiment has no videos
+    if len(videos) == 0:
+        # Valid no-op: reordering an experiment with no videos
+        return
+
+    # Validate that orderedVideoIds is not empty when experiment has videos
     if not request.ordered_video_ids:
         raise HTTPException(
             status_code=400,
-            detail={"error": "orderedVideoIds cannot be empty"},
+            detail={"error": "orderedVideoIds cannot be empty for an experiment with videos"},
         )
 
     # Validate that all videos in the experiment are included
@@ -209,6 +214,14 @@ def reorder_videos(
                 "expectedCount": len(videos),
                 "providedCount": len(request.ordered_video_ids),
             },
+        )
+
+    # Validate no duplicate video IDs
+    video_id_strings = [str(vid) for vid in request.ordered_video_ids]
+    if len(video_id_strings) != len(set(video_id_strings)):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "orderedVideoIds contains duplicate video IDs"},
         )
 
     # Validate all requested video IDs exist and belong to this experiment

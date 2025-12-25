@@ -171,3 +171,102 @@ def test_reorder_videos_ownership_check(client: TestClient):
     }
     response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers2)
     assert response.status_code == 403  # Forbidden
+
+
+def test_reorder_videos_with_duplicates(client: TestClient):
+    """Test that reorder rejects duplicate video IDs."""
+    token = register_and_login(client, email="duplicates@test.com")
+    headers = auth_headers(token)
+    account = _create_account(client, token)
+    p1 = client.post("/api/projects", json={"name": "P1"}, headers=headers).json()
+    e1 = client.post(
+        f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}, headers=headers
+    ).json()
+
+    # Create two videos
+    videos = []
+    for i in range(2):
+        response = client.post(
+            f"/api/experiments/{e1['id']}/videos",
+            json={
+                "filename": f"video{i}.mp4",
+                "socialAccountId": account["id"],
+                "caption": f"Video {i}",
+                "likes": 0,
+                "comments": 0,
+                "shares": 0,
+                "song": "Song",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 201
+        videos.append(response.json())
+
+    # Try to reorder with duplicate video IDs
+    reorder_payload = {
+        "experimentId": e1["id"],
+        "orderedVideoIds": [videos[0]["id"], videos[0]["id"]],  # Duplicate!
+    }
+    response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers)
+    assert response.status_code == 400
+    assert "duplicate" in response.json()["detail"]["error"].lower()
+
+
+def test_reorder_empty_experiment(client: TestClient):
+    """Test that reordering an experiment with no videos is allowed."""
+    token = register_and_login(client, email="empty@test.com")
+    headers = auth_headers(token)
+    p1 = client.post("/api/projects", json={"name": "P1"}, headers=headers).json()
+    e1 = client.post(
+        f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}, headers=headers
+    ).json()
+
+    # Reorder with empty array (experiment has no videos)
+    reorder_payload = {
+        "experimentId": e1["id"],
+        "orderedVideoIds": [],
+    }
+    response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers)
+    assert response.status_code == 200  # Should succeed as no-op
+
+
+def test_reorder_partial_video_list(client: TestClient):
+    """Test that reorder rejects partial video lists."""
+    token = register_and_login(client, email="partial@test.com")
+    headers = auth_headers(token)
+    account = _create_account(client, token)
+    p1 = client.post("/api/projects", json={"name": "P1"}, headers=headers).json()
+    e1 = client.post(
+        f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}, headers=headers
+    ).json()
+
+    # Create three videos
+    videos = []
+    for i in range(3):
+        response = client.post(
+            f"/api/experiments/{e1['id']}/videos",
+            json={
+                "filename": f"video{i}.mp4",
+                "socialAccountId": account["id"],
+                "caption": f"Video {i}",
+                "likes": 0,
+                "comments": 0,
+                "shares": 0,
+                "song": "Song",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 201
+        videos.append(response.json())
+
+    # Try to reorder with only 2 videos (should fail)
+    reorder_payload = {
+        "experimentId": e1["id"],
+        "orderedVideoIds": [videos[0]["id"], videos[1]["id"]],  # Missing videos[2]
+    }
+    response = client.post("/api/videos/reorder", json=reorder_payload, headers=headers)
+    assert response.status_code == 400
+    data = response.json()["detail"]
+    assert "All videos" in data["error"]
+    assert data["expectedCount"] == 3
+    assert data["providedCount"] == 2
