@@ -90,7 +90,8 @@ def _randomize_videos_with_locks(
                 result[i] = unlocked_videos[unlocked_idx]
                 unlocked_idx += 1
     
-    # Filter out any None values (shouldn't happen but safety check)
+    # Defensive safety check: algorithm should always fill all slots, but we filter out any
+    # unexpected None values in case upstream invariants are violated.
     return [v for v in result if v is not None]
 
 
