@@ -89,9 +89,8 @@ def _randomize_videos_with_locks(
     unlocked_idx = 0
     for i in range(len(result)):
         if result[i] is None:
-            if unlocked_idx < len(unlocked_videos):
-                result[i] = unlocked_videos[unlocked_idx]
-                unlocked_idx += 1
+            result[i] = unlocked_videos[unlocked_idx]
+            unlocked_idx += 1
     
     # Defensive safety check: algorithm should always fill all slots, but we filter out any
     # unexpected None values in case upstream invariants are violated.
