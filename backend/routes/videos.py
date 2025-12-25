@@ -183,7 +183,7 @@ def reorder_videos(
     """Reorder videos by providing an ordered list of video IDs. Verifies ownership before updating.
 
     The position of each video is determined by its index in the orderedVideoIds array.
-    All videos must exist and belong to the specified experiment.
+    All videos in the experiment must be included in the reorder request.
     """
     # Verify experiment ownership
     verify_experiment_ownership(session, request.experiment_id, current_user.id)
@@ -192,6 +192,24 @@ def reorder_videos(
     videos = session.exec(select(Video).where(Video.experiment_id == request.experiment_id)).all()
 
     video_map = {str(v.id): v for v in videos}
+
+    # Validate that orderedVideoIds is not empty
+    if not request.ordered_video_ids:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "orderedVideoIds cannot be empty"},
+        )
+
+    # Validate that all videos in the experiment are included
+    if len(request.ordered_video_ids) != len(videos):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "All videos in the experiment must be included in the reorder request",
+                "expectedCount": len(videos),
+                "providedCount": len(request.ordered_video_ids),
+            },
+        )
 
     # Validate all requested video IDs exist and belong to this experiment
     missing_ids: List[str] = []

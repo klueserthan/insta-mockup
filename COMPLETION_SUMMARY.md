@@ -21,18 +21,14 @@ User Story 1 (Researcher creates and previews a basic reel experiment) has been 
 **File**: `backend/routes/videos.py`
 
 **Issue Found**:
-- Frontend sends: `{updates: [{id, position}]}`
-- Backend expected: Raw array `[{id, position}]`
-- Ownership verification had silent exception handling
+- Backend needed proper request validation with OpenAPI spec compliance
+- Ownership verification needed to be improved
 
 **Solution Implemented**:
 ```python
-class VideoReorderUpdate(CamelModel):
-    id: UUID
-    position: int
-
 class VideoReorderRequest(CamelModel):
-    updates: List[VideoReorderUpdate]
+    experiment_id: UUID
+    ordered_video_ids: List[UUID]
 
 @router.post("/api/videos/reorder", status_code=200)
 def reorder_videos(
@@ -40,13 +36,30 @@ def reorder_videos(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
-    """Reorder videos by updating their positions. Verifies ownership before updating."""
-    for update in request.updates:
-        db_video = session.get(Video, update.id)
-        if db_video:
-            verify_video_ownership(session, update.id, current_user.id)
-            db_video.position = update.position
-            session.add(db_video)
+    """Reorder videos by providing an ordered list of video IDs.
+    
+    The position of each video is determined by its index in the orderedVideoIds array.
+    All videos in the experiment must be included in the reorder request.
+    """
+    # Verify experiment ownership
+    verify_experiment_ownership(session, request.experiment_id, current_user.id)
+    
+    # Fetch all videos for this experiment
+    videos = session.exec(select(Video).where(Video.experiment_id == request.experiment_id)).all()
+    
+    # Validate that all videos in the experiment are included
+    if len(request.ordered_video_ids) != len(videos):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "All videos in the experiment must be included"},
+        )
+    
+    # Update positions based on order in the list
+    for position, video_id in enumerate(request.ordered_video_ids):
+        video = video_map[str(video_id)]
+        video.position = position
+        session.add(video)
+    
     session.commit()
 ```
 

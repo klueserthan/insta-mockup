@@ -555,10 +555,10 @@ components:
       type: object
       required: [experimentId, orderedVideoIds]
       properties:
-        experimentId: { type: integer }
+        experimentId: { type: string, format: uuid }
         orderedVideoIds:
           type: array
-          items: { type: integer }
+          items: { type: string, format: uuid }
 
     FeedResponse:
       type: object
