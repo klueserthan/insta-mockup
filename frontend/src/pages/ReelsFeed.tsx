@@ -170,16 +170,26 @@ export default function ReelsFeed() {
 
     const handleScroll = () => {
       const index = Math.round(container.scrollTop / container.clientHeight);
-      const video = feedData.videos[index];
-      if (video && video.id !== activeVideoId) {
+      const newVideo = feedData.videos[index];
+      if (newVideo && newVideo.id !== activeVideoId) {
         // Log navigation direction (FR-011 requirement)
-        if (lastVideoIndexRef.current >= 0 && lastVideoIndexRef.current !== index) {
-          const direction = index > lastVideoIndexRef.current ? 'next' : 'previous';
-          logInteraction(direction, video.id);
+        const previousIndex = lastVideoIndexRef.current;
+        const previousVideo =
+          previousIndex >= 0 && previousIndex < feedData.videos.length
+            ? feedData.videos[previousIndex]
+            : undefined;
+
+        if (previousVideo && previousIndex !== index) {
+          const direction = index > previousIndex ? 'next' : 'previous';
+          // Log navigation as movement FROM the previous video TO the new video
+          logInteraction(direction, previousVideo.id, {
+            fromVideoId: previousVideo.id,
+            toVideoId: newVideo.id,
+          });
         }
-        
-        setActiveVideoId(video.id);
-        logInteraction('view_start', video.id);
+
+        setActiveVideoId(newVideo.id);
+        logInteraction('view_start', newVideo.id);
         lastVideoIndexRef.current = index;
       }
     };
