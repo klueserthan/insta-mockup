@@ -62,6 +62,7 @@ export default function ReelsFeed() {
   useEffect(() => {
     if (feedData?.videos?.length && !activeVideoId) {
       setActiveVideoId(feedData.videos[0].id);
+      lastVideoIndexRef.current = 0; // Initialize with first video index
     }
   }, [feedData, activeVideoId]);
 
@@ -171,7 +172,7 @@ export default function ReelsFeed() {
       const video = feedData.videos[index];
       if (video && video.id !== activeVideoId) {
         // Log navigation direction (FR-011 requirement)
-        if (lastVideoIndexRef.current >= 0) {
+        if (lastVideoIndexRef.current >= 0 && lastVideoIndexRef.current !== index) {
           const direction = index > lastVideoIndexRef.current ? 'next' : 'previous';
           logInteraction(direction, video.id);
         }
