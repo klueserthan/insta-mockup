@@ -61,6 +61,8 @@ export default function ReelsFeed() {
   }, [endScreenMessage, redirectUrl, queryKey, publicUrl, setLocation]);
 
   useEffect(() => {
+    // feedData?.videos?.length checks both existence and non-zero length,
+    // ensuring feedData.videos[0] is safe to access
     if (feedData?.videos?.length && !activeVideoId) {
       setActiveVideoId(feedData.videos[0].id);
       lastVideoIndexRef.current = 0; // Initialize with first video index

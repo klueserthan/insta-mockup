@@ -10,11 +10,15 @@ These tests verify:
 """
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from models import Experiment, Interaction, Participant, Project, Researcher, SocialAccount, Video, ViewSession
+
+# Test fixture: base timestamp for consistent test data
+TEST_BASE_TIMESTAMP = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
 
 def _create_researcher(session: Session) -> Researcher:
@@ -201,17 +205,19 @@ def test_t024_interaction_logging(client: TestClient, session: Session):
     assert feed_resp.status_code == 200
 
     # Test various interaction types as per FR-011
-    # Timestamps reflect chronological order of user actions
+    # Timestamps use TEST_BASE_TIMESTAMP to clearly indicate test data
+    from datetime import timedelta
+    
     interaction_types = [
-        ("view_start", {"timestamp": "2024-01-01T00:00:00Z"}),  # User lands on video
-        ("next", {"timestamp": "2024-01-01T00:00:05Z"}),  # User scrolls to next video
-        ("view_end", {"timestamp": "2024-01-01T00:00:05Z"}),  # Previous video ends
-        ("previous", {"timestamp": "2024-01-01T00:00:10Z"}),  # User scrolls back
-        ("like", {"timestamp": "2024-01-01T00:00:15Z"}),  # User likes current video
-        ("unlike", {"timestamp": "2024-01-01T00:00:20Z"}),  # User unlikes
-        ("follow", {"timestamp": "2024-01-01T00:00:25Z"}),  # User follows account
-        ("unfollow", {"timestamp": "2024-01-01T00:00:30Z"}),  # User unfollows
-        ("share", {"timestamp": "2024-01-01T00:00:35Z"}),  # User opens share menu
+        ("view_start", {"timestamp": TEST_BASE_TIMESTAMP.isoformat()}),  # User lands on video
+        ("next", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=5)).isoformat()}),  # User scrolls to next video
+        ("view_end", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=5)).isoformat()}),  # Previous video ends
+        ("previous", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=10)).isoformat()}),  # User scrolls back
+        ("like", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=15)).isoformat()}),  # User likes current video
+        ("unlike", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=20)).isoformat()}),  # User unlikes
+        ("follow", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=25)).isoformat()}),  # User follows account
+        ("unfollow", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=30)).isoformat()}),  # User unfollows
+        ("share", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=35)).isoformat()}),  # User opens share menu
     ]
 
     for interaction_type, data in interaction_types:
