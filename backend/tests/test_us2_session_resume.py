@@ -201,14 +201,17 @@ def test_t024_interaction_logging(client: TestClient, session: Session):
     assert feed_resp.status_code == 200
 
     # Test various interaction types as per FR-011
+    # Timestamps reflect chronological order of user actions
     interaction_types = [
-        ("view_start", {"timestamp": "2024-01-01T00:00:00Z"}),
-        ("view_end", {"timestamp": "2024-01-01T00:00:10Z"}),
-        ("like", {"timestamp": "2024-01-01T00:00:05Z"}),
-        ("unlike", {"timestamp": "2024-01-01T00:00:06Z"}),
-        ("follow", {"timestamp": "2024-01-01T00:00:07Z"}),
-        ("unfollow", {"timestamp": "2024-01-01T00:00:08Z"}),
-        ("share", {"timestamp": "2024-01-01T00:00:09Z"}),
+        ("view_start", {"timestamp": "2024-01-01T00:00:00Z"}),  # User lands on video
+        ("next", {"timestamp": "2024-01-01T00:00:05Z"}),  # User scrolls to next video
+        ("view_end", {"timestamp": "2024-01-01T00:00:05Z"}),  # Previous video ends
+        ("previous", {"timestamp": "2024-01-01T00:00:10Z"}),  # User scrolls back
+        ("like", {"timestamp": "2024-01-01T00:00:15Z"}),  # User likes current video
+        ("unlike", {"timestamp": "2024-01-01T00:00:20Z"}),  # User unlikes
+        ("follow", {"timestamp": "2024-01-01T00:00:25Z"}),  # User follows account
+        ("unfollow", {"timestamp": "2024-01-01T00:00:30Z"}),  # User unfollows
+        ("share", {"timestamp": "2024-01-01T00:00:35Z"}),  # User opens share menu
     ]
 
     for interaction_type, data in interaction_types:

@@ -29,6 +29,7 @@ export default function ReelsFeed() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastVideoIndexRef = useRef<number>(-1);
 
   const { data: feedData, isLoading, error } = useQuery<FeedData>({
     queryKey: ['/api/feed', publicUrl, window.location.search],
@@ -169,8 +170,15 @@ export default function ReelsFeed() {
       const index = Math.round(container.scrollTop / container.clientHeight);
       const video = feedData.videos[index];
       if (video && video.id !== activeVideoId) {
+        // Log navigation direction (FR-011 requirement)
+        if (lastVideoIndexRef.current >= 0) {
+          const direction = index > lastVideoIndexRef.current ? 'next' : 'previous';
+          logInteraction(direction, video.id);
+        }
+        
         setActiveVideoId(video.id);
         logInteraction('view_start', video.id);
+        lastVideoIndexRef.current = index;
       }
     };
 

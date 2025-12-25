@@ -259,7 +259,9 @@ const participantId = searchParams.get(queryKey) || 'anonymous';
 
 **Event Types Logged** (FR-011 compliance):
 1. Navigation events:
-   - `view_start` - When a video becomes active (ReelsFeed.tsx line 173)
+   - `view_start` - When a video becomes active (ReelsFeed.tsx line 178)
+   - `next` - Scroll/swipe to next video (ReelsFeed.tsx line 173)
+   - `previous` - Scroll/swipe to previous video (ReelsFeed.tsx line 173)
 2. Engagement events:
    - `like` - Like a video (VideoPlayer.tsx line 283, 296)
    - `unlike` - Unlike a video (VideoPlayer.tsx line 293)
@@ -298,7 +300,7 @@ const participantId = searchParams.get(queryKey) || 'anonymous';
 
 **FR-011 Compliance**:
 - ✅ (a) Time spent on each media item: Heartbeat `durationMs` field
-- ✅ (b) Basic navigation events: `view_start` logged on video change
+- ✅ (b) Basic navigation events: `next`/`previous` logged on scroll, `view_start` when video becomes active
 - ✅ (c) Engagement interactions: like/unlike/follow/unfollow/share
 - ✅ (d) Total time spent: Accumulated via heartbeat updates
 
@@ -326,7 +328,7 @@ const participantId = searchParams.get(queryKey) || 'anonymous';
    - Verifies participant record was created with correct ID
 
 3. `test_t024_interaction_logging()`
-   - Tests logging of various interaction types: view_start, view_end, like, unlike, follow, unfollow, share
+   - Tests logging of various interaction types: view_start, view_end, next, previous, like, unlike, follow, unfollow, share
    - Verifies all interactions are stored in database
    - Verifies participant auto-enrollment works
 
