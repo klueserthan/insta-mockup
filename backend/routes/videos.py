@@ -86,9 +86,11 @@ def create_video(
     """
     verify_experiment_ownership(session, experiment_id, current_user.id)
 
-    # Force session to flush any pending changes and see latest data
-    # This is necessary when using a shared session (e.g., in tests) to ensure
-    # the max() query sees previously committed videos
+    # Force session to flush any pending changes and see latest data.
+    # This is necessary because the test fixture uses a single shared session across
+    # requests, which can otherwise cause the max(position) query to see stale data.
+    # In production, where sessions are typically per-request, this also ensures that
+    # any concurrent modifications within the same request are visible to this query.
     session.flush()
     session.expire_all()
     
