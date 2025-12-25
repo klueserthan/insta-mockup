@@ -198,13 +198,6 @@ def reorder_videos(
         # Valid no-op: reordering an experiment with no videos
         return
 
-    # Validate that orderedVideoIds is not empty when experiment has videos
-    if not request.ordered_video_ids:
-        raise HTTPException(
-            status_code=400,
-            detail={"error": "orderedVideoIds cannot be empty for an experiment with videos"},
-        )
-
     # Validate that all videos in the experiment are included
     if len(request.ordered_video_ids) != len(videos):
         raise HTTPException(
