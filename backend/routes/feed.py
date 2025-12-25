@@ -20,8 +20,11 @@ class FeedVideoResponse(VideoBase):
 
 router = APIRouter()
 
-# Constant for hash truncation when creating randomization seeds
-HASH_SEED_LENGTH = 16  # Use first 16 hex chars (64 bits) for seed
+# Constant for hash truncation when creating randomization seeds.
+# We use the first 16 hex chars (64 bits) of the SHA-256 digest, giving 2^64 possible
+# seed values. This is ample entropy for deterministic per-participant shuffling while
+# avoiding the need to use the full 256-bit hash as a Python int.
+HASH_SEED_LENGTH = 16
 
 
 def _randomize_videos_with_locks(
