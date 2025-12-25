@@ -29,6 +29,7 @@ export default function ReelsFeed() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Use -1 as a sentinel for "no previous video index" / "not yet initialized".
   const lastVideoIndexRef = useRef<number>(-1);
 
   const { data: feedData, isLoading, error } = useQuery<FeedData>({
