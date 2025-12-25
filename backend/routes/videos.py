@@ -79,19 +79,26 @@ def create_video(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
+    """Create a new video for an experiment.
+    
+    Videos are assigned sequential positions starting from 0. The position determines
+    the video's default ordering in the feed (before randomization with lock preservation).
+    """
     verify_experiment_ownership(session, experiment_id, current_user.id)
 
-    # Calculate max position
-    max_pos = (
-        session.exec(
-            select(func.max(Video.position)).where(Video.experiment_id == experiment_id)
-        ).one()
-        or -1
-    )
-
-    # If max_pos is None (no videos), it returns None, so make it -1
-    if max_pos is None:
-        max_pos = -1
+    # Force session to flush any pending changes and see latest data
+    # This is necessary when using a shared session (e.g., in tests) to ensure
+    # the max() query sees previously committed videos
+    session.flush()
+    session.expire_all()
+    
+    # Calculate max position for this experiment
+    max_pos_result = session.exec(
+        select(func.max(Video.position)).where(Video.experiment_id == experiment_id)
+    ).one()
+    
+    # .one() returns None if no rows exist, or the max value if rows exist
+    max_pos = max_pos_result if max_pos_result is not None else -1
 
     video = Video(
         **video_base.dict(exclude={"position"}), experiment_id=experiment_id, position=max_pos + 1
@@ -123,6 +130,10 @@ def update_video(
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
+    """Update a video's metadata.
+    
+    Can update any field including caption, likes, comments, shares, position, and isLocked.
+    """
     db_video = verify_video_ownership(session, video_id, current_user.id)
 
     for key, value in video_update.dict(exclude_unset=True).items():
