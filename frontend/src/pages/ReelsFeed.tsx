@@ -184,7 +184,7 @@ export default function ReelsFeed() {
         if (previousVideo && previousIndex !== index) {
           const direction = index > previousIndex ? 'next' : 'previous';
           // Log navigation as movement FROM the previous video TO the new video
-          logInteraction(direction, previousVideo.id, {
+          logInteraction(direction, newVideo.id, {
             fromVideoId: previousVideo.id,
             toVideoId: newVideo.id,
           });
