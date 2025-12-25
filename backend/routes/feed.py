@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import random
 from datetime import datetime
 from typing import Optional
@@ -9,6 +10,8 @@ from sqlmodel import Session, select
 
 from database import get_session
 from models import Experiment, Project, SocialAccount, Video, VideoBase
+
+logger = logging.getLogger(__name__)
 
 
 class FeedVideoResponse(VideoBase):
@@ -84,6 +87,14 @@ def _randomize_videos_with_locks(
     for position, video_tuple in locked_videos.items():
         if position < len(result):
             result[position] = video_tuple
+        else:
+            # Log warning if locked video position is out of bounds (data integrity issue)
+            video, _ = video_tuple
+            logger.warning(
+                f"Locked video {video.id} has position {position} which exceeds "
+                f"total video count {len(result)}. This indicates a data integrity issue. "
+                f"Video will be skipped in feed delivery."
+            )
     
     # Fill remaining slots with randomized unlocked videos
     unlocked_idx = 0

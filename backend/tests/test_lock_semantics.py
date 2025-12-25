@@ -251,6 +251,15 @@ def test_no_locked_videos_allows_full_randomization(client: TestClient):
     assert set(order1) == {"Video 0", "Video 1", "Video 2", "Video 3"}
     assert set(order2) == {"Video 0", "Video 1", "Video 2", "Video 3"}
 
+    # Test determinism: same participant should get same order on multiple requests
+    response1_again = client.get(f"/api/feed/{experiment['publicUrl']}?participantId=participant1")
+    assert response1_again.status_code == 200
+    data1_again = response1_again.json()
+    order1_again = [v["caption"] for v in data1_again["videos"]]
+    
+    # Verify deterministic behavior - same participant gets identical order
+    assert order1 == order1_again, "Same participant should receive identical video order across requests"
+
 
 def test_preview_mode_uses_default_order(client: TestClient):
     """Test that preview mode (participantId=preview) returns videos in default position order."""
