@@ -395,25 +395,29 @@ components:
       in: path
       required: true
       schema:
-        type: integer
+        type: string
+        format: uuid
     ExperimentId:
       name: experimentId
       in: path
       required: true
       schema:
-        type: integer
+        type: string
+        format: uuid
     VideoId:
       name: videoId
       in: path
       required: true
       schema:
-        type: integer
+        type: string
+        format: uuid
     CommentId:
       name: commentId
       in: path
       required: true
       schema:
-        type: integer
+        type: string
+        format: uuid
 
   schemas:
     LoginRequest:
@@ -435,11 +439,11 @@ components:
       type: object
       required: [id, name, queryKey, timeLimitSeconds, redirectUrl, endScreenMessage, randomizationSeed, persistTimer, showUnmutePrompt]
       properties:
-        id: { type: integer }
+        id: { type: string, format: uuid }
         name: { type: string }
         queryKey:
           type: string
-          description: Query-string parameter name that contains the stable participant identifier value (default: participantId).
+          description: "Query-string parameter name that contains the stable participant identifier value (default: participantId)."
         timeLimitSeconds:
           type: integer
           description: Time limit in seconds for experiments in this project
@@ -503,8 +507,8 @@ components:
       type: object
       required: [id, projectId, publicUrlToken, isActive]
       properties:
-        id: { type: integer }
-        projectId: { type: integer }
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
         name: { type: string }
         publicUrlToken: { type: string }
         isActive: 
@@ -531,8 +535,8 @@ components:
       type: object
       required: [id, experimentId, filename, position]
       properties:
-        id: { type: integer }
-        experimentId: { type: integer }
+        id: { type: string, format: uuid }
+        experimentId: { type: string, format: uuid }
         filename: { type: string }
         caption: { type: string, nullable: true }
         position: { type: integer }
@@ -546,7 +550,7 @@ components:
       properties:
         filename: { type: string }
         caption: { type: string, nullable: true }
-        socialAccountId: { type: integer, nullable: true }
+        socialAccountId: { type: string, format: uuid, nullable: true }
         likes: { type: integer, nullable: true }
         comments: { type: integer, nullable: true }
         shares: { type: integer, nullable: true }
@@ -555,16 +559,16 @@ components:
       type: object
       required: [experimentId, orderedVideoIds]
       properties:
-        experimentId: { type: integer }
+        experimentId: { type: string, format: uuid }
         orderedVideoIds:
           type: array
-          items: { type: integer }
+          items: { type: string, format: uuid }
 
     FeedResponse:
       type: object
       required: [experimentId, experimentName, persistTimer, showUnmutePrompt, projectSettings, videos]
       properties:
-        experimentId: { type: string }
+        experimentId: { type: string, format: uuid }
         experimentName: { type: string }
         persistTimer: { type: boolean }
         showUnmutePrompt: { type: boolean }
@@ -585,9 +589,9 @@ components:
       type: object
       required: [id, videoId, text, position, socialPersonaId]
       properties:
-        id: { type: integer }
-        videoId: { type: integer }
-        socialPersonaId: { type: integer }
+        id: { type: string, format: uuid }
+        videoId: { type: string, format: uuid }
+        socialPersonaId: { type: string, format: uuid }
         text: { type: string }
         position: { type: integer }
         isPinned: { type: boolean, nullable: true }
@@ -598,7 +602,7 @@ components:
       required: [text, socialPersonaId]
       properties:
         text: { type: string }
-        socialPersonaId: { type: integer }
+        socialPersonaId: { type: string, format: uuid }
         position: { type: integer, nullable: true }
         linkUrl: { type: string, nullable: true }
 
@@ -607,7 +611,7 @@ components:
       required: [text, socialPersonaId]
       properties:
         text: { type: string }
-        socialPersonaId: { type: integer }
+        socialPersonaId: { type: string, format: uuid }
         linkUrl: { type: string, nullable: true }
 
     FeedPayload:
@@ -626,8 +630,8 @@ components:
       required: [participantId, experimentId, interactionType]
       properties:
         participantId: { type: string }
-        experimentId: { type: integer }
-        videoId: { type: integer, nullable: true }
+        experimentId: { type: string, format: uuid }
+        videoId: { type: string, format: uuid, nullable: true }
         interactionType: { type: string }
         interactionData:
           type: object
@@ -637,16 +641,16 @@ components:
       type: object
       required: [sessionId, participantId, videoId, durationMs]
       properties:
-        sessionId: { type: string }
+        sessionId: { type: string, format: uuid }
         participantId: { type: string }
-        videoId: { type: integer }
+        videoId: { type: string, format: uuid }
         durationMs: { type: integer }
 
     ResultsSummary:
       type: object
       required: [experimentId, sessions]
       properties:
-        experimentId: { type: integer }
+        experimentId: { type: string, format: uuid }
         sessions:
           type: array
           items:
