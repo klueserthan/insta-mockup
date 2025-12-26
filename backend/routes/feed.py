@@ -102,6 +102,14 @@ def _randomize_videos_with_locks(
     unlocked_idx = 0
     for i in range(len(result)):
         if result[i] is None:
+            if unlocked_idx >= len(unlocked_videos):
+                # Data integrity issue: more empty slots than available unlocked videos.
+                # Log and stop filling; remaining None entries will be filtered out below.
+                logger.warning(
+                    "Not enough unlocked videos to fill all feed slots. "
+                    "This indicates a data integrity issue with video positions."
+                )
+                break
             result[i] = unlocked_videos[unlocked_idx]
             unlocked_idx += 1
     
