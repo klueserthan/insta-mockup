@@ -42,7 +42,8 @@ def _randomize_videos_with_locks(
     
     Args:
         videos: List of (Video, SocialAccount) tuples ordered by position
-        participant_id: Unique participant identifier for consistent randomization
+        participant_id: Unique participant identifier for consistent randomization.
+            Special value "preview" returns videos in default order without randomization.
         randomization_seed: Project-level seed for randomization
     
     Returns:
@@ -92,10 +93,11 @@ def _randomize_videos_with_locks(
         else:
             # Log warning if locked video position is out of bounds (data integrity issue)
             video, _ = video_tuple
+            experiment_id = video.experiment_id if videos else None
             logger.warning(
-                f"Locked video {video.id} has position {position} which exceeds "
-                f"total video count {len(result)}. This indicates a data integrity issue. "
-                f"Video will be skipped in feed delivery."
+                f"Locked video {video.id} in experiment {experiment_id} has position {position} "
+                f"which exceeds total video count {len(result)}. This indicates a data integrity "
+                f"issue. Video will be skipped in feed delivery. Participant: {participant_id}"
             )
     
     # Fill remaining slots with randomized unlocked videos

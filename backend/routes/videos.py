@@ -86,15 +86,12 @@ def create_video(
     """
     verify_experiment_ownership(session, experiment_id, current_user.id)
 
-    # Ensure this query sees the latest state in the current database session.
-    # Flushing makes any pending writes in this session visible to the upcoming
-    # max(position) query, and expiring loaded instances forces a refresh from
-    # the database so we don't operate on stale in-memory state. This is important
-    # in production when multiple changes happen within the same request/transaction,
-    # and it also prevents stale reads in tests that reuse a shared session across
-    # multiple requests.
+    # Flush any pending changes so the max(position) query sees the latest data.
+    # This is necessary because the test fixture uses a single shared session across
+    # requests, which can otherwise cause the max(position) query to see stale data.
+    # In production, where sessions are typically per-request, this also ensures that
+    # any concurrent modifications within the same request are visible to this query.
     session.flush()
-    session.expire_all()
     
     # Calculate max position for this experiment
     max_pos_result = session.exec(

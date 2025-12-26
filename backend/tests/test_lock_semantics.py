@@ -98,6 +98,15 @@ def test_locked_videos_maintain_position_in_feed(client: TestClient):
     # Middle videos (1, 2, 3) should be Videos 1, 2, 3 but potentially in different order
     middle_captions = {feed_videos[i]["caption"] for i in [1, 2, 3]}
     assert middle_captions == {"Video 1", "Video 2", "Video 3"}
+    
+    # Verify middle videos are actually randomized (not in default order)
+    # With the specific seed and participant ID, check if at least one is out of order
+    middle_order = [feed_videos[i]["caption"] for i in [1, 2, 3]]
+    default_order = ["Video 1", "Video 2", "Video 3"]
+    # The randomization should produce a different order than default for this seed/participant
+    # If order matches default, the test should be updated with known seed behavior
+    assert middle_order != default_order or len(middle_order) == 0, \
+        "Middle videos should be randomized, not in default order"
 
 
 def test_all_locked_videos_preserve_order(client: TestClient):
@@ -324,3 +333,76 @@ def test_preview_mode_uses_default_order(client: TestClient):
     assert data["videos"][0]["caption"] == "Video 0"
     assert data["videos"][1]["caption"] == "Video 1"
     assert data["videos"][2]["caption"] == "Video 2"
+
+
+def test_out_of_bounds_locked_video_position(client: TestClient):
+    """Test that locked video with out-of-bounds position is handled gracefully."""
+    token = register_and_login(client, email="outofbounds@test.com")
+    headers = auth_headers(token)
+
+    # Create project
+    response = client.post(
+        "/api/projects", json={"name": "Out of Bounds Project"}, headers=headers
+    )
+    assert response.status_code == 201
+    project = response.json()
+
+    # Create experiment
+    response = client.post(
+        f"/api/projects/{project['id']}/experiments",
+        json={"name": "Out of Bounds Experiment", "isActive": True},
+        headers=headers,
+    )
+    assert response.status_code == 201
+    experiment = response.json()
+
+    # Create a social account
+    response = client.post(
+        "/api/accounts",
+        json={
+            "username": "outofboundsuser",
+            "displayName": "Out of Bounds User",
+            "avatarUrl": "https://example.com/avatar.jpg",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    account = response.json()
+
+    # Create 3 videos at positions 0, 1, 2
+    videos = []
+    for i in range(3):
+        response = client.post(
+            f"/api/experiments/{experiment['id']}/videos",
+            json={
+                "filename": f"video{i}.mp4",
+                "caption": f"Video {i}",
+                "likes": 0,
+                "comments": 0,
+                "shares": 0,
+                "song": "Test Song",
+                "socialAccountId": account["id"],
+            },
+            headers=headers,
+        )
+        assert response.status_code == 201
+        videos.append(response.json())
+
+    # Lock video at position 2 and then manually update its position to 10 (out of bounds)
+    response = client.patch(
+        f"/api/videos/{videos[2]['id']}", 
+        json={"isLocked": True, "position": 10}, 
+        headers=headers
+    )
+    assert response.status_code == 200
+
+    # Get feed - should handle gracefully without crashing
+    response = client.get(f"/api/feed/{experiment['publicUrl']}?participantId=participant1")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should only have 2 videos (the out-of-bounds locked video is skipped)
+    # Videos 0 and 1 should be present
+    assert len(data["videos"]) == 2
+    captions = {v["caption"] for v in data["videos"]}
+    assert captions == {"Video 0", "Video 1"}
