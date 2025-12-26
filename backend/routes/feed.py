@@ -142,7 +142,7 @@ def get_public_feed(
     # 4. Apply randomization with lock preservation
     # Use participantId for deterministic per-participant randomization
     # If no participantId provided, use "preview" as default (no randomization)
-    effective_participant_id = participantId if participantId else "preview"
+    effective_participant_id = participantId if participantId is not None else "preview"
     randomization_seed = project.randomization_seed if project else 42
     
     ordered_videos = _randomize_videos_with_locks(
