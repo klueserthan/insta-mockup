@@ -29,6 +29,8 @@ export default function ReelsFeed() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Use -1 as a sentinel for "no previous video index" / "not yet initialized".
+  const lastVideoIndexRef = useRef<number>(-1);
 
   const { data: feedData, isLoading, error } = useQuery<FeedData>({
     queryKey: ['/api/feed', publicUrl, window.location.search],
@@ -59,8 +61,11 @@ export default function ReelsFeed() {
   }, [endScreenMessage, redirectUrl, queryKey, publicUrl, setLocation]);
 
   useEffect(() => {
+    // feedData?.videos?.length checks both existence and non-zero length,
+    // ensuring feedData.videos[0] is safe to access
     if (feedData?.videos?.length && !activeVideoId) {
       setActiveVideoId(feedData.videos[0].id);
+      lastVideoIndexRef.current = 0; // Initialize with first video index
     }
   }, [feedData, activeVideoId]);
 
@@ -167,10 +172,27 @@ export default function ReelsFeed() {
 
     const handleScroll = () => {
       const index = Math.round(container.scrollTop / container.clientHeight);
-      const video = feedData.videos[index];
-      if (video && video.id !== activeVideoId) {
-        setActiveVideoId(video.id);
-        logInteraction('view_start', video.id);
+      const newVideo = feedData.videos[index];
+      if (newVideo && newVideo.id !== activeVideoId) {
+        // Log navigation direction (FR-011 requirement)
+        const previousIndex = lastVideoIndexRef.current;
+        const previousVideo =
+          previousIndex >= 0 && previousIndex < feedData.videos.length
+            ? feedData.videos[previousIndex]
+            : undefined;
+
+        if (previousVideo && previousIndex !== index) {
+          const direction = index > previousIndex ? 'next' : 'previous';
+          // Log navigation as movement FROM the previous video TO the new video
+          logInteraction(direction, newVideo.id, {
+            fromVideoId: previousVideo.id,
+            toVideoId: newVideo.id,
+          });
+        }
+
+        setActiveVideoId(newVideo.id);
+        logInteraction('view_start', newVideo.id);
+        lastVideoIndexRef.current = index;
       }
     };
 
