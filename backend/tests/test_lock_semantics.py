@@ -95,18 +95,13 @@ def test_locked_videos_maintain_position_in_feed(client: TestClient):
     # Last video should be Video 4 (locked at position 4)
     assert feed_videos[4]["caption"] == "Video 4"
 
-    # Middle videos (1, 2, 3) should be Videos 1, 2, 3 but potentially in different order
-    middle_captions = {feed_videos[i]["caption"] for i in [1, 2, 3]}
-    assert middle_captions == {"Video 1", "Video 2", "Video 3"}
-    
-    # Verify middle videos are actually randomized (not in default order)
-    # With the specific seed and participant ID, check if at least one is out of order
+    # Middle videos (1, 2, 3) should be Videos 1, 2, 3 but in randomized order
+    # With seed=12345 and participant_id="participant1", the expected order is:
+    # ["Video 3", "Video 2", "Video 1"]
     middle_order = [feed_videos[i]["caption"] for i in [1, 2, 3]]
-    default_order = ["Video 1", "Video 2", "Video 3"]
-    # The randomization should produce a different order than default for this seed/participant
-    # If order matches default, the test should be updated with known seed behavior
-    assert middle_order != default_order, \
-        "Middle videos should be randomized, not in default order"
+    expected_middle_order = ["Video 3", "Video 2", "Video 1"]
+    assert middle_order == expected_middle_order, \
+        f"Expected middle order {expected_middle_order}, got {middle_order}"
 
 
 def test_all_locked_videos_preserve_order(client: TestClient):
@@ -254,11 +249,16 @@ def test_no_locked_videos_allows_full_randomization(client: TestClient):
     order1 = [v["caption"] for v in data1["videos"]]
     order2 = [v["caption"] for v in data2["videos"]]
 
-    # With different participant IDs and randomization, orders should likely differ
-    # (though there's a small chance they're the same by random chance)
-    # At minimum, verify all videos are present in both
-    assert set(order1) == {"Video 0", "Video 1", "Video 2", "Video 3"}
-    assert set(order2) == {"Video 0", "Video 1", "Video 2", "Video 3"}
+    # With seed=99999 and deterministic randomization, verify exact expected orders
+    # Participant1 should get: ["Video 0", "Video 2", "Video 3", "Video 1"]
+    # Participant2 should get: ["Video 3", "Video 0", "Video 2", "Video 1"]
+    expected_order1 = ["Video 0", "Video 2", "Video 3", "Video 1"]
+    expected_order2 = ["Video 3", "Video 0", "Video 2", "Video 1"]
+    
+    assert order1 == expected_order1, \
+        f"Participant1 expected {expected_order1}, got {order1}"
+    assert order2 == expected_order2, \
+        f"Participant2 expected {expected_order2}, got {order2}"
 
     # Test determinism: same participant should get same order on multiple requests
     response1_again = client.get(f"/api/feed/{experiment['publicUrl']}?participantId=participant1")
