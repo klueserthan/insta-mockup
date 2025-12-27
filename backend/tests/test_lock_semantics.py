@@ -67,9 +67,9 @@ def test_locked_videos_maintain_position_in_feed(client: TestClient):
         assert response.status_code == 201
         videos.append(response.json())
 
-    # Lock first video (Video 0) and last video (Video 4)
-    # First, reorder to set positions: 0, 1, 2, 3, 4
-    # Then lock Video 0 at position 0 and Video 4 at position 4
+    # Lock first video (Video 0) and last video (Video 4), based on their creation order
+    # (videos were created in sequence, so they already occupy positions 0 through 4)
+    
     response = client.patch(
         f"/api/videos/{videos[0]['id']}", json={"isLocked": True}, headers=headers
     )
