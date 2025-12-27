@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>US5 Results API Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 1200px; }
+        h1, h2 { color: #333; }
+        .endpoint { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .endpoint h3 { margin-top: 0; color: #555; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #45a049; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .success { color: green; }
+        .error { color: red; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>US5: Results Dashboard and CSV/JSON Export - API Demo</h1>
+    <p>This demonstrates the backend results endpoints working correctly.</p>
+    
+    <div class="endpoint">
+        <h3>1. GET /api/experiments/{experimentId}/results</h3>
+        <p>Returns summary of all participant sessions including timestamps and duration.</p>
+        <button onclick="testResultsSummary()">Test Results Summary</button>
+        <pre id="results-summary"></pre>
+    </div>
+    
+    <div class="endpoint">
+        <h3>2. POST /api/experiments/{experimentId}/results/export (CSV)</h3>
+        <p>Exports participant data as CSV with aggregated metrics per participant.</p>
+        <button onclick="testCSVExport()">Test CSV Export</button>
+        <div id="csv-export"></div>
+    </div>
+    
+    <div class="endpoint">
+        <h3>3. POST /api/experiments/{experimentId}/results/export (JSON)</h3>
+        <p>Exports full interaction details for each participant in JSON format.</p>
+        <button onclick="testJSONExport()">Test JSON Export</button>
+        <pre id="json-export"></pre>
+    </div>
+
+    <script>
+        const EXPERIMENT_ID = '066c91e0-c170-4aa3-930f-922f7c3db7c5';
+        let token = null;
+
+        // Login first
+        async function login() {
+            if (token) return token;
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: 'test@research.edu',
+                    password: 'password123'
+                })
+            });
+            const data = await response.json();
+            token = data.accessToken;
+            return token;
+        }
+
+        async function testResultsSummary() {
+            try {
+                await login();
+                const response = await fetch(`/api/experiments/${EXPERIMENT_ID}/results`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                document.getElementById('results-summary').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('results-summary').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+
+        async function testCSVExport() {
+            try {
+                await login();
+                const response = await fetch(`/api/experiments/${EXPERIMENT_ID}/results/export`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ format: 'csv' })
+                });
+                const csv = await response.text();
+                
+                // Parse CSV and display as table
+                const lines = csv.trim().split('\n');
+                const headers = lines[0].split(',');
+                const rows = lines.slice(1).map(line => line.split(','));
+                
+                let html = '<table><thead><tr>';
+                headers.forEach(h => { html += `<th>${h}</th>`; });
+                html += '</tr></thead><tbody>';
+                rows.forEach(row => {
+                    html += '<tr>';
+                    row.forEach(cell => { html += `<td>${cell}</td>`; });
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                
+                document.getElementById('csv-export').innerHTML = html;
+            } catch (error) {
+                document.getElementById('csv-export').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+
+        async function testJSONExport() {
+            try {
+                await login();
+                const response = await fetch(`/api/experiments/${EXPERIMENT_ID}/results/export`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ format: 'json' })
+                });
+                const data = await response.json();
+                document.getElementById('json-export').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('json-export').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
