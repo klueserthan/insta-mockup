@@ -105,7 +105,7 @@ def test_locked_videos_maintain_position_in_feed(client: TestClient):
     default_order = ["Video 1", "Video 2", "Video 3"]
     # The randomization should produce a different order than default for this seed/participant
     # If order matches default, the test should be updated with known seed behavior
-    assert middle_order != default_order or len(middle_order) == 0, \
+    assert middle_order != default_order, \
         "Middle videos should be randomized, not in default order"
 
 
