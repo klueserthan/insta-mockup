@@ -93,7 +93,7 @@ def _randomize_videos_with_locks(
         else:
             # Log warning if locked video position is out of bounds (data integrity issue)
             video, _ = video_tuple
-            experiment_id = video.experiment_id if videos else None
+            experiment_id = video.experiment_id
             logger.warning(
                 f"Locked video {video.id} in experiment {experiment_id} has position {position} "
                 f"which exceeds total video count {len(result)}. This indicates a data integrity "
