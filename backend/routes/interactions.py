@@ -1,6 +1,6 @@
 import csv
 import io
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -128,7 +128,7 @@ class ResultsSummary(CamelModel):
 class ExportRequest(CamelModel):
     """Request for exporting results."""
 
-    format: str  # "csv" or "json"
+    format: Literal["csv", "json"]  # Restrict to valid formats
     participant_ids: Optional[List[str]] = None
     include_interactions: bool = True
 
@@ -255,16 +255,20 @@ def _export_csv(session: Session, participants: List[Participant]) -> StreamingR
         total_duration_ms = 0
         total_interactions = len(interactions)
 
-        # Count interaction types
-        view_count = sum(1 for i in interactions if "view" in i.interaction_type.lower())
-        like_count = sum(1 for i in interactions if i.interaction_type == "like")
-        share_count = sum(
+        # Count interaction types with consistent exact matching
+        view_count = sum(
             1
             for i in interactions
-            if "share" in i.interaction_type.lower() or "reshare" in i.interaction_type.lower()
+            if i.interaction_type in ("view", "view_start", "view_end", "view_complete")
         )
-        follow_count = sum(1 for i in interactions if "follow" in i.interaction_type.lower())
-        scroll_count = sum(1 for i in interactions if "scroll" in i.interaction_type.lower())
+        like_count = sum(1 for i in interactions if i.interaction_type in ("like", "unlike"))
+        share_count = sum(
+            1 for i in interactions if i.interaction_type in ("share", "reshare", "repost")
+        )
+        follow_count = sum(1 for i in interactions if i.interaction_type in ("follow", "unfollow"))
+        scroll_count = sum(
+            1 for i in interactions if i.interaction_type in ("scroll_up", "scroll_down", "scroll")
+        )
 
         if interactions:
             started_at = interactions[0].timestamp.isoformat()

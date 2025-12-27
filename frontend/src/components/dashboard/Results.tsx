@@ -107,9 +107,11 @@ export function Results({ experiment, onBack }: ResultsProps) {
   // Calculate metrics
   const totalParticipants = sessions.length;
   const completedSessions = sessions.filter(s => s.endedAt).length;
-  const avgDuration = sessions.length > 0
+  const avgDurationMs = sessions.length > 0
     ? sessions.reduce((sum, s) => sum + (s.totalDurationMs || 0), 0) / sessions.length
     : 0;
+  const avgDurationSec = Math.round(avgDurationMs / 1000) || 0; // Guard against NaN
+  const selectedCount = selectedParticipants.size || 'All'; // Clearer display logic
 
   return (
     <div>
@@ -149,7 +151,7 @@ export function Results({ experiment, onBack }: ResultsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(avgDuration / 1000)}s
+              {avgDurationSec}s
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               per session
@@ -166,7 +168,7 @@ export function Results({ experiment, onBack }: ResultsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {selectedParticipants.size || 'All'}
+              {selectedCount}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               sessions selected
