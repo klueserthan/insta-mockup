@@ -32,3 +32,12 @@ def client_fixture(session: Session):
     client = TestClient(app)
     yield client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="auth_headers")
+def auth_headers_fixture(client: TestClient):
+    """Fixture that provides authentication headers for protected endpoints."""
+    from tests.helpers import auth_headers, register_and_login
+
+    token = register_and_login(client, email="test_auth_user@example.com")
+    return auth_headers(token)
