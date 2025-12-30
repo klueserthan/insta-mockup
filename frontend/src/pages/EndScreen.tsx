@@ -8,7 +8,6 @@ export default function EndScreen() {
   const searchParams = new URLSearchParams(window.location.search);
   const message = searchParams.get('message') || 'Thank you for participating in this study.';
   const redirectUrl = searchParams.get('redirect') || '';
-  const queryKey = searchParams.get('queryKey') || 'participantId';
   const originalParamsString = searchParams.get('_originalParams') || '';
   
   const [countdown, setCountdown] = useState(10);
