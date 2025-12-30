@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 from auth import get_current_researcher
 from database import get_session
 from models import CamelModel, Experiment, Interaction, Participant
+from routes.experiments import verify_experiment_ownership
 
 # We assume implicit participant tracking for now, or use the participantId passed in body.
 
@@ -165,9 +166,9 @@ def get_results_summary(
         ).all()
 
         for interaction in all_interactions:
-            interactions_by_participant.setdefault(
-                interaction.participant_uuid, []
-            ).append(interaction)
+            interactions_by_participant.setdefault(interaction.participant_uuid, []).append(
+                interaction
+            )
 
     for participant in participants:
         # Get first and last interaction timestamps from pre-fetched interactions
@@ -210,10 +211,11 @@ def export_results(
     current_researcher=Depends(get_current_researcher),
 ):
     """Export results as CSV or JSON (FR-015)."""
-    # Verify experiment exists
+    # Verify experiment exists and belongs to researcher
     experiment = session.get(Experiment, experiment_id)
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
+    verify_experiment_ownership(session, experiment_id, current_researcher.id)
 
     # Get participants (optionally filtered)
     participants_query = select(Participant).where(Participant.experiment_id == experiment_id)
@@ -334,6 +336,22 @@ def _export_json(
     """Generate JSON export with full per-participant, per-interaction details."""
     sessions = []
 
+    # Preload all interactions for the provided participants to avoid N+1 queries
+    participant_ids = [p.id for p in participants]
+    interactions_by_participant: Dict[UUID, List[Interaction]] = {}
+
+    if include_interactions and participant_ids:
+        all_interactions = session.exec(
+            select(Interaction)
+            .where(Interaction.participant_uuid.in_(participant_ids))
+            .order_by(Interaction.participant_uuid, Interaction.timestamp)
+        ).all()
+
+        for interaction in all_interactions:
+            interactions_by_participant.setdefault(interaction.participant_uuid, []).append(
+                interaction
+            )
+
     for participant in participants:
         session_data = {
             "participantId": participant.participant_id,
@@ -342,12 +360,8 @@ def _export_json(
         }
 
         if include_interactions:
-            # Get all interactions for this participant
-            interactions = session.exec(
-                select(Interaction)
-                .where(Interaction.participant_uuid == participant.id)
-                .order_by(Interaction.timestamp)
-            ).all()
+            # Get all interactions for this participant from the preloaded mapping
+            interactions = interactions_by_participant.get(participant.id, [])
 
             for interaction in interactions:
                 interaction_data = {
