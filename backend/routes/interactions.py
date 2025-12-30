@@ -254,14 +254,25 @@ def _export_csv(session: Session, participants: List[Participant]) -> StreamingR
     writer.writerow(headers)
 
     # Write data for each participant
-    for participant in participants:
-        # Get all interactions for this participant
-        interactions = session.exec(
+    # Preload all interactions for the provided participants to avoid N+1 queries.
+    participant_ids = [p.id for p in participants]
+    interactions_by_participant: Dict[UUID, List[Interaction]] = {}
+
+    if participant_ids:
+        all_interactions = session.exec(
             select(Interaction)
-            .where(Interaction.participant_uuid == participant.id)
-            .order_by(Interaction.timestamp)
+            .where(Interaction.participant_uuid.in_(participant_ids))
+            .order_by(Interaction.participant_uuid, Interaction.timestamp)
         ).all()
 
+        for interaction in all_interactions:
+            interactions_by_participant.setdefault(interaction.participant_uuid, []).append(
+                interaction
+            )
+
+    for participant in participants:
+        # Get all interactions for this participant from the preloaded mapping
+        interactions = interactions_by_participant.get(participant.id, [])
         started_at = ""
         ended_at = ""
         total_duration_ms = 0
