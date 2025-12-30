@@ -15,18 +15,24 @@ export default function EndScreen() {
   const finalRedirectUrl = useMemo(() => {
     if (!redirectUrl) return '';
     
-    // Start with the redirect base URL
-    const redirectBase = new URL(redirectUrl);
-    
-    // Forward original parameters from the feed URL (US4: preserve all tracking params)
-    if (originalParamsString) {
-      const originalParams = new URLSearchParams(originalParamsString);
-      originalParams.forEach((value, key) => {
-        redirectBase.searchParams.set(key, value);
-      });
+    try {
+      // Start with the redirect base URL
+      const redirectBase = new URL(redirectUrl);
+      
+      // Forward original parameters from the feed URL (US4: preserve all tracking params)
+      if (originalParamsString) {
+        const originalParams = new URLSearchParams(originalParamsString);
+        originalParams.forEach((value, key) => {
+          redirectBase.searchParams.set(key, value);
+        });
+      }
+      
+      return redirectBase.toString();
+    } catch (error) {
+      // Handle invalid redirect URL gracefully
+      console.error('Invalid redirect URL:', redirectUrl, error);
+      return '';
     }
-    
-    return redirectBase.toString();
   }, [redirectUrl, originalParamsString]);
 
   useEffect(() => {

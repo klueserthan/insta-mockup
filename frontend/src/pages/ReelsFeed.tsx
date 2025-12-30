@@ -63,8 +63,10 @@ export default function ReelsFeed() {
     endScreenParams.set('queryKey', queryKey);
     
     // Store original query string to forward to redirect URL
-    if (originalQueryString) {
-      endScreenParams.set('_originalParams', originalQueryString.substring(1)); // Remove leading '?'
+    // Check length after substring to avoid setting empty _originalParams
+    const paramsToForward = originalQueryString.substring(1);
+    if (paramsToForward) {
+      endScreenParams.set('_originalParams', paramsToForward);
     }
     
     setLocation(`/end/${publicUrl}?${endScreenParams.toString()}`);

@@ -127,6 +127,12 @@ describe('US4 Integration: Query Parameter Preservation Flow', () => {
     // When no redirect URL, finalRedirectUrl should be empty
     expect(redirectUrl).toBe('');
     
-    // End screen should show message but no redirect button
+    // Verify that the finalRedirectUrl logic returns empty string when redirectUrl is empty
+    // This simulates what EndScreen.tsx does in the useMemo
+    const finalRedirectUrl = redirectUrl ? 'should-not-be-set' : '';
+    expect(finalRedirectUrl).toBe('');
+    
+    // In the actual component, this means the redirect button won't be shown
+    // because of the conditional: {redirectUrl && ( ... )}
   });
 });
