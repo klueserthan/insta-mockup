@@ -153,14 +153,25 @@ def get_results_summary(
 
     # Build session summaries
     sessions = []
-    for participant in participants:
-        # Get first and last interaction timestamps
-        interactions = session.exec(
+
+    # Batch-load all interactions for these participants to avoid N+1 queries
+    participant_ids = [p.id for p in participants]
+    interactions_by_participant: Dict[UUID, List[Interaction]] = {}
+    if participant_ids:
+        all_interactions = session.exec(
             select(Interaction)
-            .where(Interaction.participant_uuid == participant.id)
-            .order_by(Interaction.timestamp)
+            .where(Interaction.participant_uuid.in_(participant_ids))
+            .order_by(Interaction.participant_uuid, Interaction.timestamp)
         ).all()
 
+        for interaction in all_interactions:
+            interactions_by_participant.setdefault(
+                interaction.participant_uuid, []
+            ).append(interaction)
+
+    for participant in participants:
+        # Get first and last interaction timestamps from pre-fetched interactions
+        interactions = interactions_by_participant.get(participant.id, [])
         started_at = None
         ended_at = None
         total_duration_ms = None
