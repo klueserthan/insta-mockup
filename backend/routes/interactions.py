@@ -144,6 +144,7 @@ def get_results_summary(
     experiment = session.get(Experiment, experiment_id)
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
+    verify_experiment_ownership(session, experiment_id, current_researcher.id)
 
     # Get all participants for this experiment
     participants = session.exec(
