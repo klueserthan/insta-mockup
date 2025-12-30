@@ -111,7 +111,7 @@ export function Results({ experiment, onBack }: ResultsProps) {
     ? sessions.reduce((sum, s) => sum + (s.totalDurationMs || 0), 0) / sessions.length
     : 0;
   const avgDurationSec = Math.round(avgDurationMs / 1000) || 0; // Guard against NaN
-  const selectedCount = selectedParticipants.size || 'All'; // Clearer display logic
+  const selectedCount = selectedParticipants.size > 0 ? selectedParticipants.size : '0 (all participants will be exported)';
 
   return (
     <div>
