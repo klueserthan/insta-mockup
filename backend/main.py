@@ -1,9 +1,12 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -34,6 +37,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Insta Mockup API", lifespan=lifespan)
+
+# Configure rate limiting (H1)
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure Session Middleware
 # Import SECRET_KEY from config.py to ensure consistency

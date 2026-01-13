@@ -5,13 +5,18 @@ from datetime import datetime
 from typing import Optional, Sequence
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlmodel import Session, select
 
 from database import get_session
 from models import Experiment, Project, SocialAccount, Video, VideoBase
 
 logger = logging.getLogger(__name__)
+
+# Rate limiter for public feed endpoints (H1)
+limiter = Limiter(key_func=get_remote_address)
 
 
 class FeedVideoResponse(VideoBase):
@@ -123,7 +128,9 @@ def _randomize_videos_with_locks(
 
 
 @router.get("/api/feed/{public_url}")
+@limiter.limit("60/minute")  # H1: Rate limit public feed access
 def get_public_feed(
+    request: Request,
     public_url: str,
     participantId: Optional[str] = None,  # noqa: N803 - camelCase for API consistency
     _originalParams: Optional[str] = None,  # noqa: N803 - original params passed through redirects

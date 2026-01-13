@@ -3,8 +3,10 @@ import io
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlmodel import Session, select
 
 from auth import get_current_researcher
@@ -18,6 +20,9 @@ from models import (
     ResultsSummary,
 )
 from routes.experiments import verify_experiment_ownership
+
+# Rate limiter for public interaction endpoints (H1)
+limiter = Limiter(key_func=get_remote_address)
 
 # We assume implicit participant tracking for now, or use the participantId passed in body.
 
@@ -34,7 +39,10 @@ router = APIRouter()
 
 
 @router.post("/api/interactions", status_code=201)
-def log_interaction(interaction: InteractionCreate, session: Session = Depends(get_session)):
+@limiter.limit("120/minute")  # H1: Higher limit for interaction logging
+def log_interaction(
+    request: Request, interaction: InteractionCreate, session: Session = Depends(get_session)
+):
     # 1. Ensure participant exists or find their ID
     # In the current model, Participant is linked to experiment.
     # We first try to find the participant by their ID string and experiment ID
@@ -79,7 +87,8 @@ class Heartbeat(CamelModel):
 
 
 @router.post("/api/interactions/heartbeat", status_code=200)
-def heartbeat(data: Heartbeat, session: Session = Depends(get_session)):
+@limiter.limit("300/minute")  # H1: Very high limit for heartbeats (5/second)
+def heartbeat(request: Request, data: Heartbeat, session: Session = Depends(get_session)):
     from datetime import datetime
 
     # Try to find existing session

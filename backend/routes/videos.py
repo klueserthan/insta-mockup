@@ -172,25 +172,35 @@ def delete_video(
     session.commit()
 
 
-@router.post("/api/videos/bulk-delete", status_code=204)
+@router.post("/api/videos/bulk-delete", status_code=207)  # H3: Multi-Status response
 def bulk_delete_videos(
     video_ids: List[UUID] = Body(..., embed=True, alias="videoIds"),
     session: Session = Depends(get_session),
     current_user: Researcher = Depends(get_current_researcher),
 ):
+    """
+    Bulk delete videos with detailed error reporting.
+    Returns 207 Multi-Status with lists of deleted and failed video IDs.
+    """
+    results = {"deleted": [], "failed": []}
+
     for vid in video_ids:
-        db_video = session.get(Video, vid)
-        if db_video:
-            # Check ownership for each? Or assume if user has rights they can delete.
-            # Efficient way: check all belong to experiments owned by user.
-            # Lazy way calling verify for each
-            try:
-                verify_video_ownership(session, vid, current_user.id)
-                session.delete(db_video)
-            except HTTPException:
-                pass  # Ignore if not authorized or not found? Or fail?
-                # Original code just promised all `storage.deleteVideo`.
+        try:
+            db_video = session.get(Video, vid)
+            if not db_video:
+                results["failed"].append({"videoId": str(vid), "error": "Video not found"})
+                continue
+
+            # Verify ownership - will raise HTTPException if unauthorized
+            verify_video_ownership(session, vid, current_user.id)
+            session.delete(db_video)
+            results["deleted"].append(str(vid))
+
+        except HTTPException as e:
+            results["failed"].append({"videoId": str(vid), "error": e.detail})
+
     session.commit()
+    return results
 
 
 class VideoReorderRequest(CamelModel):
