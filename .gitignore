@@ -58,3 +58,6 @@ rocket_test.py
 
 __pycache__/
 *.egg-info/
+
+# PIDs
+.pids/
