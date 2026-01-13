@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 
 import dotenv
 
-dotenv.load_dotenv()
+# Load .env from backend directory
+env_path = Path(__file__).parent / '.env'
+dotenv.load_dotenv(env_path)
 
 # Base directory of the application
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

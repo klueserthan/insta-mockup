@@ -14,8 +14,7 @@ BACKEND_PORT ?= 8000
 FRONTEND_HOST := 0.0.0.0
 FRONTEND_PORT ?= 5173
 
-# Environment
-ROCKET_API_KEY ?= dummy
+# Environment variables loaded from backend/.env by python-dotenv
 
 .PHONY: setup setup-backend setup-frontend start start-backend start-frontend stop stop-backend stop-frontend status logs backend frontend open test backend-tests frontend-tests typecheck clean
 
@@ -39,7 +38,7 @@ start-backend:
 	@mkdir -p $(LOG_DIR) $(PID_DIR)
 	@echo "Starting backend on $(BACKEND_HOST):$(BACKEND_PORT)..."
 	@cd $(BACKEND_DIR) && \
-		ROCKET_API_KEY=$(ROCKET_API_KEY) nohup uv run uvicorn main:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT) > $(CURDIR)/$(LOG_DIR)/backend.log 2>&1 & echo $$! > $(CURDIR)/$(PID_DIR)/backend.pid
+		nohup uv run uvicorn main:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT) > $(CURDIR)/$(LOG_DIR)/backend.log 2>&1 & echo $$! > $(CURDIR)/$(PID_DIR)/backend.pid
 	@sleep 1
 	@echo "Backend PID: $$(cat $(PID_DIR)/backend.pid 2>/dev/null || echo 'n/a')"
 
@@ -76,7 +75,7 @@ logs:
 	@tail -n +1 -f $(LOG_DIR)/backend.log $(LOG_DIR)/frontend.log
 
 backend:
-	@cd $(BACKEND_DIR) && ROCKET_API_KEY=$(ROCKET_API_KEY) uv run uvicorn main:app --host $(BACKEND_HOST) --port $(BACKEND_PORT)
+	@cd $(BACKEND_DIR) && uv run uvicorn main:app --host $(BACKEND_HOST) --port $(BACKEND_PORT)
 
 frontend:
 	@cd $(FRONTEND_DIR) && npm run dev -- --host $(FRONTEND_HOST) --port $(FRONTEND_PORT)
@@ -87,13 +86,13 @@ open:
 test: backend-tests frontend-tests
 
 backend-tests:
-	@cd $(BACKEND_DIR) && ROCKET_API_KEY=$(ROCKET_API_KEY) uv run pytest -q
+	@cd $(BACKEND_DIR) && uv run pytest -q
 
 frontend-tests:
 	@cd $(FRONTEND_DIR) && npm test
 
 typecheck:
-	@cd $(BACKEND_DIR) && ROCKET_API_KEY=$(ROCKET_API_KEY) uv run pyright .
+	@cd $(BACKEND_DIR) && uv run pyright .
 	@cd $(FRONTEND_DIR) && npm run check
 
 clean:
