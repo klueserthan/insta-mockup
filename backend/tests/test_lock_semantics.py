@@ -8,9 +8,9 @@ from tests.helpers import auth_headers, register_and_login
 def test_locked_videos_maintain_position_in_feed(client: TestClient):
     """
     T031: Test that locked videos maintain their positions while unlocked videos are randomized.
-    
-    Given an experiment with multiple media items, when the researcher locks one item to the 
-    first position and one item to the last position and saves the configuration, then any 
+
+    Given an experiment with multiple media items, when the researcher locks one item to the
+    first position and one item to the last position and saves the configuration, then any
     subsequent feed session for that experiment shows those items first and last respectively,
     with remaining items randomized in between.
     """
@@ -69,7 +69,7 @@ def test_locked_videos_maintain_position_in_feed(client: TestClient):
 
     # Lock first video (Video 0) and last video (Video 4), based on their creation order
     # (videos were created in sequence, so they already occupy positions 0 through 4)
-    
+
     response = client.patch(
         f"/api/videos/{videos[0]['id']}", json={"isLocked": True}, headers=headers
     )
@@ -100,8 +100,9 @@ def test_locked_videos_maintain_position_in_feed(client: TestClient):
     # ["Video 3", "Video 2", "Video 1"]
     middle_order = [feed_videos[i]["caption"] for i in [1, 2, 3]]
     expected_middle_order = ["Video 3", "Video 2", "Video 1"]
-    assert middle_order == expected_middle_order, \
+    assert middle_order == expected_middle_order, (
         f"Expected middle order {expected_middle_order}, got {middle_order}"
+    )
 
 
 def test_all_locked_videos_preserve_order(client: TestClient):
@@ -110,9 +111,7 @@ def test_all_locked_videos_preserve_order(client: TestClient):
     headers = auth_headers(token)
 
     # Create project
-    response = client.post(
-        "/api/projects", json={"name": "All Locked Project"}, headers=headers
-    )
+    response = client.post("/api/projects", json={"name": "All Locked Project"}, headers=headers)
     assert response.status_code == 201
     project = response.json()
 
@@ -254,20 +253,20 @@ def test_no_locked_videos_allows_full_randomization(client: TestClient):
     # Participant2 should get: ["Video 3", "Video 0", "Video 2", "Video 1"]
     expected_order1 = ["Video 0", "Video 2", "Video 3", "Video 1"]
     expected_order2 = ["Video 3", "Video 0", "Video 2", "Video 1"]
-    
-    assert order1 == expected_order1, \
-        f"Participant1 expected {expected_order1}, got {order1}"
-    assert order2 == expected_order2, \
-        f"Participant2 expected {expected_order2}, got {order2}"
+
+    assert order1 == expected_order1, f"Participant1 expected {expected_order1}, got {order1}"
+    assert order2 == expected_order2, f"Participant2 expected {expected_order2}, got {order2}"
 
     # Test determinism: same participant should get same order on multiple requests
     response1_again = client.get(f"/api/feed/{experiment['publicUrl']}?participantId=participant1")
     assert response1_again.status_code == 200
     data1_again = response1_again.json()
     order1_again = [v["caption"] for v in data1_again["videos"]]
-    
+
     # Verify deterministic behavior - same participant gets identical order
-    assert order1 == order1_again, "Same participant should receive identical video order across requests"
+    assert order1 == order1_again, (
+        "Same participant should receive identical video order across requests"
+    )
 
 
 def test_preview_mode_uses_default_order(client: TestClient):
@@ -276,9 +275,7 @@ def test_preview_mode_uses_default_order(client: TestClient):
     headers = auth_headers(token)
 
     # Create project
-    response = client.post(
-        "/api/projects", json={"name": "Preview Project"}, headers=headers
-    )
+    response = client.post("/api/projects", json={"name": "Preview Project"}, headers=headers)
     assert response.status_code == 201
     project = response.json()
 
@@ -341,9 +338,7 @@ def test_out_of_bounds_locked_video_position(client: TestClient):
     headers = auth_headers(token)
 
     # Create project
-    response = client.post(
-        "/api/projects", json={"name": "Out of Bounds Project"}, headers=headers
-    )
+    response = client.post("/api/projects", json={"name": "Out of Bounds Project"}, headers=headers)
     assert response.status_code == 201
     project = response.json()
 
@@ -390,9 +385,7 @@ def test_out_of_bounds_locked_video_position(client: TestClient):
 
     # Lock video at position 2 and then manually update its position to 10 (out of bounds)
     response = client.patch(
-        f"/api/videos/{videos[2]['id']}", 
-        json={"isLocked": True, "position": 10}, 
-        headers=headers
+        f"/api/videos/{videos[2]['id']}", json={"isLocked": True, "position": 10}, headers=headers
     )
     assert response.status_code == 200
 

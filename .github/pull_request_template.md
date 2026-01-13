@@ -28,7 +28,8 @@ Before requesting review, I have:
 - [ ] Set PR base to `r001-instagram-mockup-feed` (verified below title)
 
 ### Code Quality
-- [ ] Pre-commit workflow is green or findings are addressed (CI runs ruff format/check, pyright, bandit, hygiene hooks; local `pre-commit run --all-files` optional for quick fixes)
+- [ ] Ran `cd backend && uv run ruff format .` to auto-format code before committing
+- [ ] Pre-commit workflow is green or findings are addressed (CI runs ruff format/check, pyright, bandit, hygiene hooks)
 
 ### Testing
 - [ ] Frontend changes: `cd frontend && npm test`

@@ -15,7 +15,16 @@ from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from models import Experiment, Interaction, Participant, Project, Researcher, SocialAccount, Video, ViewSession
+from models import (
+    Experiment,
+    Interaction,
+    Participant,
+    Project,
+    Researcher,
+    SocialAccount,
+    Video,
+    ViewSession,
+)
 
 # Test fixture: base timestamp for consistent test data
 TEST_BASE_TIMESTAMP = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
@@ -111,7 +120,9 @@ def test_t019_feed_payload_includes_all_settings(client: TestClient, session: Se
         redirect_url="https://example.com/survey",
         end_screen_message="Thanks!",
     )
-    experiment = _create_experiment(session, project.id, persist_timer=True, show_unmute_prompt=False)
+    experiment = _create_experiment(
+        session, project.id, persist_timer=True, show_unmute_prompt=False
+    )
     account = _create_account(session, researcher.id)
     video1 = _create_video(session, experiment.id, account.id, position=0)
     video2 = _create_video(session, experiment.id, account.id, position=1)
@@ -207,17 +218,41 @@ def test_t024_interaction_logging(client: TestClient, session: Session):
     # Test various interaction types as per FR-011
     # Timestamps use TEST_BASE_TIMESTAMP to clearly indicate test data
     from datetime import timedelta
-    
+
     interaction_types = [
         ("view_start", {"timestamp": TEST_BASE_TIMESTAMP.isoformat()}),  # User lands on video
-        ("next", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=5)).isoformat()}),  # User scrolls to next video
-        ("view_end", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=5)).isoformat()}),  # Previous video ends
-        ("previous", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=10)).isoformat()}),  # User scrolls back
-        ("like", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=15)).isoformat()}),  # User likes current video
-        ("unlike", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=20)).isoformat()}),  # User unlikes
-        ("follow", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=25)).isoformat()}),  # User follows account
-        ("unfollow", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=30)).isoformat()}),  # User unfollows
-        ("share", {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=35)).isoformat()}),  # User opens share menu
+        (
+            "next",
+            {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=5)).isoformat()},
+        ),  # User scrolls to next video
+        (
+            "view_end",
+            {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=5)).isoformat()},
+        ),  # Previous video ends
+        (
+            "previous",
+            {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=10)).isoformat()},
+        ),  # User scrolls back
+        (
+            "like",
+            {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=15)).isoformat()},
+        ),  # User likes current video
+        (
+            "unlike",
+            {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=20)).isoformat()},
+        ),  # User unlikes
+        (
+            "follow",
+            {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=25)).isoformat()},
+        ),  # User follows account
+        (
+            "unfollow",
+            {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=30)).isoformat()},
+        ),  # User unfollows
+        (
+            "share",
+            {"timestamp": (TEST_BASE_TIMESTAMP + timedelta(seconds=35)).isoformat()},
+        ),  # User opens share menu
     ]
 
     for interaction_type, data in interaction_types:
@@ -337,7 +372,7 @@ def test_inactive_experiment_returns_403(client: TestClient, session: Session):
 def test_session_resume_same_participant_id(client: TestClient, session: Session):
     """
     Verify that the same participant can access the feed multiple times.
-    
+
     Frontend uses localStorage to track timer state keyed by experimentId + participantId.
     This test verifies backend allows repeated access with same participantId.
     """

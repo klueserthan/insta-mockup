@@ -80,7 +80,7 @@ def create_video(
     current_user: Researcher = Depends(get_current_researcher),
 ):
     """Create a new video for an experiment.
-    
+
     Videos are assigned sequential positions starting from 0. The position determines
     the video's default ordering in the feed (before randomization with lock preservation).
     """
@@ -92,12 +92,12 @@ def create_video(
     # In production, where sessions are typically per-request, this also ensures that
     # any concurrent modifications within the same request are visible to this query.
     session.flush()
-    
+
     # Calculate max position for this experiment
     max_pos_result = session.exec(
         select(func.max(Video.position)).where(Video.experiment_id == experiment_id)
     ).one()
-    
+
     # .one() returns None if no rows exist, or the max value if rows exist
     max_pos = max_pos_result if max_pos_result is not None else -1
 
@@ -132,7 +132,7 @@ def update_video(
     current_user: Researcher = Depends(get_current_researcher),
 ):
     """Update a video's metadata.
-    
+
     Can update any field including caption, likes, comments, shares, position, and isLocked.
     """
     db_video = verify_video_ownership(session, video_id, current_user.id)
