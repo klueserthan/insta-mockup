@@ -48,6 +48,18 @@ export function Results({ experiment, onBack }: ResultsProps) {
     setSelectedParticipants(newSelection);
   };
 
+  // Helper function to download blob as file
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
@@ -69,6 +81,7 @@ export function Results({ experiment, onBack }: ResultsProps) {
 
       // Download the file
       const blob = await res.blob();
+      const filename = `results-${experiment.id}.${exportFormat}`;
       
       // Parse the response to get actual count for better user feedback
       let actualCount = 0;
@@ -79,25 +92,11 @@ export function Results({ experiment, onBack }: ResultsProps) {
           actualCount = jsonData.sessions?.length || 0;
           // Re-create blob for download since we consumed it
           const newBlob = new Blob([text], { type: blob.type });
-          const url = window.URL.createObjectURL(newBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `results-${experiment.id}.${exportFormat}`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+          downloadBlob(newBlob, filename);
         } catch {
           // Fallback if parsing fails
           actualCount = selectedParticipants.size > 0 ? selectedParticipants.size : results?.sessions.length || 0;
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `results-${experiment.id}.${exportFormat}`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+          downloadBlob(blob, filename);
         }
       } else {
         // For CSV, count lines (subtract 1 for header)
@@ -107,25 +106,11 @@ export function Results({ experiment, onBack }: ResultsProps) {
           actualCount = Math.max(0, lines.length - 1);
           // Re-create blob for download
           const newBlob = new Blob([text], { type: blob.type });
-          const url = window.URL.createObjectURL(newBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `results-${experiment.id}.${exportFormat}`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+          downloadBlob(newBlob, filename);
         } catch {
           // Fallback if parsing fails
           actualCount = selectedParticipants.size > 0 ? selectedParticipants.size : results?.sessions.length || 0;
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `results-${experiment.id}.${exportFormat}`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+          downloadBlob(blob, filename);
         }
       }
 
@@ -162,7 +147,7 @@ export function Results({ experiment, onBack }: ResultsProps) {
     ? sessions.reduce((sum, s) => sum + (s.totalDurationMs || 0), 0) / sessions.length
     : 0;
   const avgDurationSec = Math.round(avgDurationMs / 1000) || 0; // Guard against NaN
-  const selectedCount = selectedParticipants.size > 0 ? selectedParticipants.size : '0 (all participants will be exported)';
+  const selectedCount = selectedParticipants.size;
 
   return (
     <div>
@@ -222,7 +207,7 @@ export function Results({ experiment, onBack }: ResultsProps) {
               {selectedCount}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              sessions selected
+              {selectedCount === 0 ? 'All participants will be exported' : 'selected'}
             </p>
           </CardContent>
         </Card>

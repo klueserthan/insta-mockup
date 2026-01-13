@@ -232,7 +232,8 @@ def _export_csv(session: Session, participants: List[Participant]) -> StreamingR
         "likeCount",
         "shareCount",
         "followCount",
-        "scrollCount",
+        "commentCount",
+        "navigationCount",
     ]
     writer.writerow(headers)
 
@@ -262,19 +263,19 @@ def _export_csv(session: Session, participants: List[Participant]) -> StreamingR
         total_duration_ms = 0
         total_interactions = len(interactions)
 
-        # Count interaction types with consistent exact matching
+        # Count interaction types based on actual types logged by frontend
+        # Frontend logs: view_start, next, previous, like, unlike, follow, unfollow, share, comment, heartbeat
         view_count = sum(
             1
             for i in interactions
-            if i.interaction_type in ("view", "view_start", "view_end", "view_complete")
+            if i.interaction_type in ("view_start", "view", "view_end", "view_complete")
         )
         like_count = sum(1 for i in interactions if i.interaction_type in ("like", "unlike"))
-        share_count = sum(
-            1 for i in interactions if i.interaction_type in ("share", "reshare", "repost")
-        )
+        share_count = sum(1 for i in interactions if i.interaction_type == "share")
         follow_count = sum(1 for i in interactions if i.interaction_type in ("follow", "unfollow"))
-        scroll_count = sum(
-            1 for i in interactions if i.interaction_type in ("scroll_up", "scroll_down", "scroll")
+        comment_count = sum(1 for i in interactions if i.interaction_type == "comment")
+        navigation_count = sum(
+            1 for i in interactions if i.interaction_type in ("next", "previous")
         )
 
         if interactions:
@@ -299,7 +300,8 @@ def _export_csv(session: Session, participants: List[Participant]) -> StreamingR
             like_count,
             share_count,
             follow_count,
-            scroll_count,
+            comment_count,
+            navigation_count,
         ]
         writer.writerow(row)
 

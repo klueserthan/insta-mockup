@@ -148,7 +148,7 @@ def test_get_results_summary_with_participants(client: TestClient, session: Sess
     interaction1 = Interaction(
         participant_uuid=participant1.id,
         video_id=video.id,
-        interaction_type="view",
+        interaction_type="view_start",
         interaction_data={"duration": 5},
         timestamp=datetime.utcnow(),
     )
@@ -159,7 +159,7 @@ def test_get_results_summary_with_participants(client: TestClient, session: Sess
     interaction2 = Interaction(
         participant_uuid=participant2.id,
         video_id=video.id,
-        interaction_type="view",
+        interaction_type="view_start",
         interaction_data={"duration": 10},
         timestamp=datetime.utcnow() - timedelta(minutes=30),
     )
@@ -196,12 +196,12 @@ def test_export_csv_format(client: TestClient, session: Session):
     session.add(participant)
     session.commit()
 
-    # Add multiple interactions
+    # Add multiple interactions with actual frontend types
     interactions = [
         Interaction(
             participant_uuid=participant.id,
             video_id=video.id,
-            interaction_type="view",
+            interaction_type="view_start",
             interaction_data={"duration": 5},
             timestamp=datetime.utcnow(),
         ),
@@ -258,7 +258,7 @@ def test_export_csv_selected_participants(client: TestClient, session: Session):
         interaction = Interaction(
             participant_uuid=participant.id,
             video_id=video.id,
-            interaction_type="view",
+            interaction_type="view_start",
             interaction_data={"duration": 5},
         )
         session.add(interaction)
@@ -302,7 +302,7 @@ def test_export_json_format(client: TestClient, session: Session):
         Interaction(
             participant_uuid=participant.id,
             video_id=video.id,
-            interaction_type="view",
+            interaction_type="view_start",
             interaction_data={"duration": 5},
             timestamp=datetime.utcnow(),
         ),
@@ -316,8 +316,8 @@ def test_export_json_format(client: TestClient, session: Session):
         Interaction(
             participant_uuid=participant.id,
             video_id=video.id,
-            interaction_type="scroll_up",
-            interaction_data={"direction": "up"},
+            interaction_type="next",
+            interaction_data={"direction": "next"},
             timestamp=datetime.utcnow() + timedelta(seconds=5),
         ),
     ]
@@ -347,9 +347,9 @@ def test_export_json_format(client: TestClient, session: Session):
 
     # Check interaction details
     interaction_types = [i["interactionType"] for i in session_data["interactions"]]
-    assert "view" in interaction_types
+    assert "view_start" in interaction_types
     assert "like" in interaction_types
-    assert "scroll_up" in interaction_types
+    assert "next" in interaction_types
 
 
 def test_export_json_selected_participants(client: TestClient, session: Session):
@@ -371,7 +371,7 @@ def test_export_json_selected_participants(client: TestClient, session: Session)
         interaction = Interaction(
             participant_uuid=participant.id,
             video_id=video.id,
-            interaction_type="view",
+            interaction_type="view_start",
             interaction_data={"duration": 5},
         )
         session.add(interaction)
@@ -479,3 +479,60 @@ def test_results_ownership_verification(client: TestClient, session: Session):
         json={"format": "csv"},
     )
     assert response.status_code == 403
+
+
+def test_export_json_without_interactions(client: TestClient, session: Session):
+    """Test JSON export with includeInteractions=False excludes interaction details."""
+    headers, researcher = _setup_authenticated_researcher(client, session, "json_no_interactions")
+    project = _create_project(session, researcher.id)
+    experiment = _create_experiment(session, project.id)
+    account = _create_social_account(session, researcher.id)
+    video = _create_video(session, experiment.id, account.id)
+
+    # Create participant with interactions
+    participant = Participant(
+        experiment_id=experiment.id, participant_id="p1", created_at=datetime.utcnow()
+    )
+    session.add(participant)
+    session.commit()
+
+    # Add interactions
+    interactions = [
+        Interaction(
+            participant_uuid=participant.id,
+            video_id=video.id,
+            interaction_type="view_start",
+            interaction_data={},
+            timestamp=datetime.utcnow(),
+        ),
+        Interaction(
+            participant_uuid=participant.id,
+            video_id=video.id,
+            interaction_type="like",
+            interaction_data={},
+            timestamp=datetime.utcnow() + timedelta(seconds=2),
+        ),
+    ]
+    for interaction in interactions:
+        session.add(interaction)
+    session.commit()
+
+    # Request JSON export without interactions
+    response = client.post(
+        f"/api/experiments/{experiment.id}/results/export",
+        headers=headers,
+        json={"format": "json", "includeInteractions": False},
+    )
+    assert response.status_code == 200
+
+    # Parse JSON
+    data = response.json()
+    assert "sessions" in data
+    assert len(data["sessions"]) == 1
+
+    # Check that interactions array is empty
+    session_data = data["sessions"][0]
+    assert "participantId" in session_data
+    assert session_data["participantId"] == "p1"
+    assert "interactions" in session_data
+    assert session_data["interactions"] == []
