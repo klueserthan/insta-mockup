@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { 
     Trash2, Play, Pause, GripVertical, Plus, Upload, Loader2, Sparkles, CheckCircle2, 
     MoreVertical, X, Image as ImageIcon, XCircle, Share2, ExternalLink, Eye, 
-    FolderOpen, Settings, ArrowLeft, Pencil, Heart, MessageCircle, Send, Lock, Unlock, Save 
+    FolderOpen, Settings, ArrowLeft, Pencil, Heart, MessageCircle, Send, Lock, Unlock, Save, BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -174,9 +174,10 @@ interface MediaManagerProps {
   experiment: Experiment;
   videos: Video[];
   onBack: () => void;
+  onViewResults?: () => void;
 }
 
-export function MediaManager({ project, experiment, videos, onBack }: MediaManagerProps) {
+export function MediaManager({ project, experiment, videos, onBack, onViewResults }: MediaManagerProps) {
   const { toast } = useToast();
   const [editingExperiment, setEditingExperiment] = useState<Experiment | null>(null);
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
@@ -359,6 +360,11 @@ export function MediaManager({ project, experiment, videos, onBack }: MediaManag
           <p className="text-muted-foreground text-sm">{project.name}</p>
         </div>
         <div className="flex gap-2">
+          {onViewResults && (
+            <Button variant="outline" onClick={onViewResults} className="gap-2" data-testid="button-view-results">
+              <BarChart3 size={16} /> Results
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => window.open(`/feed/${experiment.publicUrl}?${project.queryKey}=preview`, '_blank')} className="gap-2" data-testid="button-preview-feed">
             <Eye size={16} /> Preview
           </Button>

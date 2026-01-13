@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import type { Project, Experiment, Video } from '@/lib/api-types';
 import { ProjectList } from '@/components/dashboard/ProjectList';
 import { FeedList } from '@/components/dashboard/FeedList';
 import { MediaManager } from '@/components/dashboard/MediaManager';
+import { Results } from '@/components/dashboard/Results';
+
+type ViewMode = 'media' | 'results';
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -17,6 +20,12 @@ export default function Dashboard() {
   
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('media');
+
+  // Reset viewMode to 'media' when changing experiments
+  useEffect(() => {
+    setViewMode('media');
+  }, [selectedExperimentId]);
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
@@ -104,12 +113,20 @@ export default function Dashboard() {
             )
         ) : (
             selectedProject && selectedExperiment ? (
-                <MediaManager
-                    project={selectedProject}
-                    experiment={selectedExperiment}
-                    videos={videos}
-                    onBack={() => setSelectedExperimentId(null)}
-                />
+                viewMode === 'media' ? (
+                    <MediaManager
+                        project={selectedProject}
+                        experiment={selectedExperiment}
+                        videos={videos}
+                        onBack={() => setSelectedExperimentId(null)}
+                        onViewResults={() => setViewMode('results')}
+                    />
+                ) : (
+                    <Results
+                        experiment={selectedExperiment}
+                        onBack={() => setViewMode('media')}
+                    />
+                )
             ) : (
                 <div className="text-center py-8">
                     <p className="text-muted-foreground">Feed not found. It might have been deleted.</p>

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 from uuid import UUID, uuid4
 
 from pydantic import ConfigDict
@@ -158,3 +158,28 @@ class ViewSession(CamelModel, table=True):
     duration_seconds: float = Field(default=0.0)
 
     video: Optional["Video"] = Relationship()
+
+
+# Results models (US5)
+class ParticipantSessionSummary(CamelModel):
+    """Summary of a participant session."""
+
+    participant_id: str
+    started_at: str
+    ended_at: Optional[str] = None
+    total_duration_ms: Optional[int] = None
+
+
+class ResultsSummary(CamelModel):
+    """Summary of results for an experiment."""
+
+    experiment_id: str
+    sessions: List[ParticipantSessionSummary]
+
+
+class ExportRequest(CamelModel):
+    """Request for exporting results."""
+
+    format: Literal["csv", "json"]  # Restrict to valid formats
+    participant_ids: Optional[List[str]] = None
+    include_interactions: bool = True

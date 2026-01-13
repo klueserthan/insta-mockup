@@ -102,3 +102,22 @@ export interface InstagramIngestResponse {
   comments?: number;
   shares?: number;
 }
+
+// Results/Export types (US5)
+export interface ParticipantSessionSummary {
+  participantId: string;
+  startedAt: string;
+  endedAt?: string | null;
+  totalDurationMs?: number | null;
+}
+
+export interface ResultsSummary {
+  experimentId: string;
+  sessions: ParticipantSessionSummary[];
+}
+
+export interface ExportRequest {
+  format: "csv" | "json";
+  participantIds?: string[];
+  includeInteractions?: boolean;
+}
