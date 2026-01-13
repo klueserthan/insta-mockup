@@ -80,8 +80,7 @@ def get_videos(
     ).all()
 
     return [
-        VideoResponse(**video.model_dump(), social_account=account)
-        for (video, account) in tuples
+        VideoResponse(**video.model_dump(), social_account=account) for (video, account) in tuples
     ]
 
 
