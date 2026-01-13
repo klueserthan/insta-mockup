@@ -28,6 +28,20 @@ class Researcher(ResearcherBase, table=True):
 
     projects: Optional[List["Project"]] = Relationship(back_populates="researcher")
     social_accounts: Optional[List["SocialAccount"]] = Relationship(back_populates="researcher")
+    refresh_tokens: Optional[List["RefreshToken"]] = Relationship(back_populates="researcher")
+
+
+# RefreshToken
+class RefreshToken(CamelModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    researcher_id: UUID = Field(foreign_key="researcher.id")
+    token: str = Field(unique=True, index=True)
+    expires_at: datetime
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    revoked_at: Optional[datetime] = None
+    is_revoked: bool = Field(default=False)
+
+    researcher: Optional["Researcher"] = Relationship(back_populates="refresh_tokens")
 
 
 # Project

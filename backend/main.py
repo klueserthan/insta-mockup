@@ -8,7 +8,7 @@ from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from auth import router as auth_router
-from config import UPLOAD_DIR
+from config import SECRET_KEY, UPLOAD_DIR
 from database import create_db_and_tables, engine
 from routes import (
     accounts,
@@ -36,8 +36,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Insta Mockup API", lifespan=lifespan)
 
 # Configure Session Middleware
-# Ideally verify SECRET_KEY in env
-SECRET_KEY = os.environ.get("SESSION_SECRET", "supersecretkey")
+# Import SECRET_KEY from config.py to ensure consistency
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 # Configure CORS
