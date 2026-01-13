@@ -30,3 +30,15 @@ if not os.path.exists(UPLOAD_DIR):
 ROCKET_API_KEY = os.getenv("ROCKET_API_KEY")
 if not ROCKET_API_KEY:
     raise ValueError("ROCKET_API_KEY must be set in environment variables")
+
+# JWT Configuration
+SESSION_SECRET = os.environ.get("SESSION_SECRET")
+ENVIRONMENT = os.environ.get("ENV", os.environ.get("APP_ENV", "development")).lower()
+if ENVIRONMENT == "production" and not SESSION_SECRET:
+    raise RuntimeError(
+        "SESSION_SECRET environment variable must be set in production; "
+        "refusing to use insecure default JWT secret."
+    )
+SECRET_KEY = SESSION_SECRET or "supersecretkey"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+ALGORITHM = "HS256"

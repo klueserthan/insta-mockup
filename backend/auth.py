@@ -9,23 +9,12 @@ from pwdlib import PasswordHash
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from database import get_session
 from models import CamelModel, Researcher, ResearcherBase
 
 # Password hashing using pwdlib with Argon2 (per plan.md)
 pwd_hasher = PasswordHash.recommended()
-
-# JWT configuration
-SESSION_SECRET = os.environ.get("SESSION_SECRET")
-ENVIRONMENT = os.environ.get("ENV", os.environ.get("APP_ENV", "development")).lower()
-if ENVIRONMENT == "production" and not SESSION_SECRET:
-    raise RuntimeError(
-        "SESSION_SECRET environment variable must be set in production; "
-        "refusing to use insecure default JWT secret."
-    )
-SECRET_KEY = SESSION_SECRET or "supersecretkey"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-ALGORITHM = "HS256"
 
 # Bearer token scheme
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -111,9 +100,18 @@ class ResearcherRegister(ResearcherBase):
     password: str
 
 
-@router.post(
-    "/register", status_code=201, response_model=Researcher, response_model_exclude={"password"}
-)
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class Token(CamelModel):
+    access_token: str
+    token_type: str
+    expires_in: Optional[int] = None
+
+
+@router.post("/register", status_code=201, response_model=Token)
 def register(registration_data: ResearcherRegister, session: Session = Depends(get_session)):
     # Check if user exists
     existing_user = session.exec(
@@ -130,18 +128,17 @@ def register(registration_data: ResearcherRegister, session: Session = Depends(g
     session.commit()
     session.refresh(db_researcher)
 
-    return db_researcher
+    # Create JWT token for the new user (auto-login after registration)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_researcher.email}, expires_delta=access_token_expires
+    )
 
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class Token(CamelModel):
-    access_token: str
-    token_type: str
-    expires_in: Optional[int] = None
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
 
 @router.post("/login", response_model=Token)
