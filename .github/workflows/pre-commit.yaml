@@ -3,14 +3,15 @@ name: Pre-commit
 on:
   pull_request:
   push:
-    branches:
-      - 001-instagram-mockup-feed
 
 jobs:
-  pre-commit:
+  lint-and-format:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,13 +21,51 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Set up Node (for pyright hook)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Install uv
+        run: pip install uv
 
-      - name: Install pre-commit
-        run: pip install pre-commit
+      - name: Sync dependencies
+        run: uv sync --group dev
 
-      - name: Run pre-commit
-        run: pre-commit run --all-files
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Pyright type check
+        run: uv run pyright .
+
+      - name: Bandit security check
+        run: uv run bandit -c pyproject.toml -r .
+
+  file-checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for trailing whitespace
+        run: |
+          if grep -r --include="*.py" --include="*.ts" --include="*.tsx" --include="*.json" --include="*.yaml" --include="*.yml" ' $' .; then
+            echo "Trailing whitespace found"
+            exit 1
+          fi
+
+      - name: Check YAML syntax
+        run: python -m pip install pyyaml && python -c "import yaml; [yaml.safe_load(open(f)) for f in __import__('glob').glob('**/*.yaml', recursive=True)]"
+
+      - name: Check JSON syntax
+        run: |
+          for file in $(find . -name "*.json" -type f); do
+            python -m json.tool "$file" > /dev/null || exit 1
+          done
+
+      - name: Detect private keys
+        run: |
+          if grep -r --include="*.py" --include="*.ts" --include="*.tsx" "-----BEGIN.*PRIVATE" .; then
+            echo "Private key found in source"
+            exit 1
+          fi
