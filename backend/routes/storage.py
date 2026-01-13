@@ -39,7 +39,8 @@ async def upload_file(
         raise HTTPException(status_code=400, detail=", ".join(validation["errors"]))
 
     # 2. Generate Unique Filename
-    _, ext = os.path.splitext(file.filename)
+    original = file.filename or ""
+    _, ext = os.path.splitext(original)
     unique_filename = f"{uuid4()}{ext}"
 
     # 3. Determine Storage Path
@@ -57,6 +58,6 @@ async def upload_file(
 
     return UploadResponse(
         filename=unique_filename,
-        original_filename=file.filename,
+        original_filename=original,
         url=f"{BASE_URL}/media/{unique_filename}",
     )

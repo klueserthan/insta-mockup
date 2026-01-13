@@ -26,8 +26,14 @@ def verify_comment_ownership(session: Session, comment_id: UUID, user_id: UUID) 
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
     video = session.get(Video, comment.video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
     experiment = session.get(Experiment, video.experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Experiment not found")
     project = session.get(Project, experiment.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
 
     if project.researcher_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -40,7 +46,11 @@ def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID) -> V
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
     experiment = session.get(Experiment, video.experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Experiment not found")
     project = session.get(Project, experiment.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     if project.researcher_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     return video
@@ -53,10 +63,12 @@ def get_comments(
     # Open access for now as per test (test didn't verify auth for GET comments, but did for create/edit.
     # original routes.ts allowed get comments publicly `app.get` vs `app.post... requireAuth`).
 ):
+    from typing import Any, cast
+
     comments = session.exec(
         select(PreseededComment)
         .where(PreseededComment.video_id == video_id)
-        .order_by(PreseededComment.position)
+        .order_by(cast(Any, PreseededComment.position))
     ).all()
     return comments
 

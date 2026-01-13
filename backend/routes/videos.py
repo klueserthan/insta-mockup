@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -27,7 +28,9 @@ def verify_experiment_ownership(session: Session, experiment_id: UUID, user_id: 
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
     project = session.get(Project, experiment.project_id)
-    if not project or project.researcher_id != user_id:
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.researcher_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     return experiment
 
@@ -39,7 +42,11 @@ def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID) -> V
         raise HTTPException(status_code=404, detail="Video not found")
     # Using join could be more efficient but this is clearer
     experiment = session.get(Experiment, video.experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Experiment not found")
     project = session.get(Project, experiment.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     if project.researcher_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     return video
@@ -48,7 +55,7 @@ def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID) -> V
 class VideoResponse(VideoBase):
     id: UUID
     experiment_id: UUID
-    created_at: int  # or datetime
+    created_at: datetime
     social_account: SocialAccountBase
 
 
@@ -63,13 +70,19 @@ def get_videos(
 ):
     verify_experiment_ownership(session, experiment_id, current_user.id)
     # Order by position
-    videos = session.exec(
+    from typing import Any, cast
+
+    tuples = session.exec(
         select(Video, SocialAccount)
         .where(Video.experiment_id == experiment_id)
-        .join(SocialAccount, Video.social_account_id == SocialAccount.id)
-        .order_by(Video.position)
+        .join(SocialAccount)
+        .order_by(cast(Any, Video.position))
     ).all()
-    return videos
+
+    return [
+        VideoResponse(**video.model_dump(), social_account=account)
+        for (video, account) in tuples
+    ]
 
 
 @router.post("/api/experiments/{experiment_id}/videos", response_model=Video, status_code=201)

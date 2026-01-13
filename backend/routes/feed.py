@@ -2,7 +2,7 @@ import hashlib
 import logging
 import random
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,7 +33,7 @@ HASH_SEED_LENGTH = 16
 
 
 def _randomize_videos_with_locks(
-    videos: list[tuple[Video, SocialAccount]],
+    videos: Sequence[tuple[Video, SocialAccount]],
     participant_id: str,
     randomization_seed: int,
 ) -> list[tuple[Video, SocialAccount]]:
@@ -51,7 +51,7 @@ def _randomize_videos_with_locks(
     """
     # Preview mode or no participant ID: return videos in their default order
     if not participant_id or participant_id == "preview":
-        return videos
+        return list(videos)
 
     # If no videos, return empty list
     if not videos:
@@ -69,7 +69,7 @@ def _randomize_videos_with_locks(
 
     # If all videos are locked or no unlocked videos, return in original order
     if len(unlocked_videos) == 0:
-        return videos
+        return list(videos)
 
     # Create a deterministic seed for this participant
     # Combine project seed and participant ID for consistent but unique ordering per participant
@@ -84,7 +84,7 @@ def _randomize_videos_with_locks(
 
     # Build final ordered list by filling in slots
     # Start with all videos in a result array indexed by their original position
-    result = [None] * len(videos)
+    result: list[Optional[tuple[Video, SocialAccount]]] = [None] * len(videos)
 
     # First, place locked videos at their specified positions
     for position, video_tuple in locked_videos.items():
@@ -141,11 +141,13 @@ def get_public_feed(
         )
 
     # 3. Get Videos for this experiment with SocialAccount, ordered by position
+    from typing import Any, cast
+
     results = session.exec(
         select(Video, SocialAccount)
         .join(SocialAccount)
         .where(Video.experiment_id == experiment.id)
-        .order_by(Video.position)
+        .order_by(cast(Any, Video.position))
     ).all()
 
     # Fetch project for settings

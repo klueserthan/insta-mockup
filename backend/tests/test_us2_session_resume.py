@@ -123,7 +123,7 @@ def test_t019_feed_payload_includes_all_settings(client: TestClient, session: Se
     experiment = _create_experiment(
         session, project.id, persist_timer=True, show_unmute_prompt=False
     )
-    account = _create_account(session, researcher.id)
+    account = _create_account(session, researcher_id=researcher.id)
     video1 = _create_video(session, experiment.id, account.id, position=0)
     video2 = _create_video(session, experiment.id, account.id, position=1)
 
@@ -165,7 +165,7 @@ def test_t023_participant_identity_from_custom_query_key(client: TestClient, ses
     researcher = _create_researcher(session)
     project = _create_project(session, researcher.id, query_key="customId")
     experiment = _create_experiment(session, project.id)
-    account = _create_account(session, researcher.id)
+    account = _create_account(session, researcher_id=researcher.id)
     video = _create_video(session, experiment.id, account.id)
 
     # Act - access feed with custom query parameter
@@ -206,7 +206,7 @@ def test_t024_interaction_logging(client: TestClient, session: Session):
     researcher = _create_researcher(session)
     project = _create_project(session, researcher.id)
     experiment = _create_experiment(session, project.id)
-    account = _create_account(session, researcher.id)
+    account = _create_account(session, researcher_id=researcher.id)
     video = _create_video(session, experiment.id, account.id)
 
     participant_id = f"p_{uuid.uuid4().hex}"
@@ -294,7 +294,7 @@ def test_t024_heartbeat_logging(client: TestClient, session: Session):
     researcher = _create_researcher(session)
     project = _create_project(session, researcher.id)
     experiment = _create_experiment(session, project.id)
-    account = _create_account(session, researcher.id)
+    account = _create_account(session, researcher_id=researcher.id)
     video = _create_video(session, experiment.id, account.id)
 
     participant_id = f"p_{uuid.uuid4().hex}"
@@ -379,7 +379,7 @@ def test_session_resume_same_participant_id(client: TestClient, session: Session
     researcher = _create_researcher(session)
     project = _create_project(session, researcher.id)
     experiment = _create_experiment(session, project.id, persist_timer=True)
-    account = _create_account(session, researcher.id)
+    account = _create_account(session, researcher_id=researcher.id)
     video = _create_video(session, experiment.id, account.id)
 
     participant_id = "consistent_participant"

@@ -16,6 +16,8 @@ dependencies = [
   "requests",
   "itsdangerous",
   "rocketapi",
+  "pyjwt>=2.10.1",
+  "pwdlib[argon2]>=0.3.0",
 ]
 
 [dependency-groups]
@@ -29,8 +31,8 @@ dev = [
 ]
 
 [tool.pyright]
-include = ["wikidata_collector", "tests"]
-exclude = ["**/__pycache__", ".venv", "venv", "htmlcov"]
+include = ["."]
+exclude = ["tests", "**/__pycache__", ".venv", "venv", "htmlcov"]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"
 reportMissingTypeStubs = false
