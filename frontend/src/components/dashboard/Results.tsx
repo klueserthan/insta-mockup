@@ -69,18 +69,69 @@ export function Results({ experiment, onBack }: ResultsProps) {
 
       // Download the file
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `results-${experiment.id}.${exportFormat}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      
+      // Parse the response to get actual count for better user feedback
+      let actualCount = 0;
+      if (exportFormat === 'json') {
+        try {
+          const text = await blob.text();
+          const jsonData = JSON.parse(text);
+          actualCount = jsonData.sessions?.length || 0;
+          // Re-create blob for download since we consumed it
+          const newBlob = new Blob([text], { type: blob.type });
+          const url = window.URL.createObjectURL(newBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `results-${experiment.id}.${exportFormat}`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } catch {
+          // Fallback if parsing fails
+          actualCount = selectedParticipants.size > 0 ? selectedParticipants.size : results?.sessions.length || 0;
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `results-${experiment.id}.${exportFormat}`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
+      } else {
+        // For CSV, count lines (subtract 1 for header)
+        try {
+          const text = await blob.text();
+          const lines = text.trim().split('\n');
+          actualCount = Math.max(0, lines.length - 1);
+          // Re-create blob for download
+          const newBlob = new Blob([text], { type: blob.type });
+          const url = window.URL.createObjectURL(newBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `results-${experiment.id}.${exportFormat}`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } catch {
+          // Fallback if parsing fails
+          actualCount = selectedParticipants.size > 0 ? selectedParticipants.size : results?.sessions.length || 0;
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `results-${experiment.id}.${exportFormat}`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
+      }
 
       toast({
         title: 'Export complete',
-        description: `Downloaded ${selectedParticipants.size > 0 ? selectedParticipants.size : results?.sessions.length || 0} session(s) as ${exportFormat.toUpperCase()}.`,
+        description: `Downloaded ${actualCount} session(s) as ${exportFormat.toUpperCase()}.`,
       });
     } catch (error) {
       toast({

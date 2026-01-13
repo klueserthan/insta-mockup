@@ -1,6 +1,6 @@
 import csv
 import io
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +9,14 @@ from sqlmodel import Session, select
 
 from auth import get_current_researcher
 from database import get_session
-from models import CamelModel, Experiment, Interaction, Participant
+from models import (
+    CamelModel,
+    ExportRequest,
+    Interaction,
+    Participant,
+    ParticipantSessionSummary,
+    ResultsSummary,
+)
 from routes.experiments import verify_experiment_ownership
 
 # We assume implicit participant tracking for now, or use the participantId passed in body.
@@ -110,30 +117,6 @@ def heartbeat(data: Heartbeat, session: Session = Depends(get_session)):
 # Results endpoints (US5)
 
 
-class ParticipantSessionSummary(CamelModel):
-    """Summary of a participant session."""
-
-    participant_id: str
-    started_at: str
-    ended_at: Optional[str] = None
-    total_duration_ms: Optional[int] = None
-
-
-class ResultsSummary(CamelModel):
-    """Summary of results for an experiment."""
-
-    experiment_id: str
-    sessions: List[ParticipantSessionSummary]
-
-
-class ExportRequest(CamelModel):
-    """Request for exporting results."""
-
-    format: Literal["csv", "json"]  # Restrict to valid formats
-    participant_ids: Optional[List[str]] = None
-    include_interactions: bool = True
-
-
 @router.get("/api/experiments/{experiment_id}/results")
 def get_results_summary(
     experiment_id: UUID,
@@ -142,9 +125,6 @@ def get_results_summary(
 ) -> ResultsSummary:
     """Get results summary for an experiment (FR-015)."""
     # Verify experiment exists and belongs to researcher's project
-    experiment = session.get(Experiment, experiment_id)
-    if not experiment:
-        raise HTTPException(status_code=404, detail="Experiment not found")
     verify_experiment_ownership(session, experiment_id, current_researcher.id)
 
     # Get all participants for this experiment
@@ -212,9 +192,6 @@ def export_results(
 ):
     """Export results as CSV or JSON (FR-015)."""
     # Verify experiment exists and belongs to researcher
-    experiment = session.get(Experiment, experiment_id)
-    if not experiment:
-        raise HTTPException(status_code=404, detail="Experiment not found")
     verify_experiment_ownership(session, experiment_id, current_researcher.id)
 
     # Get participants (optionally filtered)
@@ -232,13 +209,16 @@ def export_results(
     elif export_request.format == "json":
         return _export_json(session, participants, export_request.include_interactions)
     else:
+        # This branch is technically unreachable due to Literal type validation,
+        # but kept for explicit error handling and code clarity
         raise HTTPException(status_code=400, detail="Invalid format. Must be 'csv' or 'json'")
 
 
 def _export_csv(session: Session, participants: List[Participant]) -> StreamingResponse:
     """Generate CSV export with one row per participant session."""
     output = io.StringIO()
-    writer = csv.writer(output)
+    # Use QUOTE_NONNUMERIC to properly escape participant IDs and timestamps
+    writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
 
     # CSV headers (per-participant aggregate)
     headers = [
