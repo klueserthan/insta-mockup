@@ -141,8 +141,8 @@ def get_results_summary(
     if participant_ids:
         all_interactions = session.exec(
             select(Interaction)
-            .where(Interaction.participant_uuid.in_(participant_ids))
-            .order_by(Interaction.participant_uuid, Interaction.timestamp)
+            .where(Interaction.participant_uuid.in_(participant_ids))  # type: ignore[attr-defined]
+            .order_by(Interaction.participant_uuid, Interaction.timestamp)  # type: ignore[arg-type]
         ).all()
 
         for interaction in all_interactions:
@@ -152,7 +152,8 @@ def get_results_summary(
 
     for participant in participants:
         # Get first and last interaction timestamps from pre-fetched interactions
-        interactions = interactions_by_participant.get(participant.id, [])
+        # Note: participant.id is Optional[UUID] but will always be set for DB records
+        interactions = interactions_by_participant.get(participant.id, [])  # type: ignore[arg-type]
         started_at = None
         ended_at = None
         total_duration_ms = None
@@ -199,15 +200,15 @@ def export_results(
 
     if export_request.participant_ids:
         participants_query = participants_query.where(
-            Participant.participant_id.in_(export_request.participant_ids)
+            Participant.participant_id.in_(export_request.participant_ids)  # type: ignore[attr-defined]
         )
 
     participants = session.exec(participants_query).all()
 
     if export_request.format == "csv":
-        return _export_csv(session, participants)
+        return _export_csv(session, list(participants))
     elif export_request.format == "json":
-        return _export_json(session, participants, export_request.include_interactions)
+        return _export_json(session, list(participants), export_request.include_interactions)
     else:
         # This branch is technically unreachable due to Literal type validation,
         # but kept for explicit error handling and code clarity
@@ -243,8 +244,8 @@ def _export_csv(session: Session, participants: List[Participant]) -> StreamingR
     if participant_ids:
         all_interactions = session.exec(
             select(Interaction)
-            .where(Interaction.participant_uuid.in_(participant_ids))
-            .order_by(Interaction.participant_uuid, Interaction.timestamp)
+            .where(Interaction.participant_uuid.in_(participant_ids))  # type: ignore[attr-defined]
+            .order_by(Interaction.participant_uuid, Interaction.timestamp)  # type: ignore[arg-type]
         ).all()
 
         for interaction in all_interactions:
@@ -254,7 +255,8 @@ def _export_csv(session: Session, participants: List[Participant]) -> StreamingR
 
     for participant in participants:
         # Get all interactions for this participant from the preloaded mapping
-        interactions = interactions_by_participant.get(participant.id, [])
+        # Note: participant.id is Optional[UUID] but will always be set for DB records
+        interactions = interactions_by_participant.get(participant.id, [])  # type: ignore[arg-type]
         started_at = ""
         ended_at = ""
         total_duration_ms = 0
@@ -323,8 +325,8 @@ def _export_json(
     if include_interactions and participant_ids:
         all_interactions = session.exec(
             select(Interaction)
-            .where(Interaction.participant_uuid.in_(participant_ids))
-            .order_by(Interaction.participant_uuid, Interaction.timestamp)
+            .where(Interaction.participant_uuid.in_(participant_ids))  # type: ignore[attr-defined]
+            .order_by(Interaction.participant_uuid, Interaction.timestamp)  # type: ignore[arg-type]
         ).all()
 
         for interaction in all_interactions:
@@ -341,7 +343,8 @@ def _export_json(
 
         if include_interactions:
             # Get all interactions for this participant from the preloaded mapping
-            interactions = interactions_by_participant.get(participant.id, [])
+            # Note: participant.id is Optional[UUID] but will always be set for DB records
+            interactions = interactions_by_participant.get(participant.id, [])  # type: ignore[arg-type]
 
             for interaction in interactions:
                 interaction_data = {
