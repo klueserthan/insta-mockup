@@ -23,7 +23,7 @@ repos:
 
   # Type checking via pyright
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: 1.1.408
+    rev: v1.1.408
     hooks:
       - id: pyright
 
