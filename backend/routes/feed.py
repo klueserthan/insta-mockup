@@ -126,6 +126,7 @@ def _randomize_videos_with_locks(
 def get_public_feed(
     public_url: str,
     participantId: Optional[str] = None,  # noqa: N803 - camelCase for API consistency
+    _originalParams: Optional[str] = None,  # noqa: N803 - original params passed through redirects
     session: Session = Depends(get_session),
 ):
     # 1. Find Experiment by public_url
@@ -133,11 +134,16 @@ def get_public_feed(
     if not experiment:
         raise HTTPException(status_code=404, detail="Feed not found")
 
-    # 2. Check if experiment is active (kill switch)
-    if not experiment.is_active:
+    # 2. Check if experiment is active (kill switch) - but allow preview access
+    # Preview mode (participantId="preview") bypasses the is_active check to allow researchers to preview inactive experiments
+    # Also check _originalParams to detect preview mode after redirects
+    is_preview = participantId == "preview" or (
+        _originalParams and "participantId=preview" in _originalParams
+    )
+    if not experiment.is_active and not is_preview:
         raise HTTPException(
             status_code=403,
-            detail="This study is not currently active.",
+            detail="This study is not currently active - Did you activate the feed?",
         )
 
     # 3. Get Videos for this experiment with SocialAccount, ordered by position

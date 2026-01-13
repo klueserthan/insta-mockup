@@ -39,7 +39,11 @@ export default function ReelsFeed() {
       // Forward query parameters to the API for participant-specific randomization
       const queryString = window.location.search;
       const res = await fetch(`/api/feed/${publicUrl}${queryString}`);
-      if (!res.ok) throw new Error('Feed not found');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.detail || 'Feed not found';
+        throw new Error(errorMessage);
+      }
       return res.json();
     },
     enabled: !!publicUrl,
@@ -237,7 +241,7 @@ export default function ReelsFeed() {
   if (error || !feedData) {
     return (
       <div className="h-[100dvh] w-full bg-black flex items-center justify-center text-white">
-        <p>Feed not found</p>
+        <p>{error?.message || 'Feed not found'}</p>
       </div>
     );
   }

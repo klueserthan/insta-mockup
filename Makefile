@@ -77,6 +77,9 @@ logs:
 backend:
 	@cd $(BACKEND_DIR) && uv run uvicorn main:app --host $(BACKEND_HOST) --port $(BACKEND_PORT)
 
+backend-dev:
+	@cd $(BACKEND_DIR) && uv run uvicorn main:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT)
+
 frontend:
 	@cd $(FRONTEND_DIR) && npm run dev -- --host $(FRONTEND_HOST) --port $(FRONTEND_PORT)
 
