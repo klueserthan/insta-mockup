@@ -22,7 +22,7 @@ repos:
       - id: ruff-format
 
   # Type checking via pyright
-  - repo: https://github.com/ReubenLimmonkey/pyright-python
+  - repo: https://github.com/RobertCraigie/pyright-python
     rev: 1.1.370
     hooks:
       - id: pyright
