@@ -27,8 +27,8 @@ Before requesting review, I have:
 - [ ] Created this branch from `001-instagram-mockup-feed` (NOT from `main`)
 - [ ] Set PR base to `r001-instagram-mockup-feed` (verified below title)
 
-### Backend Code Quality (run from backend/)
-- [ ] `bash .github/scripts/backend-prechecks.sh` (runs: `uv sync --group dev`, `pyright .`, `ruff format .`, `ruff check --fix .`, `uv run pytest`)
+### Code Quality
+- [ ] Pre-commit workflow is green or findings are addressed (CI runs ruff format/check, pyright, bandit, hygiene hooks; local `pre-commit run --all-files` optional for quick fixes)
 
 ### Testing
 - [ ] Frontend changes: `cd frontend && npm test`

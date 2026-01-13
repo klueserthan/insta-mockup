@@ -1,0 +1,32 @@
+name: Pre-commit
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 001-instagram-mockup-feed
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up Node (for pyright hook)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files
