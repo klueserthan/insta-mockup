@@ -8,27 +8,32 @@ export default function EndScreen() {
   const searchParams = new URLSearchParams(window.location.search);
   const message = searchParams.get('message') || 'Thank you for participating in this study.';
   const redirectUrl = searchParams.get('redirect') || '';
-  const queryKey = searchParams.get('queryKey') || 'participantId';
+  const originalParamsString = searchParams.get('_originalParams') || '';
   
   const [countdown, setCountdown] = useState(10);
   
   const finalRedirectUrl = useMemo(() => {
     if (!redirectUrl) return '';
     
-    const forwardParams = new URLSearchParams();
-    searchParams.forEach((value, key) => {
-      if (key !== 'message' && key !== 'redirect' && key !== 'queryKey') {
-        forwardParams.set(key, value);
+    try {
+      // Start with the redirect base URL
+      const redirectBase = new URL(redirectUrl);
+      
+      // Forward original parameters from the feed URL (US4: preserve all tracking params)
+      if (originalParamsString) {
+        const originalParams = new URLSearchParams(originalParamsString);
+        originalParams.forEach((value, key) => {
+          redirectBase.searchParams.set(key, value);
+        });
       }
-    });
-    
-    const redirectBase = new URL(redirectUrl);
-    forwardParams.forEach((value, key) => {
-      redirectBase.searchParams.set(key, value);
-    });
-    
-    return redirectBase.toString();
-  }, [redirectUrl, searchParams]);
+      
+      return redirectBase.toString();
+    } catch (error) {
+      // Handle invalid redirect URL gracefully
+      console.error('Invalid redirect URL:', redirectUrl, error);
+      return '';
+    }
+  }, [redirectUrl, originalParamsString]);
 
   useEffect(() => {
     if (!redirectUrl) return;

@@ -53,10 +53,22 @@ export default function ReelsFeed() {
   const endScreenMessage = feedData?.projectSettings.endScreenMessage || 'Thank you for participating in this study.';
 
   const navigateToEndScreen = useCallback(() => {
-    const endScreenParams = new URLSearchParams(window.location.search);
+    // Preserve original query string for forwarding to redirect URL (US4)
+    const originalQueryString = window.location.search;
+    
+    // Create end screen params with internal configuration
+    const endScreenParams = new URLSearchParams();
     endScreenParams.set('message', endScreenMessage);
     endScreenParams.set('redirect', redirectUrl);
     endScreenParams.set('queryKey', queryKey);
+    
+    // Store original query string to forward to redirect URL
+    // Check length after substring to avoid setting empty _originalParams
+    const paramsToForward = originalQueryString.substring(1);
+    if (paramsToForward) {
+      endScreenParams.set('_originalParams', paramsToForward);
+    }
+    
     setLocation(`/end/${publicUrl}?${endScreenParams.toString()}`);
   }, [endScreenMessage, redirectUrl, queryKey, publicUrl, setLocation]);
 
