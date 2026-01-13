@@ -1,7 +1,7 @@
 repos:
   # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v4.5.1
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -23,13 +23,13 @@ repos:
 
   # Type checking via pyright
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: 1.1.370
+    rev: 1.1.407
     hooks:
       - id: pyright
 
   # Security linter via bandit
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.6
+    rev: 1.9.2
     hooks:
       - id: bandit
         args: ['-c', 'pyproject.toml']
