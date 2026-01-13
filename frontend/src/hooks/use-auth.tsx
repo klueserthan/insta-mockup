@@ -37,12 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/login", credentials);
       return await res.json();
     },
-    onSuccess: (data: Omit<Researcher, 'password'> & { token?: string }) => {
-      if (data.token) {
-        setAuthToken(data.token);
+    onSuccess: async (data: { accessToken?: string; tokenType?: string }) => {
+      if (data.accessToken) {
+        setAuthToken(data.accessToken);
+        // Fetch user data after setting token
+        await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       }
-      const { token, ...user } = data as any;
-      queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
       toast({
@@ -58,12 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/register", credentials);
       return await res.json();
     },
-    onSuccess: (data: Omit<Researcher, 'password'> & { token?: string }) => {
-      if (data.token) {
-        setAuthToken(data.token);
-      }
-      const { token, ...user } = data as any;
-      queryClient.setQueryData(["/api/user"], user);
+    onSuccess: (data: Omit<Researcher, 'password'>) => {
+      // Register returns user data directly, set it in cache
+      queryClient.setQueryData(["/api/user"], data);
     },
     onError: (error: Error) => {
       toast({
