@@ -78,3 +78,9 @@ if not SESSION_SECRET and ENVIRONMENT == "development":
 SECRET_KEY = SESSION_SECRET or "dev-only-supersecretkey-change-in-production"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 ALGORITHM = "HS256"
+
+# Rate Limiting Configuration (H1)
+RATE_LIMIT_DEFAULT = os.environ.get("RATE_LIMIT_DEFAULT", "200/minute")
+RATE_LIMIT_FEED = os.environ.get("RATE_LIMIT_FEED", "60/minute")
+RATE_LIMIT_INTERACTIONS = os.environ.get("RATE_LIMIT_INTERACTIONS", "120/minute")
+RATE_LIMIT_HEARTBEAT = os.environ.get("RATE_LIMIT_HEARTBEAT", "300/minute")

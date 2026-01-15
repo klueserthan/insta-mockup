@@ -180,7 +180,7 @@ def bulk_delete_videos(
 ):
     """
     Bulk delete videos with detailed error reporting.
-    Returns 207 Multi-Status with lists of deleted and failed video IDs.
+    Returns 207 Multi-Status with consistent structure for all results.
     """
     results = {"deleted": [], "failed": []}
 
@@ -194,7 +194,7 @@ def bulk_delete_videos(
             # Verify ownership - will raise HTTPException if unauthorized
             verify_video_ownership(session, vid, current_user.id)
             session.delete(db_video)
-            results["deleted"].append(str(vid))
+            results["deleted"].append({"videoId": str(vid), "status": "success"})
 
         except HTTPException as e:
             results["failed"].append({"videoId": str(vid), "error": e.detail})

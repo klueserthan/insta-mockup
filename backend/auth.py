@@ -2,6 +2,7 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -191,7 +192,7 @@ def logout():
     return {"message": "Logged out"}
 
 
-class RefreshTokenRequest(BaseModel):
+class RefreshTokenRequest(CamelModel):
     refresh_token: str
 
 

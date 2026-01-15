@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 from sqlmodel import Session, select
 
 from auth import get_current_researcher
+from config import RATE_LIMIT_HEARTBEAT, RATE_LIMIT_INTERACTIONS
 from database import get_session
 from models import (
     CamelModel,
@@ -39,7 +40,7 @@ router = APIRouter()
 
 
 @router.post("/api/interactions", status_code=201)
-@limiter.limit("120/minute")  # H1: Higher limit for interaction logging
+@limiter.limit(RATE_LIMIT_INTERACTIONS)  # H1: Higher limit for interaction logging
 def log_interaction(
     request: Request, interaction: InteractionCreate, session: Session = Depends(get_session)
 ):
@@ -87,7 +88,7 @@ class Heartbeat(CamelModel):
 
 
 @router.post("/api/interactions/heartbeat", status_code=200)
-@limiter.limit("300/minute")  # H1: Very high limit for heartbeats (5/second)
+@limiter.limit(RATE_LIMIT_HEARTBEAT)  # H1: Very high limit for heartbeats (5/second)
 def heartbeat(request: Request, data: Heartbeat, session: Session = Depends(get_session)):
     from datetime import datetime
 

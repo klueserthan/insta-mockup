@@ -11,7 +11,7 @@ from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from auth import router as auth_router
-from config import SECRET_KEY, UPLOAD_DIR
+from config import RATE_LIMIT_DEFAULT, SECRET_KEY, UPLOAD_DIR
 from database import create_db_and_tables, engine
 from routes import (
     accounts,
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Insta Mockup API", lifespan=lifespan)
 
 # Configure rate limiting (H1)
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+limiter = Limiter(key_func=get_remote_address, default_limits=[RATE_LIMIT_DEFAULT])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

@@ -27,7 +27,7 @@ def sanitize_html(text: str, allowed_tags: list[str] | None = None) -> str:
     By default, allows basic formatting tags: b, i, u, em, strong, a
     """
     if not text:
-        return text
+        return ""
 
     tags = allowed_tags if allowed_tags is not None else ["b", "i", "u", "em", "strong", "a"]
     attributes = {"a": ["href", "title"]} if "a" in tags else {}

@@ -63,8 +63,12 @@ def get_comments(
     current_user: Researcher = Depends(get_current_researcher),  # H7: Add authentication
 ):
     """
-    Get comments for a video. Requires authentication to prevent enumeration.
-    Comments are also returned as part of the public feed response for participants.
+    Get comments for a video owned by the authenticated researcher. Requires authentication to prevent
+    enumeration of comments on videos the researcher does not own.
+
+    Participants do not call this endpoint directly. They receive the same comments as part of the public
+    feed response from the `/api/feed/{public_url}` endpoint, which is a separate (unauthenticated) code
+    path for participant-facing access.
     """
     # Verify user owns the video (via experiment ownership)
     verify_video_ownership(session, video_id, current_user.id)

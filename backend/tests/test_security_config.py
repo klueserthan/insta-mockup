@@ -83,3 +83,69 @@ def test_development_shows_warning_without_secret(capfd):
             assert len(w) > 0
             assert "SESSION_SECRET not set" in str(w[0].message)
             assert "This is NOT safe for production" in str(w[0].message)
+
+
+def test_production_rejects_placeholder_secret():
+    """Test that production rejects insecure placeholder values"""
+    # Clear any existing config module
+    if "config" in sys.modules:
+        del sys.modules["config"]
+
+    placeholder_values = [
+        "your_session_secret_key_here",
+        "supersecretkey",
+        "changeme",
+        "secret",
+        "password",
+    ]
+
+    for placeholder in placeholder_values:
+        # Clear config module for each test
+        if "config" in sys.modules:
+            del sys.modules["config"]
+
+        with patch.dict(
+            os.environ,
+            {"ENV": "production", "SESSION_SECRET": placeholder, "ROCKET_API_KEY": "test_key"},
+            clear=True,
+        ):
+            # Should raise RuntimeError when placeholder is used in production
+            with pytest.raises(RuntimeError) as exc_info:
+                import config  # noqa: F401
+
+            assert "insecure placeholder value" in str(exc_info.value).lower()
+
+
+def test_development_warns_about_placeholder_secret():
+    """Test that development shows warning for placeholder values"""
+    # Clear any existing config module
+    if "config" in sys.modules:
+        del sys.modules["config"]
+
+    with patch.dict(
+        os.environ,
+        {
+            "ENV": "development",
+            "SESSION_SECRET": "your_session_secret_key_here",
+            "ROCKET_API_KEY": "test_key",
+        },
+        clear=True,
+    ):
+        import warnings
+
+        # Capture warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            import importlib
+
+            import config
+
+            importlib.reload(config)
+
+            # Check that warning was issued about placeholder
+            placeholder_warnings = [
+                warning for warning in w if "insecure placeholder value" in str(warning.message).lower()
+            ]
+            assert len(placeholder_warnings) > 0
+            assert "your_session_secret_key_here" in str(placeholder_warnings[0].message)

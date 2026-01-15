@@ -10,6 +10,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlmodel import Session, select
 
+from config import RATE_LIMIT_FEED
 from database import get_session
 from models import Experiment, Project, SocialAccount, Video, VideoBase
 
@@ -128,7 +129,7 @@ def _randomize_videos_with_locks(
 
 
 @router.get("/api/feed/{public_url}")
-@limiter.limit("60/minute")  # H1: Rate limit public feed access
+@limiter.limit(RATE_LIMIT_FEED)  # H1: Rate limit public feed access
 def get_public_feed(
     request: Request,
     public_url: str,
