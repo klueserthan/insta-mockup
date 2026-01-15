@@ -4,7 +4,6 @@ from typing import Set
 import bleach
 from fastapi import UploadFile
 
-
 # Sanitization configuration for user-generated content (H2)
 ALLOWED_TAGS: list[str] = []  # No HTML tags allowed in plain text fields
 ALLOWED_ATTRIBUTES: dict[str, list[str]] = {}
