@@ -61,3 +61,6 @@ __pycache__/
 
 # PIDs
 .pids/
+.pytest_cache/
+.ruff_cache/
+.logs/
