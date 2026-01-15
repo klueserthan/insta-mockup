@@ -48,10 +48,15 @@ app.add_exception_handler(RateLimitExceeded, cast(object, _rate_limit_exceeded_h
 # Import SECRET_KEY from config.py to ensure consistency
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# Configure CORS
+# Configure CORS - read allowed origins from environment variable
+allowed_origins = os.environ.get(
+    "ALLOWED_ORIGINS", 
+    "http://localhost:5173,http://0.0.0.0:5173"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://0.0.0.0:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
