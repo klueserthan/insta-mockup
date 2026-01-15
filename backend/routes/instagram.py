@@ -2,6 +2,7 @@ import os
 import re
 import uuid
 from typing import List, Literal, Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -186,8 +187,6 @@ async def proxy_download(url: str, current_user=Depends(get_current_researcher))
         raise HTTPException(status_code=400, detail="Only HTTPS URLs allowed")
 
     # H4: Whitelist allowed domains
-    from urllib.parse import urlparse
-
     allowed_domains = ["cdninstagram.com", "fbcdn.net", "instagram.com"]
     domain = urlparse(url).netloc
     if not any(domain.endswith(d) for d in allowed_domains):

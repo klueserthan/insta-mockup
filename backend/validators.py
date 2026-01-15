@@ -17,7 +17,7 @@ def sanitize_text(text: str) -> str:
     Used for captions, comments, names, and other user-generated content to prevent XSS.
     """
     if not text:
-        return text
+        return ""
     return bleach.clean(text, tags=ALLOWED_TAGS, strip=True)
 
 

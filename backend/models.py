@@ -6,6 +6,8 @@ from pydantic import ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
+from validators import sanitize_text
+
 
 class CamelModel(SQLModel):
     model_config = cast(
@@ -24,8 +26,6 @@ class ResearcherBase(CamelModel):
     @classmethod
     def sanitize_name(cls, v: str) -> str:
         """Sanitize name fields to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:100]  # Max 100 chars for names
 
 
@@ -68,16 +68,12 @@ class ProjectBase(CamelModel):
     @classmethod
     def sanitize_name(cls, v: str) -> str:
         """Sanitize project name to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:200]  # Max 200 chars for project names
 
     @field_validator("end_screen_message")
     @classmethod
     def sanitize_end_screen_message(cls, v: str) -> str:
         """Sanitize end screen message to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:1000]  # Max 1000 chars for messages
 
 
@@ -102,8 +98,6 @@ class ExperimentBase(CamelModel):
     @classmethod
     def sanitize_name(cls, v: str) -> str:
         """Sanitize experiment name to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:200]  # Max 200 chars for experiment names
 
 
@@ -134,8 +128,6 @@ class VideoBase(CamelModel):
     @classmethod
     def sanitize_caption(cls, v: str) -> str:
         """Sanitize caption to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:2000]  # Max 2000 chars for captions
 
     @field_validator("description")
@@ -144,16 +136,12 @@ class VideoBase(CamelModel):
         """Sanitize description to prevent XSS (H2)"""
         if v is None:
             return v
-        from validators import sanitize_text
-
         return sanitize_text(v)[:5000]  # Max 5000 chars for descriptions
 
     @field_validator("song")
     @classmethod
     def sanitize_song(cls, v: str) -> str:
         """Sanitize song name to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:200]  # Max 200 chars for song names
 
 
@@ -202,16 +190,12 @@ class PreseededCommentBase(CamelModel):
     @classmethod
     def sanitize_author_name(cls, v: str) -> str:
         """Sanitize author name to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:100]  # Max 100 chars for author names
 
     @field_validator("body")
     @classmethod
     def sanitize_body(cls, v: str) -> str:
         """Sanitize comment body to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:500]  # Max 500 chars for comment body
 
 
@@ -233,16 +217,12 @@ class SocialAccountBase(CamelModel):
     @classmethod
     def sanitize_username(cls, v: str) -> str:
         """Sanitize username to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:50]  # Max 50 chars for usernames
 
     @field_validator("display_name")
     @classmethod
     def sanitize_display_name(cls, v: str) -> str:
         """Sanitize display name to prevent XSS (H2)"""
-        from validators import sanitize_text
-
         return sanitize_text(v)[:100]  # Max 100 chars for display names
 
 

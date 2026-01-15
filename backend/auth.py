@@ -43,7 +43,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def create_refresh_token(researcher_id: str, session: Session) -> str:
+def create_refresh_token(researcher_id: UUID, session: Session) -> str:
     """Create a refresh token that lasts 7 days"""
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)

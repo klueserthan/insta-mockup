@@ -35,6 +35,31 @@ if not ROCKET_API_KEY:
 SESSION_SECRET = os.environ.get("SESSION_SECRET")
 ENVIRONMENT = os.environ.get("ENV", os.environ.get("APP_ENV", "development")).lower()
 
+# Check for insecure placeholder values
+INSECURE_PLACEHOLDERS = [
+    "your_session_secret_key_here",
+    "supersecretkey",
+    "changeme",
+    "secret",
+    "password",
+]
+
+# Treat placeholder values as if SESSION_SECRET is not set
+if SESSION_SECRET and SESSION_SECRET.lower() in INSECURE_PLACEHOLDERS:
+    import warnings
+
+    warnings.warn(
+        f"SESSION_SECRET is set to an insecure placeholder value: '{SESSION_SECRET}'. "
+        "This is NOT safe for production! Generate a secure secret with: openssl rand -hex 32",
+        stacklevel=2,
+    )
+    if ENVIRONMENT == "production":
+        raise RuntimeError(
+            "SESSION_SECRET is set to an insecure placeholder value in production; "
+            "refusing to use insecure placeholder. Generate a secure secret with: openssl rand -hex 32"
+        )
+    SESSION_SECRET = None  # Treat as not set
+
 if ENVIRONMENT == "production" and not SESSION_SECRET:
     raise RuntimeError(
         "SESSION_SECRET environment variable must be set in production; "
