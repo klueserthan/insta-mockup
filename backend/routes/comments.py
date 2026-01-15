@@ -7,7 +7,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.ollama import OllamaProvider
 from sqlmodel import Session, func, select
 
 from auth import get_current_researcher
@@ -70,21 +71,24 @@ You must respond with:
 
 
 # Singleton agent instance - created once at module level
-def _create_comment_agent() -> Agent[CommentGenerationDeps, GeneratedComment] | None:
+def _create_comment_agent() -> Agent[str, GeneratedComment] | None:
     """Create the comment generation agent singleton."""
     if not OLLAMA_API_TOKEN:
         return None
 
     try:
-        model = OpenAIModel(
+        model = OpenAIChatModel(
             OLLAMA_MODEL,
-            base_url="https://api.ollama.ai/v1",
-            api_key=OLLAMA_API_TOKEN,
+            provider=OllamaProvider(
+                base_url="https://ollama.com/v1",
+                api_key=OLLAMA_API_TOKEN,
+            ),
         )
 
         return Agent(
             model=model,
-            result_type=GeneratedComment,
+            deps_type=str,
+            output_type=GeneratedComment,
             system_prompt=COMMENT_AGENT_SYSTEM_PROMPT,
         )
     except Exception as e:
@@ -291,18 +295,14 @@ async def generate_comments(
             max_pos = -1
 
         # Prepare tasks for parallel execution
-        async def generate_single_comment(index: int) -> GeneratedComment:
+        async def generate_single_comment() -> GeneratedComment:
             """Generate a single comment using the agent."""
-            deps = CommentGenerationDeps(
-                caption=video.caption,
-                tone_instruction=tone_instruction,
-            )
-            prompt = f"Generate a comment for a reel with this caption: '{video.caption}'"
-            result = await _comment_agent.run(prompt, deps=deps)
-            return result.data
+            prompt = f"Generate a comment for a reel with this caption: '{video.caption}' in this tone: '{tone_instruction}'"
+            result = await _comment_agent.run(user_prompt=prompt)  # type: ignore
+            return result.output
 
         # Generate all comments in parallel
-        tasks = [generate_single_comment(i) for i in range(request.count)]
+        tasks = [generate_single_comment() for _ in range(request.count)]
         generated_comments = await asyncio.gather(*tasks)
 
         # Process generated comments and create database records
