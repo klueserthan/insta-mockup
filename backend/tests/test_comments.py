@@ -72,14 +72,13 @@ def test_comments(client: TestClient):
 def test_generate_comments_requires_auth(client: TestClient):
     """Test that generating comments requires authentication."""
     response = client.post(
-        "/api/videos/fake-id/comments/generate",
-        json={"count": 5, "tone": "mixed"}
+        "/api/videos/fake-id/comments/generate", json={"count": 5, "tone": "mixed"}
     )
     assert response.status_code == 401
 
 
 def test_generate_comments_basic(client: TestClient, monkeypatch):
-    """Test basic comment generation with AI."""
+    """Test basic comment generation with AI - success path with mocked API."""
     # Setup
     token = register_and_login(client, email="gencom@e.com")
     headers = auth_headers(token)
@@ -104,28 +103,86 @@ def test_generate_comments_basic(client: TestClient, monkeypatch):
     vid_id = v1["id"]
 
     # Mock the AI generation to avoid needing actual API key in tests
-    import os
+    from unittest.mock import AsyncMock, MagicMock, patch
+
     monkeypatch.setenv("OLLAMA_API_TOKEN", "test-token")
 
-    # Generate comments
-    response = client.post(
-        f"/api/videos/{vid_id}/comments/generate",
-        json={"count": 3, "tone": "positive"},
+    # Mock the Agent to return predictable data
+    mock_result = MagicMock()
+    mock_result.data = '["Great video! 🔥", "Love this content", "Amazing! Keep it up 💯"]'
+
+    # Patch both the config check, the model, and the Agent
+    with (
+        patch("routes.comments.OLLAMA_API_TOKEN", "test-token"),
+        patch("routes.comments.OpenAIModel") as mock_openai_model,
+        patch("routes.comments.Agent") as mock_agent,
+    ):
+        mock_agent_instance = MagicMock()
+        mock_agent_instance.run = AsyncMock(return_value=mock_result)
+        mock_agent.return_value = mock_agent_instance
+
+        # Generate comments
+        response = client.post(
+            f"/api/videos/{vid_id}/comments/generate",
+            json={"count": 3, "tone": "positive"},
+            headers=headers,
+        )
+
+    # Should succeed with mocked response
+    assert response.status_code == 201
+    comments = response.json()
+    assert isinstance(comments, list)
+    assert len(comments) == 3
+    for comment in comments:
+        assert "authorName" in comment
+        assert "body" in comment
+        assert "source" in comment
+        assert comment["source"] == "ai"
+
+
+def test_generate_comments_api_failure(client: TestClient, monkeypatch):
+    """Test comment generation with API connection failure."""
+    # Setup
+    token = register_and_login(client, email="apifail@e.com")
+    headers = auth_headers(token)
+    account = _create_account(client, token)
+    p1 = client.post("/api/projects", json={"name": "P1"}, headers=headers).json()
+    e1 = client.post(
+        f"/api/projects/{p1['id']}/experiments", json={"name": "E1"}, headers=headers
+    ).json()
+    v1 = client.post(
+        f"/api/experiments/{e1['id']}/videos",
+        json={
+            "filename": "v.mp4",
+            "socialAccountId": account["id"],
+            "caption": "Test video",
+            "likes": 10,
+            "comments": 5,
+            "shares": 2,
+            "song": "Test Song",
+        },
         headers=headers,
-    )
-    
-    # Should succeed (even if mocked)
-    assert response.status_code in [200, 201, 500]  # 500 if no actual API connection
-    
-    # If successful, verify structure
-    if response.status_code in [200, 201]:
-        comments = response.json()
-        assert isinstance(comments, list)
-        for comment in comments:
-            assert "authorName" in comment
-            assert "body" in comment
-            assert "source" in comment
-            assert comment["source"] == "ai"
+    ).json()
+    vid_id = v1["id"]
+
+    # Set token but expect API failure
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    monkeypatch.setenv("OLLAMA_API_TOKEN", "invalid-token")
+
+    # Mock config to have token but make Agent fail
+    with patch("routes.comments.OLLAMA_API_TOKEN", "invalid-token"):
+        # Generate comments - should fail with actual API call
+        response = client.post(
+            f"/api/videos/{vid_id}/comments/generate",
+            json={"count": 3, "tone": "positive"},
+            headers=headers,
+        )
+
+    # Should return 500 for API connection issues
+    assert response.status_code == 500
+    data = response.json()
+    assert "detail" in data
 
 
 def test_generate_comments_without_api_token(client: TestClient, monkeypatch):
@@ -155,16 +212,16 @@ def test_generate_comments_without_api_token(client: TestClient, monkeypatch):
 
     # Clear the API token
     monkeypatch.delenv("OLLAMA_API_TOKEN", raising=False)
-    
+
     # Try to generate comments
     response = client.post(
         f"/api/videos/{vid_id}/comments/generate",
         json={"count": 3, "tone": "mixed"},
         headers=headers,
     )
-    
-    # Should return error about missing API token
-    assert response.status_code in [500, 503]
+
+    # Should return error about missing API token (503, not 500)
+    assert response.status_code == 503
     data = response.json()
     assert "detail" in data
     assert "ollama" in data["detail"].lower() or "api" in data["detail"].lower()

@@ -1,10 +1,17 @@
+import json
+import logging
+import random
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import Field
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIModel
 from sqlmodel import Session, func, select
 
 from auth import get_current_researcher
+from config import OLLAMA_API_TOKEN, OLLAMA_MODEL
 from database import get_session
 from models import (
     CamelModel,
@@ -15,6 +22,8 @@ from models import (
     Researcher,
     Video,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -152,12 +161,14 @@ def delete_comment(
 
     session.delete(db_comment)
     session.commit()
-    session.commit()
 
 
 class GenerateCommentsRequest(CamelModel):
-    count: int
-    tone: str
+    count: int = Field(ge=3, le=15, description="Number of comments to generate (3-15)")
+    tone: str = Field(
+        pattern="^(positive|negative|mixed)$",
+        description="Tone of comments: positive, negative, or mixed",
+    )
 
 
 @router.post(
@@ -177,31 +188,24 @@ async def generate_comments(
     Requires OLLAMA_API_TOKEN to be set in environment variables.
     Generates contextual comments based on the video's caption and configured tone.
     """
-    import os
-    import random
-
-    from pydantic_ai import Agent
-    from pydantic_ai.models.openai import OpenAIModel
-
     # Verify user owns the video
     video = verify_video_ownership(session, video_id, current_user.id)
 
     # Check if OLLAMA_API_TOKEN is set
-    api_token = os.environ.get("OLLAMA_API_TOKEN")
-    if not api_token:
+    if not OLLAMA_API_TOKEN:
         raise HTTPException(
             status_code=503,
             detail="AI comment generation is not available. OLLAMA_API_TOKEN environment variable is not set.",
         )
 
-    model_name = os.environ.get("OLLAMA_MODEL", "llama3.2")
+    model_name = OLLAMA_MODEL
 
     try:
         # Configure Ollama Cloud model via OpenAI-compatible API
         model = OpenAIModel(
             model_name,
             base_url="https://api.ollama.ai/v1",
-            api_key=api_token,
+            api_key=OLLAMA_API_TOKEN,
         )
 
         # Create agent with system prompt tailored for comment generation
@@ -236,8 +240,6 @@ Generate exactly {request.count} comments now:"""
         result = await agent.run(prompt)
 
         # Parse the result - expecting JSON array of strings
-        import json
-
         try:
             comments_texts = json.loads(result.data)
             if not isinstance(comments_texts, list):
@@ -263,30 +265,37 @@ Generate exactly {request.count} comments now:"""
         username_prefixes = ["user", "fan", "viewer", "follower", "ig", "insta", "real", "the"]
         username_suffixes = ["123", "456", "789", "_official", "_real", "xo", "99", "2024"]
 
+        # Get max position once before the loop
+        max_pos = (
+            session.exec(
+                select(func.max(PreseededComment.position)).where(
+                    PreseededComment.video_id == video_id
+                )
+            ).one()
+            or -1
+        )
+
+        if max_pos is None:
+            max_pos = -1
+
         created_comments = []
+        used_usernames = set()
+
         for i, comment_text in enumerate(comments_texts):
-            # Generate random username
-            username = f"{random.choice(username_prefixes)}_{random.choice(username_suffixes)}"
+            # Generate unique random username
+            base_username = f"{random.choice(username_prefixes)}_{random.choice(username_suffixes)}"
+            username = base_username
+            # Ensure uniqueness within this batch
+            while username in used_usernames:
+                username = f"{base_username}_{random.randint(1000, 9999)}"
+            used_usernames.add(username)
 
             # Generate random likes (weighted toward lower numbers)
             likes = random.choices(
                 [0, 1, 2, 3, 5, 10, 25, 50], weights=[10, 15, 12, 10, 8, 5, 2, 1]
             )[0]
 
-            # Get max position
-            max_pos = (
-                session.exec(
-                    select(func.max(PreseededComment.position)).where(
-                        PreseededComment.video_id == video_id
-                    )
-                ).one()
-                or -1
-            )
-
-            if max_pos is None:
-                max_pos = -1
-
-            # Create comment
+            # Create comment with incremental position
             comment = PreseededComment(
                 video_id=video_id,
                 author_name=username,
@@ -309,8 +318,9 @@ Generate exactly {request.count} comments now:"""
         return created_comments
 
     except Exception as e:
-        # Log the error and return a user-friendly message
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to generate comments: {str(e)}")
+        # Log the error server-side without exposing details to client
+        logger.error(f"Failed to generate comments for video {video_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate comments. Please try again or contact support if the issue persists.",
+        )
