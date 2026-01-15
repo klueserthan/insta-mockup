@@ -2,13 +2,15 @@ import os
 import re
 import uuid
 from typing import List, Literal, Optional
+from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from rocketapi import InstagramAPI
 
+from auth import get_current_researcher
 from config import UPLOAD_DIR
 
 router = APIRouter()
@@ -74,6 +76,7 @@ async def _download_from_cdn_url(url: str, media_type: Literal["image", "video"]
 @router.post("/api/instagram/ingest", response_model=InstagramIngestResponse)
 async def ingest_instagram(
     request: InstagramIngestRequest,
+    current_user=Depends(get_current_researcher),  # H6: Add authentication
 ):
     def _check_media_type_of_item(item):
         if "video_versions" in item:
@@ -171,9 +174,23 @@ async def ingest_instagram(
 
 
 @router.get("/api/instagram/proxy")
-async def proxy_download(url: str):
+async def proxy_download(url: str, current_user=Depends(get_current_researcher)):
+    """
+    Proxy download from whitelisted CDN domains (H4: secured with auth and domain whitelist).
+    Only allows HTTPS URLs from approved Instagram/Facebook CDN domains.
+    """
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
+
+    # H4: Only allow HTTPS
+    if not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Only HTTPS URLs allowed")
+
+    # H4: Whitelist allowed domains
+    allowed_domains = ["cdninstagram.com", "fbcdn.net", "instagram.com"]
+    domain = urlparse(url).netloc
+    if not any(domain.endswith(d) for d in allowed_domains):
+        raise HTTPException(status_code=400, detail=f"Domain not allowed: {domain}")
 
     async def stream_content():
         async with httpx.AsyncClient() as client:

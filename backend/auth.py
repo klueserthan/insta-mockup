@@ -1,6 +1,7 @@
-import os
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,23 +10,12 @@ from pwdlib import PasswordHash
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from database import get_session
-from models import CamelModel, Researcher, ResearcherBase
+from models import CamelModel, RefreshToken, Researcher, ResearcherBase
 
 # Password hashing using pwdlib with Argon2 (per plan.md)
 pwd_hasher = PasswordHash.recommended()
-
-# JWT configuration
-SESSION_SECRET = os.environ.get("SESSION_SECRET")
-ENVIRONMENT = os.environ.get("ENV", os.environ.get("APP_ENV", "development")).lower()
-if ENVIRONMENT == "production" and not SESSION_SECRET:
-    raise RuntimeError(
-        "SESSION_SECRET environment variable must be set in production; "
-        "refusing to use insecure default JWT secret."
-    )
-SECRET_KEY = SESSION_SECRET or "supersecretkey"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-ALGORITHM = "HS256"
 
 # Bearer token scheme
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -51,6 +41,19 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def create_refresh_token(researcher_id: UUID, session: Session) -> str:
+    """Create a refresh token that lasts 7 days"""
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    refresh_token = RefreshToken(
+        researcher_id=researcher_id, token=token, expires_at=expires_at
+    )
+    session.add(refresh_token)
+    session.commit()
+    return token
 
 
 router = APIRouter(prefix="/api")
@@ -111,9 +114,19 @@ class ResearcherRegister(ResearcherBase):
     password: str
 
 
-@router.post(
-    "/register", status_code=201, response_model=Researcher, response_model_exclude={"password"}
-)
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class Token(CamelModel):
+    access_token: str
+    token_type: str
+    expires_in: Optional[int] = None
+    refresh_token: Optional[str] = None
+
+
+@router.post("/register", status_code=201, response_model=Token)
 def register(registration_data: ResearcherRegister, session: Session = Depends(get_session)):
     # Check if user exists
     existing_user = session.exec(
@@ -130,18 +143,21 @@ def register(registration_data: ResearcherRegister, session: Session = Depends(g
     session.commit()
     session.refresh(db_researcher)
 
-    return db_researcher
+    # Create JWT token for the new user (auto-login after registration)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_researcher.email}, expires_delta=access_token_expires
+    )
 
+    # Create refresh token
+    refresh_token = create_refresh_token(db_researcher.id, session)
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class Token(CamelModel):
-    access_token: str
-    token_type: str
-    expires_in: Optional[int] = None
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=refresh_token,
+    )
 
 
 @router.post("/login", response_model=Token)
@@ -158,10 +174,14 @@ def login(login_data: LoginRequest, session: Session = Depends(get_session)):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
 
+    # Create refresh token
+    refresh_token = create_refresh_token(user.id, session)
+
     return Token(
         access_token=access_token,
         token_type="bearer",
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=refresh_token,
     )
 
 
@@ -169,6 +189,61 @@ def login(login_data: LoginRequest, session: Session = Depends(get_session)):
 def logout():
     """Logout endpoint (JWT tokens are stateless, client should discard token)"""
     return {"message": "Logged out"}
+
+
+class RefreshTokenRequest(CamelModel):
+    refresh_token: str
+
+
+@router.post("/refresh", response_model=Token)
+def refresh_access_token(
+    refresh_request: RefreshTokenRequest, session: Session = Depends(get_session)
+):
+    """Exchange refresh token for new access token"""
+    db_token = session.exec(
+        select(RefreshToken).where(
+            RefreshToken.token == refresh_request.refresh_token,
+            RefreshToken.is_revoked == False,  # noqa: E712
+            RefreshToken.expires_at > datetime.now(timezone.utc),
+        )
+    ).first()
+
+    if not db_token:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    researcher = session.get(Researcher, db_token.researcher_id)
+    if not researcher:
+        raise HTTPException(status_code=401, detail="Researcher not found")
+
+    # Create new access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": researcher.email}, expires_delta=access_token_expires
+    )
+
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
+@router.post("/revoke")
+def revoke_refresh_token(
+    refresh_request: RefreshTokenRequest, session: Session = Depends(get_session)
+):
+    """Revoke a refresh token (logout)"""
+    db_token = session.exec(
+        select(RefreshToken).where(RefreshToken.token == refresh_request.refresh_token)
+    ).first()
+
+    if db_token:
+        db_token.is_revoked = True
+        db_token.revoked_at = datetime.now(timezone.utc)
+        session.add(db_token)
+        session.commit()
+
+    return {"message": "Token revoked"}
 
 
 @router.get("/user", response_model=Researcher, response_model_exclude={"password"})

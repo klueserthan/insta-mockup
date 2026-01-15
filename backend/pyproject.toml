@@ -2,7 +2,7 @@
 name = "insta-mockup-backend"
 version = "0.1.0"
 description = "FastAPI backend for the Insta Mockup experimental reels feed"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
   "fastapi",
   "uvicorn[standard]",
@@ -18,6 +18,8 @@ dependencies = [
   "rocketapi",
   "pyjwt>=2.10.1",
   "pwdlib[argon2]>=0.3.0",
+  "slowapi>=0.1.9",
+  "bleach>=6.1.0",
 ]
 
 [dependency-groups]
@@ -25,15 +27,16 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
-    "ruff>=0.14.9",
+    "ruff==0.4.1",
     "pyright>=1.1.390",
     "bandit>=1.9.2",
+    "pre-commit>=4.5.1",
 ]
 
 [tool.pyright]
 include = ["."]
 exclude = ["tests", "**/__pycache__", ".venv", "venv", "htmlcov"]
-pythonVersion = "3.13"
+pythonVersion = "3.12"
 typeCheckingMode = "basic"
 reportMissingTypeStubs = false
 reportUnknownMemberType = false
@@ -42,7 +45,7 @@ reportUnknownArgumentType = false
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]

@@ -12,9 +12,9 @@ type AuthContextType = {
   user: Omit<Researcher, 'password'> | null;
   isLoading: boolean;
   error: Error | null;
-  loginMutation: UseMutationResult<Omit<Researcher, 'password'>, Error, LoginData>;
+  loginMutation: UseMutationResult<{ accessToken?: string; tokenType?: string }, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<Omit<Researcher, 'password'>, Error, InsertResearcher>;
+  registerMutation: UseMutationResult<{ accessToken?: string; tokenType?: string }, Error, InsertResearcher>;
 };
 
 type LoginData = { email: string; password: string };
@@ -40,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: async (data: { accessToken?: string; tokenType?: string }) => {
       if (data.accessToken) {
         setAuthToken(data.accessToken);
+        // Clear ALL cached data from previous user to prevent data leakage
+        queryClient.clear();
         // Fetch user data after setting token
         await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       }
@@ -58,9 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/register", credentials);
       return await res.json();
     },
-    onSuccess: (data: Omit<Researcher, 'password'>) => {
-      // Register returns user data directly, set it in cache
-      queryClient.setQueryData(["/api/user"], data);
+    onSuccess: async (data: { accessToken?: string; tokenType?: string }) => {
+      if (data.accessToken) {
+        // Clear any previous token and set the new user's token
+        setAuthToken(data.accessToken);
+        // Clear ALL cached data from previous user to prevent data leakage
+        queryClient.clear();
+        // Fetch user data after setting token
+        await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -77,7 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       setAuthToken(null);
-      queryClient.setQueryData(["/api/user"], null);
+      // Clear ALL cached data on logout
+      queryClient.clear();
     },
     onError: (error: Error) => {
       toast({
