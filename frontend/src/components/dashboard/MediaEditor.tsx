@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, Upload, Sparkles, XCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -53,6 +53,18 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
   const [avatarMode, setAvatarMode] = useState<'url' | 'upload'>('url');
 
   const isNewVideo = !initialVideo.id;
+
+  // Initialize selectedAccountId when opening dialog or when video changes
+  useEffect(() => {
+    if (open) {
+      // When opening the dialog for an existing video with a socialAccountId, select it
+      if (!isNewVideo && initialVideo.socialAccountId) {
+        setSelectedAccountId(initialVideo.socialAccountId);
+      } else {
+        setSelectedAccountId("new");
+      }
+    }
+  }, [open, initialVideo.id, initialVideo.socialAccountId, isNewVideo]);
 
   const { data: accounts = [] } = useQuery<SocialAccount[]>({
     queryKey: ['/api/accounts'],
@@ -301,11 +313,8 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                 {formData.filename ? ( // Changed from video.url
                     <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
                     <div className="w-16 h-24 rounded overflow-hidden bg-gray-200 shrink-0">
-                        {/* Use hierarchical path if available, or flat if not (fallback/legacy) - we now expect hierarchical */}
-                        <img src={`/media/${projectId}/${experimentId}/${formData.filename}`} alt="Preview" className="w-full h-full object-cover" onError={(e) => {
-                             // Fallback for legacy flat files if needed, or broken image
-                             (e.target as HTMLImageElement).src = `/media/${formData.filename}`;
-                        }} />
+                        {/* Files are stored flat in uploads directory, served via /media/{filename} */}
+                        <img src={`/media/${formData.filename}`} alt="Preview" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 text-sm text-green-600">
