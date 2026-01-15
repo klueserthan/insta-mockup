@@ -52,6 +52,7 @@ export default function ReelsFeed() {
   const searchParams = new URLSearchParams(window.location.search);
   const queryKey = feedData?.projectSettings.queryKey || 'participantId';
   const participantId = searchParams.get(queryKey) || 'anonymous';
+  const isPreviewMode = participantId === 'preview';
   const timeLimitSeconds = feedData?.projectSettings.timeLimitSeconds || 300;
   const redirectUrl = feedData?.projectSettings.redirectUrl || '';
   const endScreenMessage = feedData?.projectSettings.endScreenMessage || 'Thank you for participating in this study.';
@@ -87,6 +88,13 @@ export default function ReelsFeed() {
 
   useEffect(() => {
     if (feedData && !sessionStarted) {
+      // Skip timer logic in preview mode
+      if (isPreviewMode) {
+        setTimeRemaining(timeLimitSeconds);
+        setSessionStarted(true);
+        return;
+      }
+
       const persistTimer = feedData.persistTimer;
       const storageKey = `timer_${feedData.experimentId}_${participantId}`;
       
@@ -119,10 +127,12 @@ export default function ReelsFeed() {
       
       setSessionStarted(true);
     }
-  }, [feedData, timeLimitSeconds, sessionStarted, participantId, navigateToEndScreen]);
+  }, [feedData, timeLimitSeconds, sessionStarted, participantId, navigateToEndScreen, isPreviewMode]);
 
   useEffect(() => {
     if (timeRemaining === null || timeRemaining <= 0) return;
+    // Don't run countdown timer in preview mode
+    if (isPreviewMode) return;
 
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
@@ -140,7 +150,7 @@ export default function ReelsFeed() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining, navigateToEndScreen, feedData?.experimentId, feedData?.persistTimer, participantId]);
+  }, [timeRemaining, navigateToEndScreen, feedData?.experimentId, feedData?.persistTimer, participantId, isPreviewMode]);
 
   const logInteraction = useCallback(async (type: string, videoId: string, data?: any, options?: { keepalive?: boolean }) => {
     if (!feedData?.experimentId) return;
