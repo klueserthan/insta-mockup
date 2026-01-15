@@ -12,3 +12,4 @@ httpx
 requests
 itsdangerous
 rocketapi
+pydantic-ai

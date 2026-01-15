@@ -48,9 +48,7 @@ def create_refresh_token(researcher_id: UUID, session: Session) -> str:
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
-    refresh_token = RefreshToken(
-        researcher_id=researcher_id, token=token, expires_at=expires_at
-    )
+    refresh_token = RefreshToken(researcher_id=researcher_id, token=token, expires_at=expires_at)
     session.add(refresh_token)
     session.commit()
     return token
