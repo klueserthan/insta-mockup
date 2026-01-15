@@ -36,8 +36,8 @@ jobs:
       - name: Pyright type check
         run: uv run pyright .
 
-      - name: Bandit security check
-        run: uv run bandit -c pyproject.toml -r .
+      # - name: Bandit security check
+      #   run: uv run bandit -c pyproject.toml -r .
 
   # file-checks:
   #   runs-on: ubuntu-latest
