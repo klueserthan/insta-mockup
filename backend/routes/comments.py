@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import random
 from typing import List, Optional
@@ -42,6 +43,57 @@ class CommentGenerationDeps(BaseModel):
 
     caption: str = Field(description="The video caption to comment on")
     tone_instruction: str = Field(description="Instructions for the tone of the comment")
+
+
+# System prompt for the comment generation agent
+COMMENT_AGENT_SYSTEM_PROMPT = """You are an AI assistant that generates authentic Instagram-style comments for reels.
+
+Your task is to create ONE realistic comment that someone might leave on an Instagram reel.
+
+Guidelines:
+- Keep comments short (1-3 sentences maximum)
+- Use casual, social media language
+- Include emojis occasionally when appropriate
+- Make the comment feel authentic and natural
+- Follow the tone instructions provided
+- Generate a realistic Instagram username (e.g., user_123, ig_real, fan_official)
+- Assign a realistic number of likes (typically 0-50, occasionally up to 100)
+
+You will receive:
+1. The video caption
+2. Tone instructions (positive, negative, or mixed)
+
+You must respond with:
+1. body: The comment text
+2. username: A realistic Instagram username
+3. likes: Number of likes (0-100, weighted toward lower numbers)"""
+
+
+# Singleton agent instance - created once at module level
+def _create_comment_agent() -> Agent[CommentGenerationDeps, GeneratedComment] | None:
+    """Create the comment generation agent singleton."""
+    if not OLLAMA_API_TOKEN:
+        return None
+
+    try:
+        model = OpenAIModel(
+            OLLAMA_MODEL,
+            base_url="https://api.ollama.ai/v1",
+            api_key=OLLAMA_API_TOKEN,
+        )
+
+        return Agent(
+            model=model,
+            result_type=GeneratedComment,
+            system_prompt=COMMENT_AGENT_SYSTEM_PROMPT,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to create comment agent: {e}")
+        return None
+
+
+# Singleton instance
+_comment_agent = _create_comment_agent()
 
 
 # Helper functions for ownership verification
@@ -187,30 +239,6 @@ class GenerateCommentsRequest(CamelModel):
     )
 
 
-# System prompt for the comment generation agent
-COMMENT_AGENT_SYSTEM_PROMPT = """You are an AI assistant that generates authentic Instagram-style comments for reels.
-
-Your task is to create ONE realistic comment that someone might leave on an Instagram reel.
-
-Guidelines:
-- Keep comments short (1-3 sentences maximum)
-- Use casual, social media language
-- Include emojis occasionally when appropriate
-- Make the comment feel authentic and natural
-- Follow the tone instructions provided
-- Generate a realistic Instagram username (e.g., user_123, ig_real, fan_official)
-- Assign a realistic number of likes (typically 0-50, occasionally up to 100)
-
-You will receive:
-1. The video caption
-2. Tone instructions (positive, negative, or mixed)
-
-You must respond with:
-1. body: The comment text
-2. username: A realistic Instagram username
-3. likes: Number of likes (0-100, weighted toward lower numbers)"""
-
-
 @router.post(
     "/api/videos/{video_id}/comments/generate",
     response_model=List[PreseededComment],
@@ -227,35 +255,19 @@ async def generate_comments(
 
     Requires OLLAMA_API_TOKEN to be set in environment variables.
     Generates contextual comments based on the video's caption and configured tone.
-    Each comment is generated individually by calling the agent multiple times.
+    Each comment is generated individually by calling the agent multiple times in parallel.
     """
     # Verify user owns the video
     video = verify_video_ownership(session, video_id, current_user.id)
 
-    # Check if OLLAMA_API_TOKEN is set
-    if not OLLAMA_API_TOKEN:
+    # Check if agent is available (OLLAMA_API_TOKEN must be set)
+    if _comment_agent is None:
         raise HTTPException(
             status_code=503,
             detail="AI comment generation is not available. OLLAMA_API_TOKEN environment variable is not set.",
         )
 
-    model_name = OLLAMA_MODEL
-
     try:
-        # Configure Ollama Cloud model via OpenAI-compatible API
-        model = OpenAIModel(
-            model_name,
-            base_url="https://api.ollama.ai/v1",
-            api_key=OLLAMA_API_TOKEN,
-        )
-
-        # Create agent with system prompt and structured output
-        agent = Agent(
-            model=model,
-            result_type=GeneratedComment,
-            system_prompt=COMMENT_AGENT_SYSTEM_PROMPT,
-        )
-
         # Build the tone instructions based on request
         tone_instructions = {
             "positive": "Generate a positive, supportive, and enthusiastic comment.",
@@ -265,7 +277,7 @@ async def generate_comments(
 
         tone_instruction = tone_instructions.get(request.tone, tone_instructions["mixed"])
 
-        # Get max position once before the loop
+        # Get max position once before generating comments
         max_pos = (
             session.exec(
                 select(func.max(PreseededComment.position)).where(
@@ -278,24 +290,26 @@ async def generate_comments(
         if max_pos is None:
             max_pos = -1
 
-        created_comments = []
-        used_usernames = set()
-
-        # Generate comments one at a time by calling the agent multiple times
-        for i in range(request.count):
-            # Prepare dependencies for this comment generation
+        # Prepare tasks for parallel execution
+        async def generate_single_comment(index: int) -> GeneratedComment:
+            """Generate a single comment using the agent."""
             deps = CommentGenerationDeps(
                 caption=video.caption,
                 tone_instruction=tone_instruction,
             )
-
-            # Run the agent to generate ONE comment
             prompt = f"Generate a comment for a reel with this caption: '{video.caption}'"
-            result = await agent.run(prompt, deps=deps)
+            result = await _comment_agent.run(prompt, deps=deps)
+            return result.data
 
-            # Extract the generated comment data
-            generated = result.data
+        # Generate all comments in parallel
+        tasks = [generate_single_comment(i) for i in range(request.count)]
+        generated_comments = await asyncio.gather(*tasks)
 
+        # Process generated comments and create database records
+        created_comments = []
+        used_usernames = set()
+
+        for i, generated in enumerate(generated_comments):
             # Ensure username uniqueness within this batch
             username = generated.username
             if username in used_usernames:

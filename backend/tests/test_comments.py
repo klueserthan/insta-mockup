@@ -105,27 +105,18 @@ def test_generate_comments_basic(client: TestClient, monkeypatch):
     # Mock the AI generation to avoid needing actual API key in tests
     from unittest.mock import AsyncMock, MagicMock, patch
 
-    monkeypatch.setenv("OLLAMA_API_TOKEN", "test-token")
-
-    # Mock the Agent to return predictable structured data
+    # Mock the singleton agent instance
+    mock_agent = MagicMock()
     mock_result = MagicMock()
-    # Agent now returns structured GeneratedComment objects
     mock_generated_comment = MagicMock()
     mock_generated_comment.body = "Great video! 🔥"
     mock_generated_comment.username = "test_user_123"
     mock_generated_comment.likes = 5
     mock_result.data = mock_generated_comment
+    mock_agent.run = AsyncMock(return_value=mock_result)
 
-    # Patch both the config check, the model, and the Agent
-    with (
-        patch("routes.comments.OLLAMA_API_TOKEN", "test-token"),
-        patch("routes.comments.OpenAIModel"),
-        patch("routes.comments.Agent") as mock_agent,
-    ):
-        mock_agent_instance = MagicMock()
-        mock_agent_instance.run = AsyncMock(return_value=mock_result)
-        mock_agent.return_value = mock_agent_instance
-
+    # Patch the singleton instance
+    with patch("routes.comments._comment_agent", mock_agent):
         # Generate comments
         response = client.post(
             f"/api/videos/{vid_id}/comments/generate",
@@ -170,14 +161,14 @@ def test_generate_comments_api_failure(client: TestClient, monkeypatch):
     ).json()
     vid_id = v1["id"]
 
-    # Set token but expect API failure
-    from unittest.mock import patch
+    # Mock singleton agent that fails
+    from unittest.mock import MagicMock, patch
 
-    monkeypatch.setenv("OLLAMA_API_TOKEN", "invalid-token")
+    mock_agent = MagicMock()
+    mock_agent.run.side_effect = Exception("API connection failed")
 
-    # Mock config to have token but make Agent fail
-    with patch("routes.comments.OLLAMA_API_TOKEN", "invalid-token"):
-        # Generate comments - should fail with actual API call
+    # Generate comments - should fail with actual API call
+    with patch("routes.comments._comment_agent", mock_agent):
         response = client.post(
             f"/api/videos/{vid_id}/comments/generate",
             json={"count": 3, "tone": "positive"},
@@ -215,15 +206,16 @@ def test_generate_comments_without_api_token(client: TestClient, monkeypatch):
     ).json()
     vid_id = v1["id"]
 
-    # Clear the API token
-    monkeypatch.delenv("OLLAMA_API_TOKEN", raising=False)
+    # Mock that agent was not created (no API token)
+    from unittest.mock import patch
 
-    # Try to generate comments
-    response = client.post(
-        f"/api/videos/{vid_id}/comments/generate",
-        json={"count": 3, "tone": "mixed"},
-        headers=headers,
-    )
+    with patch("routes.comments._comment_agent", None):
+        # Try to generate comments
+        response = client.post(
+            f"/api/videos/{vid_id}/comments/generate",
+            json={"count": 3, "tone": "mixed"},
+            headers=headers,
+        )
 
     # Should return error about missing API token (503, not 500)
     assert response.status_code == 503
