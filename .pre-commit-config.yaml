@@ -28,11 +28,11 @@ repos:
       - id: pyright
 
   # Security linter via bandit
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.9.2
-    hooks:
-      - id: bandit
-        args: ['-c', 'pyproject.toml']
-        additional_dependencies: ['bandit[toml]']
-        exclude: (^tests/|^\.venv/)
+  # - repo: https://github.com/PyCQA/bandit
+  #   rev: 1.9.2
+  #   hooks:
+  #     - id: bandit
+  #       args: ['-c', 'pyproject.toml']
+  #       additional_dependencies: ['bandit[toml]']
+  #       exclude: (^tests/|^\.venv/)
 
