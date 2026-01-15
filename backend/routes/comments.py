@@ -1,11 +1,10 @@
-import json
 import logging
 import random
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import Field
+from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from sqlmodel import Session, func, select
@@ -26,6 +25,23 @@ from models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# Pydantic model for structured agent output
+class GeneratedComment(BaseModel):
+    """Structured output from AI agent for a single comment."""
+
+    body: str = Field(description="The comment text (1-3 sentences, casual social media language)")
+    username: str = Field(description="A realistic Instagram username")
+    likes: int = Field(ge=0, le=100, description="Number of likes for this comment (0-100)")
+
+
+# Dependencies for the agent
+class CommentGenerationDeps(BaseModel):
+    """Dependencies passed to the agent for comment generation."""
+
+    caption: str = Field(description="The video caption to comment on")
+    tone_instruction: str = Field(description="Instructions for the tone of the comment")
 
 
 # Helper functions for ownership verification
@@ -171,6 +187,30 @@ class GenerateCommentsRequest(CamelModel):
     )
 
 
+# System prompt for the comment generation agent
+COMMENT_AGENT_SYSTEM_PROMPT = """You are an AI assistant that generates authentic Instagram-style comments for reels.
+
+Your task is to create ONE realistic comment that someone might leave on an Instagram reel.
+
+Guidelines:
+- Keep comments short (1-3 sentences maximum)
+- Use casual, social media language
+- Include emojis occasionally when appropriate
+- Make the comment feel authentic and natural
+- Follow the tone instructions provided
+- Generate a realistic Instagram username (e.g., user_123, ig_real, fan_official)
+- Assign a realistic number of likes (typically 0-50, occasionally up to 100)
+
+You will receive:
+1. The video caption
+2. Tone instructions (positive, negative, or mixed)
+
+You must respond with:
+1. body: The comment text
+2. username: A realistic Instagram username
+3. likes: Number of likes (0-100, weighted toward lower numbers)"""
+
+
 @router.post(
     "/api/videos/{video_id}/comments/generate",
     response_model=List[PreseededComment],
@@ -187,6 +227,7 @@ async def generate_comments(
 
     Requires OLLAMA_API_TOKEN to be set in environment variables.
     Generates contextual comments based on the video's caption and configured tone.
+    Each comment is generated individually by calling the agent multiple times.
     """
     # Verify user owns the video
     video = verify_video_ownership(session, video_id, current_user.id)
@@ -208,62 +249,21 @@ async def generate_comments(
             api_key=OLLAMA_API_TOKEN,
         )
 
-        # Create agent with system prompt tailored for comment generation
-        agent = Agent(model=model)
+        # Create agent with system prompt and structured output
+        agent = Agent(
+            model=model,
+            result_type=GeneratedComment,
+            system_prompt=COMMENT_AGENT_SYSTEM_PROMPT,
+        )
 
-        # Build the prompt based on tone and caption
+        # Build the tone instructions based on request
         tone_instructions = {
-            "positive": "Generate only positive, supportive, and enthusiastic comments.",
-            "negative": "Generate critical, skeptical, or negative comments.",
-            "mixed": "Generate a realistic mix of positive, neutral, and occasionally critical comments.",
+            "positive": "Generate a positive, supportive, and enthusiastic comment.",
+            "negative": "Generate a critical, skeptical, or negative comment.",
+            "mixed": "Generate a realistic comment that could be positive, neutral, or occasionally critical.",
         }
 
         tone_instruction = tone_instructions.get(request.tone, tone_instructions["mixed"])
-
-        prompt = f"""Generate exactly {request.count} Instagram-style comments for a reel with the caption: "{video.caption}"
-
-{tone_instruction}
-
-Requirements:
-- Each comment should be short (1-3 sentences maximum)
-- Use casual, social media language
-- Include relevant emojis occasionally
-- Make comments feel authentic and varied
-- Return ONLY a JSON array of strings, nothing else
-
-Example format:
-["Great video! 🔥", "Love this content", "Amazing! Keep it up 💯"]
-
-Generate exactly {request.count} comments now:"""
-
-        # Run the AI agent
-        result = await agent.run(prompt)
-
-        # Parse the result - expecting JSON array of strings
-        try:
-            comments_texts = json.loads(result.data)
-            if not isinstance(comments_texts, list):
-                # If not a list, try to extract from the response
-                raise ValueError("Response is not a list")
-        except (json.JSONDecodeError, ValueError):
-            # Fallback: split by newlines and clean
-            lines = str(result.data).strip().split("\n")
-            comments_texts = [
-                line.strip().strip('"').strip("'").strip() for line in lines if line.strip()
-            ]
-            # Filter out JSON artifacts
-            comments_texts = [
-                c
-                for c in comments_texts
-                if c and not c.startswith("[") and not c.startswith("]") and not c.startswith("{")
-            ]
-
-        # Limit to requested count
-        comments_texts = comments_texts[: request.count]
-
-        # Generate random usernames and likes for each comment
-        username_prefixes = ["user", "fan", "viewer", "follower", "ig", "insta", "real", "the"]
-        username_suffixes = ["123", "456", "789", "_official", "_real", "xo", "99", "2024"]
 
         # Get max position once before the loop
         max_pos = (
@@ -281,27 +281,35 @@ Generate exactly {request.count} comments now:"""
         created_comments = []
         used_usernames = set()
 
-        for i, comment_text in enumerate(comments_texts):
-            # Generate unique random username
-            base_username = f"{random.choice(username_prefixes)}_{random.choice(username_suffixes)}"
-            username = base_username
-            # Ensure uniqueness within this batch
-            while username in used_usernames:
-                username = f"{base_username}_{random.randint(1000, 9999)}"
-            used_usernames.add(username)
+        # Generate comments one at a time by calling the agent multiple times
+        for i in range(request.count):
+            # Prepare dependencies for this comment generation
+            deps = CommentGenerationDeps(
+                caption=video.caption,
+                tone_instruction=tone_instruction,
+            )
 
-            # Generate random likes (weighted toward lower numbers)
-            likes = random.choices(
-                [0, 1, 2, 3, 5, 10, 25, 50], weights=[10, 15, 12, 10, 8, 5, 2, 1]
-            )[0]
+            # Run the agent to generate ONE comment
+            prompt = f"Generate a comment for a reel with this caption: '{video.caption}'"
+            result = await agent.run(prompt, deps=deps)
+
+            # Extract the generated comment data
+            generated = result.data
+
+            # Ensure username uniqueness within this batch
+            username = generated.username
+            if username in used_usernames:
+                # Append random suffix to make it unique
+                username = f"{username}_{random.randint(1000, 9999)}"
+            used_usernames.add(username)
 
             # Create comment with incremental position
             comment = PreseededComment(
                 video_id=video_id,
                 author_name=username,
                 author_avatar=f"https://api.dicebear.com/7.x/avataaars/svg?seed={username}_{random.randint(1000, 9999)}",
-                body=comment_text,
-                likes=likes,
+                body=generated.body,
+                likes=generated.likes,
                 source="ai",
                 position=max_pos + 1 + i,
             )

@@ -107,14 +107,19 @@ def test_generate_comments_basic(client: TestClient, monkeypatch):
 
     monkeypatch.setenv("OLLAMA_API_TOKEN", "test-token")
 
-    # Mock the Agent to return predictable data
+    # Mock the Agent to return predictable structured data
     mock_result = MagicMock()
-    mock_result.data = '["Great video! 🔥", "Love this content", "Amazing! Keep it up 💯"]'
+    # Agent now returns structured GeneratedComment objects
+    mock_generated_comment = MagicMock()
+    mock_generated_comment.body = "Great video! 🔥"
+    mock_generated_comment.username = "test_user_123"
+    mock_generated_comment.likes = 5
+    mock_result.data = mock_generated_comment
 
     # Patch both the config check, the model, and the Agent
     with (
         patch("routes.comments.OLLAMA_API_TOKEN", "test-token"),
-        patch("routes.comments.OpenAIModel") as mock_openai_model,
+        patch("routes.comments.OpenAIModel"),
         patch("routes.comments.Agent") as mock_agent,
     ):
         mock_agent_instance = MagicMock()
@@ -166,7 +171,7 @@ def test_generate_comments_api_failure(client: TestClient, monkeypatch):
     vid_id = v1["id"]
 
     # Set token but expect API failure
-    from unittest.mock import AsyncMock, MagicMock, patch
+    from unittest.mock import patch
 
     monkeypatch.setenv("OLLAMA_API_TOKEN", "invalid-token")
 
