@@ -58,6 +58,9 @@ export default function ReelsFeed() {
   const endScreenMessage = feedData?.projectSettings.endScreenMessage || 'Thank you for participating in this study.';
 
   const navigateToEndScreen = useCallback(() => {
+    // Never redirect in preview mode
+    if (isPreviewMode) return;
+    
     // Preserve original query string for forwarding to redirect URL (US4)
     const originalQueryString = window.location.search;
     
@@ -75,7 +78,7 @@ export default function ReelsFeed() {
     }
     
     setLocation(`/end/${publicUrl}?${endScreenParams.toString()}`);
-  }, [endScreenMessage, redirectUrl, queryKey, publicUrl, setLocation]);
+  }, [endScreenMessage, redirectUrl, queryKey, publicUrl, setLocation, isPreviewMode]);
 
   useEffect(() => {
     // feedData?.videos?.length checks both existence and non-zero length,
