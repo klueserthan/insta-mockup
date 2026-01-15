@@ -528,13 +528,6 @@ export function VideoPlayer({
         )}
       </AnimatePresence>
 
-      {/* Progress Bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-30">
-        <div 
-          className="h-full bg-white/90 transition-all duration-100 ease-linear"
-          style={{ width: previewMode ? '33%' : `${progress}%` }}
-        />
-      </div>
     </div>
     </>
   );
