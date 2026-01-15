@@ -18,6 +18,8 @@ dependencies = [
   "rocketapi",
   "pyjwt>=2.10.1",
   "pwdlib[argon2]>=0.3.0",
+  "slowapi>=0.1.9",
+  "bleach>=6.1.0",
 ]
 
 [dependency-groups]

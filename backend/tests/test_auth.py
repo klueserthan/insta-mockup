@@ -197,3 +197,121 @@ def test_jwt_public_interactions_no_auth_required(client: TestClient):
     )
     # Should not be 401 (unauthorized) - might be 422 (validation) or 201 (success)
     assert response.status_code != 401
+
+
+# Refresh token tests (TODO-C2)
+
+
+def test_refresh_token_returned_on_login(client: TestClient):
+    """Test that login returns a refresh token"""
+    # Register user first
+    client.post(
+        "/api/register",
+        json={
+            "email": "refresh_test@example.com",
+            "password": "password123",
+            "name": "Refresh",
+            "lastname": "Test",
+        },
+    )
+
+    # Login
+    response = client.post(
+        "/api/login", json={"email": "refresh_test@example.com", "password": "password123"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify refresh token is present
+    assert "refreshToken" in data
+    assert isinstance(data["refreshToken"], str)
+    assert len(data["refreshToken"]) > 0
+
+
+def test_refresh_token_returned_on_register(client: TestClient):
+    """Test that registration returns a refresh token"""
+    response = client.post(
+        "/api/register",
+        json={
+            "email": "refresh_reg_test@example.com",
+            "password": "password123",
+            "name": "Refresh",
+            "lastname": "Reg",
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+
+    # Verify refresh token is present
+    assert "refreshToken" in data
+    assert isinstance(data["refreshToken"], str)
+    assert len(data["refreshToken"]) > 0
+
+
+def test_refresh_access_token_with_valid_refresh_token(client: TestClient):
+    """Test that we can get a new access token using a refresh token"""
+    # Register and login
+    client.post(
+        "/api/register",
+        json={
+            "email": "refresh_valid@example.com",
+            "password": "password123",
+            "name": "Valid",
+            "lastname": "Refresh",
+        },
+    )
+
+    login_response = client.post(
+        "/api/login", json={"email": "refresh_valid@example.com", "password": "password123"}
+    )
+    refresh_token = login_response.json()["refreshToken"]
+
+    # Use refresh token to get new access token
+    response = client.post("/api/refresh", json={"refreshToken": refresh_token})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "accessToken" in data
+    assert "tokenType" in data
+    assert data["tokenType"] == "bearer"
+    assert isinstance(data["accessToken"], str)
+    assert len(data["accessToken"]) > 0
+
+
+def test_refresh_token_with_invalid_token(client: TestClient):
+    """Test that invalid refresh token is rejected"""
+    response = client.post("/api/refresh", json={"refreshToken": "invalid_token_12345"})
+
+    assert response.status_code == 401
+    assert "Invalid or expired refresh token" in response.json()["detail"]
+
+
+def test_revoke_refresh_token(client: TestClient):
+    """Test that we can revoke a refresh token"""
+    # Register and login
+    client.post(
+        "/api/register",
+        json={
+            "email": "revoke_test@example.com",
+            "password": "password123",
+            "name": "Revoke",
+            "lastname": "Test",
+        },
+    )
+
+    login_response = client.post(
+        "/api/login", json={"email": "revoke_test@example.com", "password": "password123"}
+    )
+    refresh_token = login_response.json()["refreshToken"]
+
+    # Revoke the token
+    revoke_response = client.post("/api/revoke", json={"refreshToken": refresh_token})
+    assert revoke_response.status_code == 200
+    assert "Token revoked" in revoke_response.json()["message"]
+
+    # Try to use revoked token
+    refresh_response = client.post("/api/refresh", json={"refreshToken": refresh_token})
+    assert refresh_response.status_code == 401
+    assert "Invalid or expired refresh token" in refresh_response.json()["detail"]

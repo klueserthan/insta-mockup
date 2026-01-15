@@ -60,9 +60,19 @@ def verify_video_ownership(session: Session, video_id: UUID, user_id: UUID) -> V
 def get_comments(
     video_id: UUID,
     session: Session = Depends(get_session),
-    # Open access for now as per test (test didn't verify auth for GET comments, but did for create/edit.
-    # original routes.ts allowed get comments publicly `app.get` vs `app.post... requireAuth`).
+    current_user: Researcher = Depends(get_current_researcher),  # H7: Add authentication
 ):
+    """
+    Get comments for a video owned by the authenticated researcher. Requires authentication to prevent
+    enumeration of comments on videos the researcher does not own.
+
+    Participants do not call this endpoint directly. They receive the same comments as part of the public
+    feed response from the `/api/feed/{public_url}` endpoint, which is a separate (unauthenticated) code
+    path for participant-facing access.
+    """
+    # Verify user owns the video (via experiment ownership)
+    verify_video_ownership(session, video_id, current_user.id)
+
     from typing import Any, cast
 
     comments = session.exec(
