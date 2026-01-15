@@ -536,20 +536,6 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                     </div>
                 )}
             </div>
-            {/* Filename Input - Read Only or Editable? For now Editable but logic is tricky */}
-            {ingestMode === 'upload' && (
-                <div className="grid gap-2">
-                <Label htmlFor="filename">Filename</Label>
-                <Input
-                    id="filename"
-                    value={formData.filename}
-                    onChange={(e) => setFormData({ ...formData, filename: e.target.value })}
-                    placeholder="uuid.mp4"
-                    disabled={true}
-                    className="bg-muted"
-                />
-                </div>
-            )}
 
             {/* Social Account ID - For now text input, ideally a selector */}
             {/* HIDDEN, handled via Select */}
