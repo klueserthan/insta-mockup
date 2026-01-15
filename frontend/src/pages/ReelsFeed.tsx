@@ -283,10 +283,10 @@ export default function ReelsFeed() {
       
       <div 
         ref={containerRef}
-        className="h-full w-full max-w-md bg-black snap-y snap-mandatory overflow-y-scroll no-scrollbar"
+        className="h-full w-full bg-black snap-y snap-mandatory overflow-y-scroll no-scrollbar flex flex-col items-center"
       >
         {feedData.videos.map((video) => (
-          <div key={video.id} className="h-full w-full snap-start relative">
+          <div key={video.id} className="h-full snap-start shrink-0" style={{ aspectRatio: '9/16' }}>
             <VideoPlayer 
               video={video}
               isActive={activeVideoId === video.id}
