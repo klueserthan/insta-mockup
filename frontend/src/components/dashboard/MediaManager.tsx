@@ -124,32 +124,45 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
           )}
         </div>
       </TableCell>
+      <TableCell className="text-sm">
+        <div className="text-muted-foreground">@{video.socialAccount?.username}</div>
+      </TableCell>
       <TableCell className="font-medium">
         <div className="max-w-[300px] truncate">{video.caption}</div>
-        <div className="text-xs text-muted-foreground mt-1">@{video.socialAccount?.username}</div>
       </TableCell>
-      <TableCell>
-        <div className="flex gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1"><Heart size={16} strokeWidth={2} /> {(video.likes || 0).toLocaleString()}</span>
-          <span className="flex items-center gap-1"><MessageCircle size={16} strokeWidth={2} className="scale-x-[-1]" /> {(video.comments || 0).toLocaleString()}</span>
-          <span className="flex items-center gap-1"><Send size={16} strokeWidth={2} /> {(video.shares || 0).toLocaleString()}</span>
+      <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-mono">
+          <Heart size={16} strokeWidth={2} />
+          <span className="w-[40px] text-right">{(video.likes || 0).toLocaleString()}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-mono">
+          <MessageCircle size={16} strokeWidth={2} className="scale-x-[-1]" />
+          <span className="w-[50px] text-right">{(video.comments || 0).toLocaleString()}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-mono">
+          <Send size={16} strokeWidth={2} />
+          <span className="w-[40px] text-right">{(video.shares || 0).toLocaleString()}</span>
         </div>
       </TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="icon" title={feedIsActive ? "Cannot edit while feed is active" : "Edit"} onClick={() => onEdit(video)} disabled={feedIsActive} data-testid={`button-edit-${video.id}`}>
-            <Pencil size={16} />
+        <div className="flex justify-end gap-1 bg-muted/50 rounded-md p-1.5">
+          <Button variant="secondary" size="sm" title={feedIsActive ? "Cannot edit while feed is active" : "Edit"} onClick={() => onEdit(video)} disabled={feedIsActive} className="h-8 w-8 p-0" data-testid={`button-edit-${video.id}`}>
+            <Pencil size={14} />
           </Button>
-          <Button variant="ghost" size="icon" title={feedIsActive ? "Cannot manage comments while feed is active" : "Manage Comments"} onClick={() => onManageComments(video)} disabled={feedIsActive} data-testid={`button-comments-${video.id}`}>
-            <MessageCircle size={16} />
+          <Button variant="secondary" size="sm" title={feedIsActive ? "Cannot manage comments while feed is active" : "Manage Comments"} onClick={() => onManageComments(video)} disabled={feedIsActive} className="h-8 w-8 p-0" data-testid={`button-comments-${video.id}`}>
+            <MessageCircle size={14} />
           </Button>
-          <Button variant="ghost" size="icon" title="Preview" onClick={() => onPreview(video.id)} data-testid={`button-preview-${video.id}`}>
-            <ExternalLink size={16} />
+          <Button variant="secondary" size="sm" title="Preview" onClick={() => onPreview(video.id)} className="h-8 w-8 p-0" data-testid={`button-preview-${video.id}`}>
+            <ExternalLink size={14} />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title={feedIsActive ? "Cannot delete while feed is active" : "Remove"} disabled={feedIsActive} data-testid={`button-delete-${video.id}`}>
-                <Trash2 size={16} />
+              <Button variant="destructive" size="sm" title={feedIsActive ? "Cannot delete while feed is active" : "Remove"} disabled={feedIsActive} className="h-8 w-8 p-0" data-testid={`button-delete-${video.id}`}>
+                <Trash2 size={14} />
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -625,11 +638,15 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                         data-testid="checkbox-select-all"
                       />
                     </TableHead>
-                    <TableHead className="w-[50px]">Author</TableHead>
+                    <TableHead className="w-[50px]">Drag</TableHead>
+                    <TableHead className="w-[40px]">Avatar</TableHead>
                     <TableHead className="w-[50px]">Lock</TableHead>
                     <TableHead className="w-[100px]">Thumbnail</TableHead>
-                    <TableHead>Caption</TableHead>
-                    <TableHead>Metrics</TableHead>
+                    <TableHead className="w-[120px]">Author</TableHead>
+                    <TableHead className="flex-1">Caption</TableHead>
+                    <TableHead className="w-[80px] text-center">Likes</TableHead>
+                    <TableHead className="w-[100px] text-center">Comments</TableHead>
+                    <TableHead className="w-[80px] text-center">Shares</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
