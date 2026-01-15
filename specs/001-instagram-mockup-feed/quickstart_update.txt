@@ -1,0 +1,11 @@
+## Comments workflow (US6)
+
+1. As a researcher, open a media item's comment editor.
+2. Set exactly one pinned comment (optionally including a link).
+3. Add additional pre-seeded comments and reorder them.
+4. **AI Generation (optional)**: Click "Generate Comments with AI" to auto-generate contextual comments based on the video caption:
+   - Select the number of comments (3, 5, 10, or 15)
+   - Choose the tone (mixed/realistic, positive, or negative/critical)
+   - **Note**: Requires `OLLAMA_API_TOKEN` environment variable to be set
+5. In the participant feed, verify comments appear consistently.
+6. Click the pinned comment link and verify the click is recorded as an interaction event.
