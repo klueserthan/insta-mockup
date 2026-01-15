@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,7 +42,7 @@ app = FastAPI(title="Insta Mockup API", lifespan=lifespan)
 # Configure rate limiting (H1)
 limiter = Limiter(key_func=get_remote_address, default_limits=[RATE_LIMIT_DEFAULT])
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, cast(object, _rate_limit_exceeded_handler))  # type: ignore
 
 # Configure Session Middleware
 # Import SECRET_KEY from config.py to ensure consistency

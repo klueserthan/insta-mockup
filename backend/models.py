@@ -41,8 +41,6 @@ class Researcher(ResearcherBase, table=True):
 
 # RefreshToken
 class RefreshToken(CamelModel, table=True):
-    __tablename__ = "refreshtoken"
-
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     researcher_id: UUID = Field(foreign_key="researcher.id")
     token: str = Field(unique=True, index=True)
