@@ -52,9 +52,10 @@ interface SortableRowProps {
   onToggleLock: (video: Video) => void;
   lockAllPositions: boolean;
   projectId: string;
+  feedIsActive: boolean;
 }
 
-function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit, onManageComments, onToggleLock, lockAllPositions, projectId }: SortableRowProps) {
+function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit, onManageComments, onToggleLock, lockAllPositions, projectId, feedIsActive }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -62,7 +63,7 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: video.id, disabled: video.isLocked || lockAllPositions });
+  } = useSortable({ id: video.id, disabled: video.isLocked || lockAllPositions || feedIsActive });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -72,7 +73,7 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
     backgroundColor: isDragging ? 'hsl(var(--muted))' : undefined,
   };
 
-  const isEffectivelyLocked = video.isLocked || lockAllPositions;
+  const isEffectivelyLocked = video.isLocked || lockAllPositions || feedIsActive;
 
   return (
     <TableRow ref={setNodeRef} style={style} {...attributes} className={`${isDragging ? 'opacity-50' : ''} ${isSelected ? 'bg-muted/50' : ''} ${video.isLocked ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
@@ -80,6 +81,8 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
         <Checkbox
           checked={isSelected}
           onCheckedChange={(checked) => onSelect(video.id, checked as boolean)}
+          disabled={feedIsActive}
+          title={feedIsActive ? "Cannot select while feed is active" : ""}
           data-testid={`checkbox-video-${video.id}`}
         />
       </TableCell>
@@ -87,6 +90,7 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
         <div 
           {...(isEffectivelyLocked ? {} : listeners)} 
           className={`p-2 rounded flex items-center justify-center ${isEffectivelyLocked ? 'cursor-not-allowed opacity-50' : 'cursor-grab active:cursor-grabbing hover:bg-muted'}`}
+          title={feedIsActive ? "Cannot reorder while feed is active" : (lockAllPositions ? "Reordering disabled by project settings" : (video.isLocked ? "Position is locked" : ""))}
           data-testid={`drag-handle-${video.id}`}
         >
           <GripVertical size={18} className="text-muted-foreground" />
@@ -102,9 +106,9 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
         <Button 
           variant="ghost" 
           size="icon" 
-          title={video.isLocked ? "Unlock position" : "Lock position"}
+          title={feedIsActive ? "Cannot modify lock while feed is active" : (lockAllPositions ? "Position locking controlled by project settings" : (video.isLocked ? "Unlock position" : "Lock position"))}
           onClick={() => onToggleLock(video)}
-          disabled={lockAllPositions}
+          disabled={lockAllPositions || feedIsActive}
           className={video.isLocked ? "text-amber-600" : "text-muted-foreground"}
           data-testid={`button-lock-${video.id}`}
         >
@@ -120,32 +124,45 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
           )}
         </div>
       </TableCell>
+      <TableCell className="text-sm">
+        <div className="text-muted-foreground">@{video.socialAccount?.username}</div>
+      </TableCell>
       <TableCell className="font-medium">
         <div className="max-w-[300px] truncate">{video.caption}</div>
-        <div className="text-xs text-muted-foreground mt-1">@{video.socialAccount?.username}</div>
       </TableCell>
-      <TableCell>
-        <div className="flex gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1"><Heart size={16} strokeWidth={2} /> {(video.likes || 0).toLocaleString()}</span>
-          <span className="flex items-center gap-1"><MessageCircle size={16} strokeWidth={2} className="scale-x-[-1]" /> {(video.comments || 0).toLocaleString()}</span>
-          <span className="flex items-center gap-1"><Send size={16} strokeWidth={2} /> {(video.shares || 0).toLocaleString()}</span>
+      <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-mono">
+          <Heart size={16} strokeWidth={2} />
+          <span className="w-[40px] text-right">{(video.likes || 0).toLocaleString()}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-mono">
+          <MessageCircle size={16} strokeWidth={2} className="scale-x-[-1]" />
+          <span className="w-[50px] text-right">{(video.comments || 0).toLocaleString()}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-mono">
+          <Send size={16} strokeWidth={2} />
+          <span className="w-[40px] text-right">{(video.shares || 0).toLocaleString()}</span>
         </div>
       </TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="icon" title="Edit" onClick={() => onEdit(video)} data-testid={`button-edit-${video.id}`}>
-            <Pencil size={16} />
+        <div className="flex justify-end gap-1 bg-muted/50 rounded-md p-1.5">
+          <Button variant="secondary" size="sm" title={feedIsActive ? "Cannot edit while feed is active" : "Edit"} onClick={() => onEdit(video)} disabled={feedIsActive} className="h-8 w-8 p-0" data-testid={`button-edit-${video.id}`}>
+            <Pencil size={14} />
           </Button>
-          <Button variant="ghost" size="icon" title="Manage Comments" onClick={() => onManageComments(video)} data-testid={`button-comments-${video.id}`}>
-            <MessageCircle size={16} />
+          <Button variant="secondary" size="sm" title={feedIsActive ? "Cannot manage comments while feed is active" : "Manage Comments"} onClick={() => onManageComments(video)} disabled={feedIsActive} className="h-8 w-8 p-0" data-testid={`button-comments-${video.id}`}>
+            <MessageCircle size={14} />
           </Button>
-          <Button variant="ghost" size="icon" title="Preview" onClick={() => onPreview(video.id)} data-testid={`button-preview-${video.id}`}>
-            <ExternalLink size={16} />
+          <Button variant="secondary" size="sm" title="Preview" onClick={() => onPreview(video.id)} className="h-8 w-8 p-0" data-testid={`button-preview-${video.id}`}>
+            <ExternalLink size={14} />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" title="Remove" data-testid={`button-delete-${video.id}`}>
-                <Trash2 size={16} />
+              <Button variant="destructive" size="sm" title={feedIsActive ? "Cannot delete while feed is active" : "Remove"} disabled={feedIsActive} className="h-8 w-8 p-0" data-testid={`button-delete-${video.id}`}>
+                <Trash2 size={14} />
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -194,6 +211,17 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
     setLocalVideoOrder(videos);
     setHasUnsavedOrder(false);
   }, [videos]);
+
+  // Show informational toast when opening an active feed
+  useEffect(() => {
+    if (experiment.isActive) {
+      toast({
+        title: 'Feed is Active',
+        description: 'This feed is currently active. Media and settings cannot be modified while the feed is active. Toggle the feed status to make changes.',
+        duration: 6000,
+      });
+    }
+  }, [experiment.id]); // Only trigger when experiment changes (not on every render)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -389,6 +417,8 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                     <Input 
                       value={editingExperiment.name} 
                       onChange={(e) => setEditingExperiment({ ...editingExperiment, name: e.target.value })} 
+                      disabled={editingExperiment.isActive}
+                      title={editingExperiment.isActive ? "Cannot change name while feed is active" : ""}
                       data-testid="input-feed-name-edit"
                     />
                   </div>
@@ -417,6 +447,8 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                       id="persist-timer"
                       checked={editingExperiment.persistTimer || false}
                       onCheckedChange={(checked) => setEditingExperiment({ ...editingExperiment, persistTimer: checked })}
+                      disabled={editingExperiment.isActive}
+                      title={editingExperiment.isActive ? "Cannot change while feed is active" : ""}
                       data-testid="switch-persist-timer"
                     />
                   </div>
@@ -431,6 +463,8 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                       id="unmute-prompt"
                       checked={editingExperiment.showUnmutePrompt || false}
                       onCheckedChange={(checked) => setEditingExperiment({ ...editingExperiment, showUnmutePrompt: checked })}
+                      disabled={editingExperiment.isActive}
+                      title={editingExperiment.isActive ? "Cannot change while feed is active" : ""}
                       data-testid="switch-unmute-prompt"
                     />
                   </div>
@@ -482,7 +516,8 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                 onClick={handleSaveOrder} 
                 className="gap-2" 
                 variant="default"
-                disabled={reorderVideosMutation.isPending}
+                disabled={reorderVideosMutation.isPending || experiment.isActive}
+                title={experiment.isActive ? "Cannot save order while feed is active" : ""}
                 data-testid="button-save-order"
               >
                 {reorderVideosMutation.isPending ? (
@@ -493,7 +528,13 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                 Save Order
               </Button>
             )}
-            <Button onClick={handleAddNewVideo} className="gap-2 bg-[#E4405F] hover:bg-[#D03050] text-white border-0" data-testid="button-add-video">
+            <Button 
+              onClick={handleAddNewVideo} 
+              className="gap-2 bg-[#E4405F] hover:bg-[#D03050] text-white border-0" 
+              disabled={experiment.isActive}
+              title={experiment.isActive ? "Cannot add media while feed is active" : ""}
+              data-testid="button-add-video"
+            >
               <Plus size={16} /> Add Media
             </Button>
           </div>
@@ -516,8 +557,8 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <Select value={bulkCommentTone} onValueChange={setBulkCommentTone}>
-                      <SelectTrigger className="w-[120px]" data-testid="select-bulk-tone">
+                    <Select value={bulkCommentTone} onValueChange={setBulkCommentTone} disabled={experiment.isActive}>
+                      <SelectTrigger className="w-[120px]" title={experiment.isActive ? "Cannot modify while feed is active" : ""} data-testid="select-bulk-tone">
                         <SelectValue placeholder="Tone" />
                       </SelectTrigger>
                       <SelectContent>
@@ -526,8 +567,8 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                         <SelectItem value="mixed">Mixed</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Select value={bulkCommentCount.toString()} onValueChange={(v) => setBulkCommentCount(parseInt(v))}>
-                      <SelectTrigger className="w-[80px]" data-testid="select-bulk-count">
+                    <Select value={bulkCommentCount.toString()} onValueChange={(v) => setBulkCommentCount(parseInt(v))} disabled={experiment.isActive}>
+                      <SelectTrigger className="w-[80px]" title={experiment.isActive ? "Cannot modify while feed is active" : ""} data-testid="select-bulk-count">
                         <SelectValue placeholder="Count" />
                       </SelectTrigger>
                       <SelectContent>
@@ -544,7 +585,8 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                         count: bulkCommentCount, 
                         tone: bulkCommentTone 
                       })}
-                      disabled={bulkGenerateCommentsMutation.isPending}
+                      disabled={bulkGenerateCommentsMutation.isPending || experiment.isActive}
+                      title={experiment.isActive ? "Cannot generate comments while feed is active" : ""}
                       data-testid="button-bulk-generate-comments"
                     >
                       {bulkGenerateCommentsMutation.isPending ? (
@@ -557,7 +599,7 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                   </div>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" data-testid="button-bulk-delete">
+                      <Button variant="destructive" disabled={experiment.isActive} title={experiment.isActive ? "Cannot delete while feed is active" : ""} data-testid="button-bulk-delete">
                         <Trash2 size={16} className="mr-2" /> Delete Selected
                       </Button>
                     </AlertDialogTrigger>
@@ -591,14 +633,20 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                       <Checkbox
                         checked={localVideoOrder.length > 0 && selectedVideoIds.size === localVideoOrder.length}
                         onCheckedChange={handleSelectAll}
+                        disabled={experiment.isActive}
+                        title={experiment.isActive ? "Cannot select while feed is active" : ""}
                         data-testid="checkbox-select-all"
                       />
                     </TableHead>
-                    <TableHead className="w-[50px]">Author</TableHead>
+                    <TableHead className="w-[50px]">Drag</TableHead>
+                    <TableHead className="w-[40px]">Avatar</TableHead>
                     <TableHead className="w-[50px]">Lock</TableHead>
                     <TableHead className="w-[100px]">Thumbnail</TableHead>
-                    <TableHead>Caption</TableHead>
-                    <TableHead>Metrics</TableHead>
+                    <TableHead className="w-[120px]">Author</TableHead>
+                    <TableHead className="flex-1">Caption</TableHead>
+                    <TableHead className="w-[80px] text-center">Likes</TableHead>
+                    <TableHead className="w-[100px] text-center">Comments</TableHead>
+                    <TableHead className="w-[80px] text-center">Shares</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -617,6 +665,7 @@ export function MediaManager({ project, experiment, videos, onBack, onViewResult
                         onToggleLock={(v) => updateVideoMutation.mutate({ id: v.id, data: { isLocked: !v.isLocked } })}
                         lockAllPositions={project.lockAllPositions || false}
                         projectId={project.id}
+                        feedIsActive={experiment.isActive || false}
                       />
                     ))}
                   </SortableContext>

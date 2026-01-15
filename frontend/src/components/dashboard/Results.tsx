@@ -241,7 +241,8 @@ export function Results({ experiment, onBack }: ResultsProps) {
           <div className="flex gap-2">
             <Button
               onClick={handleExport}
-              disabled={isExporting || sessions.length === 0}
+              disabled={isExporting || sessions.length === 0 || experiment.isActive}
+              title={experiment.isActive ? "Cannot export results while feed is active" : ""}
               data-testid="button-export"
             >
               <Download size={16} className="mr-2" />

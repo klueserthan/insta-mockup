@@ -8,6 +8,7 @@ import XHRUpload from "@uppy/xhr-upload";
 import type { UploadResult } from "@uppy/core";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { getAuthToken } from "@/lib/queryClient";
 
 interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
@@ -32,8 +33,14 @@ export function ObjectUploader({
   extraData = {},
 }: ObjectUploaderProps & { extraData?: Record<string, string> }) {
   const [showModal, setShowModal] = useState(false);
-  const [uppy] = useState(() =>
-    new Uppy({
+  const [uppy] = useState(() => {
+    const authToken = getAuthToken();
+    const headers: Record<string, string> = {};
+    if (authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
+    }
+    
+    return new Uppy({
       restrictions: {
         maxNumberOfFiles,
         maxFileSize,
@@ -46,6 +53,7 @@ export function ObjectUploader({
         endpoint,
         fieldName: "file",
         formData: true,
+        headers,
       })
       .on("upload-success", (file, response) => {
         if (file) {
@@ -59,8 +67,8 @@ export function ObjectUploader({
       })
       .on("error", (error) => {
         console.error("Uppy error:", error);
-      })
-  );
+      });
+  });
 
   if (mode === "inline") {
     return (
