@@ -12,9 +12,9 @@ vi.mock('@/hooks/use-auth', () => ({
 
 describe('Dashboard Account Creation', () => {
   beforeEach(() => {
-    // Mock authenticated user
+    // Mock authenticated user (generic test user, not hardcoded dev credentials)
     (useAuthModule.useAuth as any).mockReturnValue({
-      user: { id: 'test-user', email: 'test@research.edu', isAdmin: true },
+      user: { id: 'test-user-123', email: 'researcher@example.com', isAdmin: true },
       isLoading: false,
     });
 

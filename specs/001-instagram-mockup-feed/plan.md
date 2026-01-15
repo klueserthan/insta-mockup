@@ -32,7 +32,7 @@ Key decision: participant identity is derived from the query parameter whose nam
 - Backend work plans MUST start with tests (pytest) before implementation and include ruff + pyright in the quality gate.
 - Plans must preserve existing frontend-defined behavior: camelCase payloads and current routes/redirects. **Auth method change**: migrate from session cookies to OAuth2 Bearer tokens (requires frontend API client updates to use `Authorization: Bearer` header instead of `credentials: include`).
 - All backend routes must require authenticated access (JWT Bearer token) for researcher-owned resources; participant-facing endpoints (feed, interaction logging) are scoped exceptions gated by experiment public_url token (see Complexity Tracking below).
-- Any data mutation must account for researcher ownership checks using existing helpers; seeded dev user flow must remain usable (with hashed password).
+- Any data mutation must account for researcher ownership checks using existing helpers.
 - Media handling must respect validator limits (50MB, allowed extensions) and keep uploads within `UPLOAD_DIR` served at `/media`; RocketAPI ingest needs `ROCKET_API_KEY`.
 - Frontend plans MUST use the existing design system and styling conventions (shared components, utility classes, spacing, and color tokens); avoid introducing bespoke visual patterns unless explicitly extending the design system.
 

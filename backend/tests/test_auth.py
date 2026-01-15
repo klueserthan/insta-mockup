@@ -14,9 +14,9 @@ def test_register_login_user(client: TestClient):
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["email"] == "test@example.com"
-    assert "id" in data
-    assert "password" not in data
+    # Register returns a Token, not the user object
+    assert "accessToken" in data
+    assert "tokenType" in data
 
     # Login with JWT
     response = client.post(

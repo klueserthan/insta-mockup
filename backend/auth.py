@@ -248,15 +248,3 @@ def revoke_refresh_token(
 def get_user(current_user: Researcher = Depends(get_current_researcher)):
     """Get current researcher (JWT-based)"""
     return current_user
-
-
-def ensure_dev_user(session: Session):
-    dev_email = "test@research.edu"
-    user = session.exec(select(Researcher).where(Researcher.email == dev_email)).first()
-    if not user:
-        # Create dev user
-        dev_user = Researcher(
-            email=dev_email, password=get_password_hash("password123"), name="Dev", lastname="User"
-        )
-        session.add(dev_user)
-        session.commit()

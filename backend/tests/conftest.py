@@ -7,7 +7,6 @@ from sqlmodel.pool import StaticPool
 
 os.environ.setdefault("ROCKET_API_KEY", "dummy")
 
-from auth import ensure_dev_user  # noqa: E402
 from database import get_session  # noqa: E402
 from main import app  # noqa: E402
 
@@ -19,7 +18,7 @@ def session_fixture():
     )
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        ensure_dev_user(session)
+        # No global dev user; tests create users as needed
         yield session
 
 

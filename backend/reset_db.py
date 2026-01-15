@@ -2,11 +2,8 @@ import os
 import shutil
 import sys
 
-from sqlmodel import Session
-
-from auth import ensure_dev_user
 from config import UPLOAD_DIR
-from database import DATABASE_URL, create_db_and_tables, engine
+from database import DATABASE_URL, create_db_and_tables
 
 
 def reset_db():
@@ -57,15 +54,6 @@ def reset_db():
     except Exception as e:
         print(f"Error creating tables: {e}")
         sys.exit(1)
-
-    # 4. Seed Dev User
-    print("Seeding development user...")
-    try:
-        with Session(engine) as session:
-            ensure_dev_user(session)
-        print("Dev user created (test@research.edu / password123)")
-    except Exception as e:
-        print(f"Error seeding user: {e}")
 
     print("\nReset complete!")
 

@@ -25,7 +25,6 @@ For AI comment generation, also set `OLLAMA_API_TOKEN`:
 
 Backend will:
 - Create DB tables on startup (SQLite by default)
-- Seed the dev user: `test@research.edu` / `password123`
 - Serve uploaded media from `/media` if the upload directory exists
 
 ## Run the frontend
@@ -40,8 +39,9 @@ Frontend proxies `/api` and `/media` to the backend during development.
 
 ## Researcher workflow (US1/US3)
 
-1. Open the app and sign in as the dev user.
-2. Create a project.
+1. Open the app and **register a new account** (or use existing credentials).
+2. Sign in.
+3. Create a project.
 3. Create an experiment under the project.
 4. Add at least one media item (upload or ingest via supported Instagram URL).
 5. Reorder media items in the experiment overview as needed.
