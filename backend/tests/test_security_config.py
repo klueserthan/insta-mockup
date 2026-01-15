@@ -145,7 +145,9 @@ def test_development_warns_about_placeholder_secret():
 
             # Check that warning was issued about placeholder
             placeholder_warnings = [
-                warning for warning in w if "insecure placeholder value" in str(warning.message).lower()
+                warning
+                for warning in w
+                if "insecure placeholder value" in str(warning.message).lower()
             ]
             assert len(placeholder_warnings) > 0
             assert "your_session_secret_key_here" in str(placeholder_warnings[0].message)

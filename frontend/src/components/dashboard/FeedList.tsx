@@ -1,9 +1,9 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Settings, Plus, Eye } from 'lucide-react';
+import { ArrowLeft, Settings, Plus, Eye, Power } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,6 +60,25 @@ export function FeedList({ project, experiments, onSelectFeed, onBack }: FeedLis
       toast({ title: 'Feed created', description: 'Your new feed is ready.' });
     },
   });
+
+  const updateExperimentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Experiment> }) => {
+      const res = await apiRequest('PATCH', `/api/experiments/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', project.id, 'experiments'] });
+      toast({ title: 'Feed updated' });
+    },
+  });
+
+  const handleToggleFeedActive = (experimentId: string, currentValue: boolean, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click
+    updateExperimentMutation.mutate({ 
+      id: experimentId, 
+      data: { isActive: !currentValue } 
+    });
+  };
 
   return (
     <div>
@@ -211,6 +230,28 @@ export function FeedList({ project, experiments, onSelectFeed, onBack }: FeedLis
                   {window.location.origin}/feed/{exp.publicUrl}
                 </CardDescription>
               </CardHeader>
+              <CardContent>
+                <div 
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-2">
+                    <Power size={16} className={exp.isActive ? "text-green-600" : "text-muted-foreground"} />
+                    <div>
+                      <div className="text-sm font-medium">Feed Status</div>
+                      <div className="text-xs text-muted-foreground">
+                        {exp.isActive ? "Active - Participants can access" : "Inactive - Participants cannot access"}
+                      </div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={exp.isActive ?? true}
+                    onCheckedChange={(checked) => handleToggleFeedActive(exp.id, exp.isActive ?? true, { stopPropagation: () => {} } as React.MouseEvent)}
+                    disabled={updateExperimentMutation.isPending}
+                    data-testid={`switch-feed-active-${exp.id}`}
+                  />
+                </div>
+              </CardContent>
             </Card>
           ))}
         </div>

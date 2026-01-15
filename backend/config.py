@@ -84,3 +84,7 @@ RATE_LIMIT_DEFAULT = os.environ.get("RATE_LIMIT_DEFAULT", "200/minute")
 RATE_LIMIT_FEED = os.environ.get("RATE_LIMIT_FEED", "60/minute")
 RATE_LIMIT_INTERACTIONS = os.environ.get("RATE_LIMIT_INTERACTIONS", "120/minute")
 RATE_LIMIT_HEARTBEAT = os.environ.get("RATE_LIMIT_HEARTBEAT", "300/minute")
+
+# Ollama Cloud Configuration (for AI comment generation)
+OLLAMA_API_TOKEN = os.environ.get("OLLAMA_API_TOKEN")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")

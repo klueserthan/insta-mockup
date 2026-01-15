@@ -8,6 +8,7 @@ This quickstart describes how to run the app locally and exercise the feature en
 ## Prerequisites
 
 - Backend environment variable `ROCKET_API_KEY` must be set (any non-empty value for local development).
+- **Optional**: Backend environment variable `OLLAMA_API_TOKEN` for AI comment generation (get your token from https://ollama.ai).
 - Backend and frontend run as separate processes.
  - [`uv`](https://docs.astral.sh/uv/) installed for Python dependency management.
 
@@ -18,6 +19,9 @@ From repository root:
 - `cd backend`
 - `uv sync`
 - `ROCKET_API_KEY=dummy uv run uvicorn main:app --reload`
+
+For AI comment generation, also set `OLLAMA_API_TOKEN`:
+- `ROCKET_API_KEY=dummy OLLAMA_API_TOKEN=your_token uv run uvicorn main:app --reload`
 
 Backend will:
 - Create DB tables on startup (SQLite by default)
@@ -57,7 +61,10 @@ Frontend proxies `/api` and `/media` to the backend during development.
 1. As a researcher, open a media item’s comment editor.
 2. Set exactly one pinned comment (optionally including a link).
 3. Add additional pre-seeded comments and reorder them.
-4. Optionally generate suggested comments using the assistant, then accept/edit before saving.
+4. **AI Generation (optional)**: Click "Generate Comments with AI" to auto-generate contextual comments based on the video caption:
+   - Select the number of comments (3, 5, 10, or 15)
+   - Choose the tone (mixed/realistic, positive, or negative/critical)
+   - **Note**: Requires `OLLAMA_API_TOKEN` environment variable to be set
 5. In the participant feed, verify comments appear consistently.
 6. Click the pinned comment link and verify the click is recorded as an interaction event.
 

@@ -52,11 +52,15 @@ export default function ReelsFeed() {
   const searchParams = new URLSearchParams(window.location.search);
   const queryKey = feedData?.projectSettings.queryKey || 'participantId';
   const participantId = searchParams.get(queryKey) || 'anonymous';
+  const isPreviewMode = participantId === 'preview';
   const timeLimitSeconds = feedData?.projectSettings.timeLimitSeconds || 300;
   const redirectUrl = feedData?.projectSettings.redirectUrl || '';
   const endScreenMessage = feedData?.projectSettings.endScreenMessage || 'Thank you for participating in this study.';
 
   const navigateToEndScreen = useCallback(() => {
+    // Never redirect in preview mode
+    if (isPreviewMode) return;
+    
     // Preserve original query string for forwarding to redirect URL (US4)
     const originalQueryString = window.location.search;
     
@@ -74,7 +78,7 @@ export default function ReelsFeed() {
     }
     
     setLocation(`/end/${publicUrl}?${endScreenParams.toString()}`);
-  }, [endScreenMessage, redirectUrl, queryKey, publicUrl, setLocation]);
+  }, [endScreenMessage, redirectUrl, queryKey, publicUrl, setLocation, isPreviewMode]);
 
   useEffect(() => {
     // feedData?.videos?.length checks both existence and non-zero length,
@@ -87,6 +91,13 @@ export default function ReelsFeed() {
 
   useEffect(() => {
     if (feedData && !sessionStarted) {
+      // Skip timer logic in preview mode
+      if (isPreviewMode) {
+        setTimeRemaining(timeLimitSeconds);
+        setSessionStarted(true);
+        return;
+      }
+
       const persistTimer = feedData.persistTimer;
       const storageKey = `timer_${feedData.experimentId}_${participantId}`;
       
@@ -119,10 +130,12 @@ export default function ReelsFeed() {
       
       setSessionStarted(true);
     }
-  }, [feedData, timeLimitSeconds, sessionStarted, participantId, navigateToEndScreen]);
+  }, [feedData, timeLimitSeconds, sessionStarted, participantId, navigateToEndScreen, isPreviewMode]);
 
   useEffect(() => {
     if (timeRemaining === null || timeRemaining <= 0) return;
+    // Don't run countdown timer in preview mode
+    if (isPreviewMode) return;
 
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
@@ -140,7 +153,7 @@ export default function ReelsFeed() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining, navigateToEndScreen, feedData?.experimentId, feedData?.persistTimer, participantId]);
+  }, [timeRemaining, navigateToEndScreen, feedData?.experimentId, feedData?.persistTimer, participantId, isPreviewMode]);
 
   const logInteraction = useCallback(async (type: string, videoId: string, data?: any, options?: { keepalive?: boolean }) => {
     if (!feedData?.experimentId) return;
@@ -273,10 +286,10 @@ export default function ReelsFeed() {
       
       <div 
         ref={containerRef}
-        className="h-full w-full max-w-md bg-black snap-y snap-mandatory overflow-y-scroll no-scrollbar"
+        className="h-full w-full bg-black snap-y snap-mandatory overflow-y-scroll no-scrollbar flex flex-col items-center"
       >
         {feedData.videos.map((video) => (
-          <div key={video.id} className="h-full w-full snap-start relative">
+          <div key={video.id} className="h-full snap-start shrink-0" style={{ aspectRatio: '9/16' }}>
             <VideoPlayer 
               video={video}
               isActive={activeVideoId === video.id}
