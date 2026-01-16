@@ -279,7 +279,7 @@ export default function ReelsFeed() {
       </button>
       
       {timeRemaining !== null && timeRemaining > 0 && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm" data-testid="timer-display">
+        <div className="absolute top-11 left-1/2 -translate-x-1/2 z-50 bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm" data-testid="timer-display">
           {formatTime(timeRemaining)}
         </div>
       )}
@@ -289,7 +289,7 @@ export default function ReelsFeed() {
         className="h-full w-full bg-white snap-y snap-mandatory overflow-y-scroll no-scrollbar flex flex-col items-center"
       >
         {feedData.videos.map((video) => (
-          <div key={video.id} className="h-full snap-start shrink-0" style={{ aspectRatio: '9/16' }}>
+          <div key={video.id} className="h-full snap-start shrink-0 pt-5" style={{ aspectRatio: '9/16' }}>
             <VideoPlayer 
               video={video}
               isActive={activeVideoId === video.id}

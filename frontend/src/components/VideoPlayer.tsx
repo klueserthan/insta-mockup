@@ -337,7 +337,8 @@ export function VideoPlayer({
         onDoubleClick={handleDoubleTap}
         data-testid={`video-container-${video.id}`}
       >
-      {/* Video Content */}
+      {/* Video Content with rounded corners */}
+      <div className="absolute inset-0 rounded-lg overflow-hidden bg-black">
       {video.filename.endsWith('.mp4') || video.filename.endsWith('.webm') || video.filename.endsWith('.mov') ? (
         <video 
           ref={videoRef}
@@ -371,8 +372,7 @@ export function VideoPlayer({
       </AnimatePresence>
 
       {/* Top Controls */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20 bg-gradient-to-b from-black/40 to-transparent">
-        <div className="text-white font-bold text-lg drop-shadow-md">Reels</div>
+      <div className="absolute top-0 left-0 right-0 p-4 flex justify-end items-start z-20 bg-gradient-to-b from-black/40 to-transparent">
         {!previewMode && toggleMute && (
           <button 
             onClick={(e) => { e.stopPropagation(); handleMuteClick(); }} 
@@ -385,6 +385,7 @@ export function VideoPlayer({
             {muted ? <VolumeX size={31} strokeWidth={2.4} /> : <Volume2 size={31} strokeWidth={2.4} />}
           </button>
         )}
+      </div>
       </div>
 
       {/* Right Side Actions (placed to the right of media) */}
