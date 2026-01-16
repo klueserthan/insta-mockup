@@ -63,9 +63,7 @@ export function CommentsOverlay({ video, isOpen, onOpenChange, onComment }: Comm
   return (
     <Drawer open={isOpen} onOpenChange={onOpenChange}>
       <DrawerContent className="h-[75vh] bg-white dark:bg-neutral-900 rounded-t-[20px]">
-        <div className="mx-auto mt-4 h-1.5 w-12 rounded-full bg-gray-300/50 mb-2" />
-        
-        <DrawerHeader className="border-b border-gray-100 dark:border-neutral-800 pb-4">
+        <DrawerHeader className="border-b border-gray-100 dark:border-neutral-800 pb-4 pt-4">
           <DrawerTitle className="text-center text-sm font-semibold">Comments</DrawerTitle>
         </DrawerHeader>
 
