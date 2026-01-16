@@ -8,12 +8,11 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from auth import router as auth_router
 from config import RATE_LIMIT_DEFAULT, SECRET_KEY, UPLOAD_DIR
-from database import create_db_and_tables, engine
+from database import create_db_and_tables
 from routes import (
     accounts,
     comments,
