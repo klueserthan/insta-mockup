@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { VideoPlayer } from '@/components/VideoPlayer';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronUp, ChevronDown } from 'lucide-react';
 import type { Video } from '@/lib/api-types';
 
 interface FeedData {
@@ -267,6 +267,29 @@ export default function ReelsFeed() {
     );
   }
 
+  const scrollToVideo = (direction: 'up' | 'down') => {
+    const container = containerRef.current;
+    if (!container || !feedData?.videos?.length) return;
+    
+    const currentIndex = feedData.videos.findIndex(v => v.id === activeVideoId);
+    let targetIndex = direction === 'down' ? currentIndex + 1 : currentIndex - 1;
+    
+    // Clamp to valid range
+    if (targetIndex < 0) targetIndex = 0;
+    if (targetIndex >= feedData.videos.length) targetIndex = feedData.videos.length - 1;
+    
+    // Scroll to target
+    container.scrollTo({
+      top: targetIndex * container.clientHeight,
+      behavior: 'smooth'
+    });
+  };
+
+  const canScrollUp = feedData?.videos && activeVideoId ? 
+    feedData.videos.findIndex(v => v.id === activeVideoId) > 0 : false;
+  const canScrollDown = feedData?.videos && activeVideoId ? 
+    feedData.videos.findIndex(v => v.id === activeVideoId) < feedData.videos.length - 1 : false;
+
   return (
     <div className="h-[100dvh] w-full bg-white flex justify-center overflow-hidden relative">
       <button
@@ -283,6 +306,26 @@ export default function ReelsFeed() {
           {formatTime(timeRemaining)}
         </div>
       )}
+      
+      {/* Navigation Buttons */}
+      <div className="fixed right-8 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-4">
+        <button
+          onClick={() => scrollToVideo('up')}
+          disabled={!canScrollUp}
+          className="bg-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          aria-label="Previous video"
+        >
+          <ChevronUp size={35} strokeWidth={2.5} className="text-black" />
+        </button>
+        <button
+          onClick={() => scrollToVideo('down')}
+          disabled={!canScrollDown}
+          className="bg-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          aria-label="Next video"
+        >
+          <ChevronDown size={35} strokeWidth={2.5} className="text-black" />
+        </button>
+      </div>
       
       <div 
         ref={containerRef}
