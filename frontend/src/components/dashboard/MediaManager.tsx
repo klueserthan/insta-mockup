@@ -117,11 +117,29 @@ function SortableRow({ video, isSelected, onSelect, onDelete, onPreview, onEdit,
       </TableCell>
       <TableCell>
         <div className="w-12 h-20 rounded bg-gray-200 overflow-hidden flex items-center justify-center bg-black">
-          {video.filename.endsWith('.mp4') || video.filename.endsWith('.webm') ? (
-               <video src={`/media/${video.filename}`} className="w-full h-full object-cover" muted loop playsInline onMouseOver={e => e.currentTarget.play()} onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }} />
-          ) : (
-               <img src={`/media/${video.filename}`} alt="Thumbnail" className="w-full h-full object-cover" />
-          )}
+          {(() => {
+            const filename = (video.filename || '').toLowerCase();
+            if (!filename) {
+              return <div className="text-xs text-white/70">N/A</div>;
+            }
+            if (filename.endsWith('.mp4') || filename.endsWith('.webm')) {
+              return (
+                <video
+                  src={`/media/${video.filename}`}
+                  className="w-full h-full object-cover"
+                  muted
+                  loop
+                  playsInline
+                  onMouseOver={(e) => e.currentTarget.play()}
+                  onMouseOut={(e) => {
+                    e.currentTarget.pause();
+                    e.currentTarget.currentTime = 0;
+                  }}
+                />
+              );
+            }
+            return <img src={`/media/${video.filename}`} alt="Thumbnail" className="w-full h-full object-cover" />;
+          })()}
         </div>
       </TableCell>
       <TableCell className="text-sm">

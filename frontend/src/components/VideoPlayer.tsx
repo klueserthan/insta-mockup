@@ -180,6 +180,7 @@ export function VideoPlayer({
   const startTimeRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
+  const filename = (video.filename || '').toLowerCase();
   
   const showMuteHighlight = showUnmutePrompt && muted && !hasInteractedWithMute;
   
@@ -339,10 +340,10 @@ export function VideoPlayer({
       >
       {/* Video Content with rounded corners */}
       <div className="absolute inset-0 rounded-lg overflow-hidden bg-black">
-      {video.filename.endsWith('.mp4') || video.filename.endsWith('.webm') || video.filename.endsWith('.mov') ? (
+      {filename.endsWith('.mp4') || filename.endsWith('.webm') || filename.endsWith('.mov') ? (
         <video 
           ref={videoRef}
-          src={`/media/${video.filename}`}
+          src={`/media/${video.filename || ''}`}
           className="absolute h-full w-full object-cover"
           loop
           muted={muted}
@@ -350,7 +351,7 @@ export function VideoPlayer({
         />
       ) : (
         <img 
-          src={`/media/${video.filename}`} 
+          src={video.filename ? `/media/${video.filename}` : ''} 
           alt={video.description || ''}
           className="absolute h-full w-full object-cover" 
         />
