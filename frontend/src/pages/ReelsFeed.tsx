@@ -237,7 +237,7 @@ export default function ReelsFeed() {
 
   if (!publicUrl) {
     return (
-      <div className="h-[100dvh] w-full bg-black flex items-center justify-center text-white">
+      <div className="h-[100dvh] w-full bg-white flex items-center justify-center text-black">
         <p>No feed specified</p>
       </div>
     );
@@ -245,7 +245,7 @@ export default function ReelsFeed() {
 
   if (isLoading) {
     return (
-      <div className="h-[100dvh] w-full bg-black flex items-center justify-center text-white">
+      <div className="h-[100dvh] w-full bg-white flex items-center justify-center text-black">
         <p>Loading feed...</p>
       </div>
     );
@@ -253,7 +253,7 @@ export default function ReelsFeed() {
 
   if (error || !feedData) {
     return (
-      <div className="h-[100dvh] w-full bg-black flex items-center justify-center text-white">
+      <div className="h-[100dvh] w-full bg-white flex items-center justify-center text-black">
         <p>{error?.message || 'Feed not found'}</p>
       </div>
     );
@@ -261,14 +261,14 @@ export default function ReelsFeed() {
 
   if (feedData.videos.length === 0) {
     return (
-      <div className="h-[100dvh] w-full bg-black flex items-center justify-center text-white">
+      <div className="h-[100dvh] w-full bg-white flex items-center justify-center text-black">
         <p>No videos in this feed</p>
       </div>
     );
   }
 
   return (
-    <div className="h-[100dvh] w-full bg-black flex justify-center overflow-hidden relative">
+    <div className="h-[100dvh] w-full bg-white flex justify-center overflow-hidden relative">
       <button
         onClick={() => setLocation('/dashboard')}
         className="absolute top-4 left-4 z-50 bg-black/60 text-white p-2 rounded-full backdrop-blur-sm hover:bg-black/80 transition-colors"
@@ -286,7 +286,7 @@ export default function ReelsFeed() {
       
       <div 
         ref={containerRef}
-        className="h-full w-full bg-black snap-y snap-mandatory overflow-y-scroll no-scrollbar flex flex-col items-center"
+        className="h-full w-full bg-white snap-y snap-mandatory overflow-y-scroll no-scrollbar flex flex-col items-center"
       >
         {feedData.videos.map((video) => (
           <div key={video.id} className="h-full snap-start shrink-0" style={{ aspectRatio: '9/16' }}>

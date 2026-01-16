@@ -333,7 +333,7 @@ export function VideoPlayer({
         </>
       )}
       <div 
-        className="relative w-full h-full bg-black snap-start overflow-hidden"
+        className="relative w-full h-full snap-start overflow-visible"
         onDoubleClick={handleDoubleTap}
         data-testid={`video-container-${video.id}`}
       >
@@ -387,74 +387,74 @@ export function VideoPlayer({
         )}
       </div>
 
-      {/* Right Side Actions */}
-      <div className="absolute bottom-10 right-3 flex flex-col items-center gap-4 z-20 text-white">
+      {/* Right Side Actions (placed to the right of media) */}
+      <div className="absolute bottom-10 left-[calc(100%+2.5rem)] flex flex-col items-center gap-4 z-20 text-black">
         {/* Like */}
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
-            <div className="flex items-center justify-center text-white h-8 w-8">
-              <Heart size={26} strokeWidth={2} />
+            <div className="flex items-center justify-center text-black h-10 w-10">
+              <Heart size={31} strokeWidth={2.4} />
             </div>
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); toggleLike(); }}
-              className={cn("transition-transform active:scale-90 flex items-center justify-center h-8 w-8", liked ? "text-[#FF3040]" : "text-white")}
+              className={cn("transition-transform active:scale-90 flex items-center justify-center h-10 w-10", liked ? "text-[#FF3040]" : "text-black")}
               data-testid={`button-like-${video.id}`}
             >
-              <Heart size={26} strokeWidth={2} className={cn(liked && "fill-[#FF3040]")} />
+              <Heart size={31} strokeWidth={2.4} className={cn(liked && "fill-[#FF3040]")} />
             </button>
           )}
-          <span className="text-[11px] font-medium mt-0.5">{previewMode ? (video.likes || 0) : (liked ? (video.likes || 0) + 1 : (video.likes || 0))}</span>
+          <span className="text-[13px] font-medium mt-0.5 text-black">{previewMode ? (video.likes || 0) : (liked ? (video.likes || 0) + 1 : (video.likes || 0))}</span>
         </div>
 
         {/* Comments */}
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
-            <div className="flex items-center justify-center text-white h-8 w-8">
-              <MessageCircle size={26} strokeWidth={2} className="scale-x-[-1]" />
+            <div className="flex items-center justify-center text-black h-10 w-10">
+              <MessageCircle size={31} strokeWidth={2.4} className="scale-x-[-1]" />
             </div>
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
-              className="transition-transform active:scale-90 text-white flex items-center justify-center h-8 w-8"
+              className="transition-transform active:scale-90 text-black flex items-center justify-center h-10 w-10"
             >
-              <MessageCircle size={26} strokeWidth={2} className="scale-x-[-1]" />
+              <MessageCircle size={31} strokeWidth={2.4} className="scale-x-[-1]" />
             </button>
           )}
-          <span className="text-[11px] font-medium mt-0.5">{video.comments}</span>
+          <span className="text-[13px] font-medium mt-0.5 text-black">{video.comments}</span>
         </div>
 
         {/* Remix */}
         <div className="flex flex-col items-center w-12">
-          <div className="flex items-center justify-center text-white h-8 w-8">
-            <Repeat2 size={26} strokeWidth={2} />
+          <div className="flex items-center justify-center text-black h-10 w-10">
+            <Repeat2 size={31} strokeWidth={2.4} />
           </div>
         </div>
 
         {/* Share/Send */}
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
-            <div className="flex items-center justify-center text-white h-8 w-8">
-              <Send size={24} strokeWidth={2} />
+            <div className="flex items-center justify-center text-black h-10 w-10">
+              <Send size={29} strokeWidth={2.4} />
             </div>
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); handleShare(); }}
-              className="transition-transform active:scale-90 text-white flex items-center justify-center h-8 w-8"
+              className="transition-transform active:scale-90 text-black flex items-center justify-center h-10 w-10"
             >
-              <Send size={24} strokeWidth={2} />
+              <Send size={29} strokeWidth={2.4} />
             </button>
           )}
-          <span className="text-[11px] font-medium mt-0.5">{video.shares}</span>
+          <span className="text-[13px] font-medium mt-0.5 text-black">{video.shares}</span>
         </div>
 
         {/* More */}
-        <div className="flex items-center justify-center text-white h-8 w-8">
-          <MoreVertical size={22} strokeWidth={2} className="rotate-90" />
+        <div className="flex items-center justify-center text-black h-10 w-10">
+          <MoreVertical size={26} strokeWidth={2.4} className="rotate-90" />
         </div>
 
         {/* User Avatar Box */}
-        <div className="border-2 border-white rounded-lg overflow-hidden w-7 h-7 mt-1">
+        <div className="border-2 border-black rounded-lg overflow-hidden w-7 h-7 mt-1">
           <Avatar className="w-full h-full rounded-none">
             <AvatarImage src={video.socialAccount?.avatarUrl} className="object-cover" />
             <AvatarFallback className="rounded-none text-[10px]">{video.socialAccount?.username?.[0] || '?'}</AvatarFallback>

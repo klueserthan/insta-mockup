@@ -65,3 +65,4 @@ __pycache__/
 .ruff_cache/
 .logs/
 summaries/RAILWAY_DEPLOYMENT_PLAN.md
+design/
