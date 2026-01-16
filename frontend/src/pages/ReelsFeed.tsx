@@ -289,7 +289,7 @@ export default function ReelsFeed() {
         className="h-full w-full bg-white snap-y snap-mandatory overflow-y-scroll no-scrollbar flex flex-col items-center"
       >
         {feedData.videos.map((video) => (
-          <div key={video.id} className="h-full snap-start shrink-0 pt-5" style={{ aspectRatio: '9/16' }}>
+          <div key={video.id} className="h-full snap-end shrink-0 pt-5" style={{ aspectRatio: '9/16' }}>
             <VideoPlayer 
               video={video}
               isActive={activeVideoId === video.id}

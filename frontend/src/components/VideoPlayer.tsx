@@ -333,7 +333,7 @@ export function VideoPlayer({
         </>
       )}
       <div 
-        className="relative w-full h-full snap-start overflow-visible"
+        className="relative w-full h-full snap-end overflow-visible"
         onDoubleClick={handleDoubleTap}
         data-testid={`video-container-${video.id}`}
       >
