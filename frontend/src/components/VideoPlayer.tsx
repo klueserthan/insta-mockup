@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Heart, MessageCircle, Send, MoreVertical, Volume2, VolumeX, Link2, X, Repeat2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { absoluteUrl } from '@/lib/queryClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { Video } from '@/lib/api-types';
@@ -328,7 +329,7 @@ export function VideoPlayer({
           <ShareMenu
             isOpen={showShareMenu}
             onClose={() => setShowShareMenu(false)}
-            videoUrl={`/media/${video.filename}`}
+            videoUrl={absoluteUrl(`/media/${video.filename}`)}
             videoCaption={video.caption}
           />
         </>
@@ -343,7 +344,7 @@ export function VideoPlayer({
       {filename.endsWith('.mp4') || filename.endsWith('.webm') || filename.endsWith('.mov') ? (
         <video 
           ref={videoRef}
-          src={`/media/${video.filename || ''}`}
+          src={absoluteUrl(`/media/${video.filename || ''}`)}
           className="absolute h-full w-full object-cover"
           loop
           muted={muted}
@@ -351,7 +352,7 @@ export function VideoPlayer({
         />
       ) : (
         <img 
-          src={video.filename ? `/media/${video.filename}` : ''} 
+          src={video.filename ? absoluteUrl(`/media/${video.filename}`) : ''} 
           alt={video.description || ''}
           className="absolute h-full w-full object-cover" 
         />

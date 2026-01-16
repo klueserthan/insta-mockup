@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { apiRequest, queryClient, fetchWithAuth } from '@/lib/queryClient';
+import { apiRequest, queryClient, fetchWithAuth, absoluteUrl } from '@/lib/queryClient';
 import type { Video, InsertSocialAccount, SocialAccount } from '@/lib/api-types';
 import { useToast } from '@/hooks/use-toast';
 import { ObjectUploader } from '@/components/ObjectUploader';
@@ -158,7 +158,7 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
         setNewAccount({
             username: data.author.username,
             displayName: data.author.full_name,
-            avatarUrl: `/media/${data.author.profile_pic_filename}` // Use local path
+            avatarUrl: absoluteUrl(`/media/${data.author.profile_pic_filename}`) // Use local path
         });
         setSelectedAccountId("new");
       }
@@ -296,7 +296,7 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                     {ingestedData && (
                         <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
                             <div className="w-16 h-24 rounded overflow-hidden bg-gray-200 shrink-0">
-                                <img src={`/media/${ingestedData.filename}`} alt="Preview" className="w-full h-full object-cover" />
+                                <img src={absoluteUrl(`/media/${ingestedData.filename}`)} alt="Preview" className="w-full h-full object-cover" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 text-sm text-blue-600">
@@ -314,7 +314,7 @@ export function MediaEditor({ video: initialVideo, projectId, experimentId, open
                     <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
                     <div className="w-16 h-24 rounded overflow-hidden bg-gray-200 shrink-0">
                         {/* Files are stored flat in uploads directory, served via /media/{filename} */}
-                        <img src={`/media/${formData.filename}`} alt="Preview" className="w-full h-full object-cover" />
+                        <img src={absoluteUrl(`/media/${formData.filename}`)} alt="Preview" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 text-sm text-green-600">
