@@ -168,6 +168,15 @@ def delete_video(
     # Will raise 404 if not found, 403 if not authorized
     db_video = verify_video_ownership(session, video_id, current_user.id)
 
+    # Delete related preseeded comments first to avoid FK constraint violation
+    from models import PreseededComment
+
+    preseeded_comments = session.exec(
+        select(PreseededComment).where(PreseededComment.video_id == video_id)
+    ).all()
+    for comment in preseeded_comments:
+        session.delete(comment)
+
     session.delete(db_video)
     session.commit()
 
