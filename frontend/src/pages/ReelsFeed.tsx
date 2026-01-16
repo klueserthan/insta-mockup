@@ -3,6 +3,7 @@ import { useRoute, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ArrowLeft, ChevronUp, ChevronDown } from 'lucide-react';
+import { absoluteUrl } from '@/lib/queryClient';
 import type { Video } from '@/lib/api-types';
 
 interface FeedData {
@@ -38,7 +39,7 @@ export default function ReelsFeed() {
       if (!publicUrl) throw new Error('No feed URL');
       // Forward query parameters to the API for participant-specific randomization
       const queryString = window.location.search;
-      const res = await fetch(`/api/feed/${publicUrl}${queryString}`);
+      const res = await fetch(absoluteUrl(`/api/feed/${publicUrl}${queryString}`));
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         const errorMessage = errorData.detail || 'Feed not found';
@@ -161,7 +162,7 @@ export default function ReelsFeed() {
     // Heartbeat Logic
     if (type === 'heartbeat') {
        try {
-         await fetch('/api/interactions/heartbeat', {
+         await fetch(absoluteUrl('/api/interactions/heartbeat'), {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            keepalive: options?.keepalive,
@@ -179,7 +180,7 @@ export default function ReelsFeed() {
     }
 
     try {
-      await fetch('/api/interactions', {
+      await fetch(absoluteUrl('/api/interactions'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

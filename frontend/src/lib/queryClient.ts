@@ -1,6 +1,13 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 const AUTH_TOKEN_KEY = "auth_token";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+
+export function absoluteUrl(path: string): string {
+  if (!path.startsWith("/")) return path;
+  if (!API_BASE) return path; // fall back to relative when not set (e.g., local dev proxy)
+  return `${API_BASE}${path}`;
+}
 
 export function getAuthToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -25,7 +32,7 @@ export async function fetchWithAuth(url: string, options?: RequestInit): Promise
     ...(options?.headers || {}),
   };
   
-  return fetch(url, {
+  return fetch(absoluteUrl(url), {
     ...options,
     headers,
     credentials: "include",
@@ -49,7 +56,7 @@ export async function apiRequest(
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
   
-  const res = await fetch(url, {
+  const res = await fetch(absoluteUrl(url), {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -66,7 +73,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const res = await fetch(absoluteUrl(queryKey.join("/") as string), {
       credentials: "include",
       headers: getAuthHeaders(),
     });
