@@ -168,14 +168,27 @@ def delete_video(
     # Will raise 404 if not found, 403 if not authorized
     db_video = verify_video_ownership(session, video_id, current_user.id)
 
-    # Delete related preseeded comments first to avoid FK constraint violation
-    from models import PreseededComment
+    # Delete all related records first to avoid FK constraint violations
+    # Note: SQLite doesn't fully support CASCADE deletes, so we do it manually
+    # This also works on PostgreSQL in production
+    from models import Interaction, PreseededComment, ViewSession
 
+    # Delete interactions
+    interactions = session.exec(select(Interaction).where(Interaction.video_id == video_id)).all()
+    for interaction in interactions:
+        session.delete(interaction)
+
+    # Delete preseeded comments
     preseeded_comments = session.exec(
         select(PreseededComment).where(PreseededComment.video_id == video_id)
     ).all()
     for comment in preseeded_comments:
         session.delete(comment)
+
+    # Delete view sessions
+    view_sessions = session.exec(select(ViewSession).where(ViewSession.video_id == video_id)).all()
+    for view_session in view_sessions:
+        session.delete(view_session)
 
     session.delete(db_video)
     session.commit()
@@ -191,6 +204,8 @@ def bulk_delete_videos(
     Bulk delete videos with detailed error reporting.
     Returns 207 Multi-Status with consistent structure for all results.
     """
+    from models import Interaction, PreseededComment, ViewSession
+
     results = {"deleted": [], "failed": []}
 
     for vid in video_ids:
@@ -202,6 +217,27 @@ def bulk_delete_videos(
 
             # Verify ownership - will raise HTTPException if unauthorized
             verify_video_ownership(session, vid, current_user.id)
+
+            # Delete all related records first to avoid FK constraint violations
+            # Note: SQLite doesn't fully support CASCADE deletes, so we do it manually
+            interactions = session.exec(
+                select(Interaction).where(Interaction.video_id == vid)
+            ).all()
+            for interaction in interactions:
+                session.delete(interaction)
+
+            preseeded_comments = session.exec(
+                select(PreseededComment).where(PreseededComment.video_id == vid)
+            ).all()
+            for comment in preseeded_comments:
+                session.delete(comment)
+
+            view_sessions = session.exec(
+                select(ViewSession).where(ViewSession.video_id == vid)
+            ).all()
+            for view_session in view_sessions:
+                session.delete(view_session)
+
             session.delete(db_video)
             results["deleted"].append({"videoId": str(vid), "status": "success"})
 
