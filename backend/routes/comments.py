@@ -201,6 +201,7 @@ class CommentUpdate(CamelModel):
     likes: Optional[int] = None
     source: Optional[str] = None
     position: Optional[int] = None
+    is_pinned: Optional[bool] = None
 
 
 @router.patch("/api/comments/{comment_id}", response_model=PreseededComment)
@@ -211,6 +212,22 @@ def update_comment(
     current_user: Researcher = Depends(get_current_researcher),
 ):
     db_comment = verify_comment_ownership(session, comment_id, current_user.id)
+
+    # If pinning this comment, unpin all other comments for the same video
+    if comment_update.is_pinned is True:
+        from typing import Any, cast
+
+        # Get all other comments for this video and unpin them
+        other_comments = session.exec(
+            select(PreseededComment)
+            .where(PreseededComment.video_id == db_comment.video_id)
+            .where(PreseededComment.id != comment_id)
+            .where(cast(Any, PreseededComment.is_pinned))
+        ).all()
+
+        for other_comment in other_comments:
+            other_comment.is_pinned = False
+            session.add(other_comment)
 
     for key, value in comment_update.dict(exclude_unset=True).items():
         setattr(db_comment, key, value)

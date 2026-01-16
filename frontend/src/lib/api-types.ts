@@ -59,6 +59,7 @@ export interface PreseededComment {
   likes?: number;
   source?: string;
   position?: number;
+  isPinned?: boolean;
   createdAt?: string;
 }
 

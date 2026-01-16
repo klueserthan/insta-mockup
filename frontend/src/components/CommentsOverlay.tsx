@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Heart, Send } from 'lucide-react';
+import { Heart, Send, Pin } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import type { Video, PreseededComment } from '@/lib/api-types';
 
@@ -14,6 +14,7 @@ interface Comment {
   text: string;
   likes: number;
   timestamp: string;
+  isPinned?: boolean;
 }
 
 interface VideoWithComments extends Video {
@@ -37,10 +38,14 @@ export function CommentsOverlay({ video, isOpen, onOpenChange, onComment }: Comm
     avatar: c.authorAvatar,
     text: c.body,
     likes: c.likes || 0,
-    timestamp: getRelativeTime(c.createdAt || new Date().toISOString())
+    timestamp: getRelativeTime(c.createdAt || new Date().toISOString()),
+    isPinned: c.isPinned || false
   }));
 
-  const allComments = [...userComments, ...preseededComments];
+  // Sort comments: pinned first, then user comments, then other preseeded comments
+  const pinnedComments = preseededComments.filter(c => c.isPinned);
+  const unpinnedPreseeded = preseededComments.filter(c => !c.isPinned);
+  const allComments = [...pinnedComments, ...userComments, ...unpinnedPreseeded];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,14 +96,22 @@ export function CommentsOverlay({ video, isOpen, onOpenChange, onComment }: Comm
               </div>
             ) : (
               allComments.map((comment) => (
-                <div key={comment.id} className="flex gap-3 group" data-testid={`feed-comment-${comment.id}`}>
+                <div key={comment.id} className={`flex gap-3 group ${comment.isPinned ? 'pb-3 border-b-2 border-blue-200 dark:border-blue-800' : ''}`} data-testid={`feed-comment-${comment.id}`}>
                   <Avatar className="w-8 h-8 border border-gray-100">
                     <AvatarImage src={comment.avatar} />
                     <AvatarFallback>{comment.username[0]}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-1">
                     <div className="text-sm">
-                      <span className="font-semibold mr-2 text-gray-900 dark:text-gray-100">{comment.username}</span>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{comment.username}</span>
+                        {comment.isPinned && (
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                            <Pin size={10} className="fill-current" />
+                            Pinned
+                          </span>
+                        )}
+                      </div>
                       <span className="text-gray-800 dark:text-gray-200">{comment.text}</span>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">

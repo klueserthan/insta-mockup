@@ -185,6 +185,7 @@ class PreseededCommentBase(CamelModel):
     likes: int = Field(default=0)
     source: str = Field(default="manual")
     position: int = Field(default=0)
+    is_pinned: bool = Field(default=False)
 
     @field_validator("author_name")
     @classmethod

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Trash2, Plus, Sparkles, Loader2, MessageCircle, Heart } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Loader2, MessageCircle, Heart, Pin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient, fetchWithAuth } from '@/lib/queryClient';
 import type { Video, PreseededComment } from '@/lib/api-types';
@@ -67,6 +67,19 @@ export function CommentsManager({ video, isOpen, onOpenChange }: CommentsManager
     },
     onError: () => {
       toast({ title: 'Failed to delete comment', variant: 'destructive' });
+    }
+  });
+
+  const togglePinMutation = useMutation({
+    mutationFn: async ({ commentId, isPinned }: { commentId: string; isPinned: boolean }) => {
+      await apiRequest('PATCH', `/api/comments/${commentId}`, { isPinned });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/videos', video?.id, 'comments'] });
+      toast({ title: 'Comment pin status updated' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to update pin status', variant: 'destructive' });
     }
   });
 
@@ -246,7 +259,7 @@ export function CommentsManager({ video, isOpen, onOpenChange }: CommentsManager
                   {comments.map((comment) => (
                     <div 
                       key={comment.id} 
-                      className="flex items-start gap-3 p-3 border rounded-lg bg-background hover:bg-muted/30 transition-colors group"
+                      className={`flex items-start gap-3 p-3 border rounded-lg bg-background hover:bg-muted/30 transition-colors group ${comment.isPinned ? 'ring-2 ring-blue-500/20 bg-blue-50/50 dark:bg-blue-950/20' : ''}`}
                       data-testid={`comment-item-${comment.id}`}
                     >
                       <Avatar className="h-8 w-8 shrink-0">
@@ -256,6 +269,12 @@ export function CommentsManager({ video, isOpen, onOpenChange }: CommentsManager
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm">@{comment.authorName}</span>
+                          {comment.isPinned && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex items-center gap-1">
+                              <Pin size={10} />
+                              Pinned
+                            </span>
+                          )}
                           {comment.source === 'ai' && (
                             <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">AI</span>
                           )}
@@ -266,16 +285,29 @@ export function CommentsManager({ video, isOpen, onOpenChange }: CommentsManager
                           <span>{comment.likes}</span>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                        onClick={() => deleteCommentMutation.mutate(comment.id)}
-                        disabled={deleteCommentMutation.isPending}
-                        data-testid={`button-delete-comment-${comment.id}`}
-                      >
-                        <Trash2 size={14} />
-                      </Button>
+                      <div className="flex gap-1 shrink-0">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className={`opacity-0 group-hover:opacity-100 transition-opacity ${comment.isPinned ? 'text-blue-600' : 'text-muted-foreground'}`}
+                          onClick={() => togglePinMutation.mutate({ commentId: comment.id, isPinned: !comment.isPinned })}
+                          disabled={togglePinMutation.isPending}
+                          data-testid={`button-pin-comment-${comment.id}`}
+                          title={comment.isPinned ? 'Unpin comment' : 'Pin comment'}
+                        >
+                          <Pin size={14} className={comment.isPinned ? 'fill-current' : ''} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                          onClick={() => deleteCommentMutation.mutate(comment.id)}
+                          disabled={deleteCommentMutation.isPending}
+                          data-testid={`button-delete-comment-${comment.id}`}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
