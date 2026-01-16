@@ -341,6 +341,8 @@ export default function ReelsFeed() {
               toggleMute={() => setMuted(!muted)}
               onInteraction={logInteraction}
               showUnmutePrompt={feedData.showUnmutePrompt}
+              experimentId={feedData.experimentId}
+              participantId={participantId}
             />
           </div>
         ))}

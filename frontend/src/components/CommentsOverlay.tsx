@@ -5,6 +5,9 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Heart, Send, Pin } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
+import { parseCommentWithLinks } from '@/lib/utils';
+import { CommentLink } from './CommentLink';
+import { apiRequest } from '@/lib/queryClient';
 import type { Video, PreseededComment } from '@/lib/api-types';
 
 interface Comment {
@@ -26,11 +29,31 @@ interface CommentsOverlayProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onComment: (text: string) => void;
+  experimentId?: string;
+  participantId?: string;
 }
 
-export function CommentsOverlay({ video, isOpen, onOpenChange, onComment }: CommentsOverlayProps) {
+export function CommentsOverlay({ video, isOpen, onOpenChange, onComment, experimentId, participantId }: CommentsOverlayProps) {
   const [newComment, setNewComment] = useState('');
   const [userComments, setUserComments] = useState<Comment[]>([]);
+
+  const handlePinnedCommentLinkClick = async (url: string, commentId: string) => {
+    try {
+      await apiRequest('POST', '/api/interactions', {
+        participantId: participantId || 'anonymous',
+        experimentId: experimentId,
+        videoId: video.id,
+        interactionType: 'hyperlink_click',
+        interactionData: {
+          url: url,
+          commentId: commentId,
+          isPinned: true
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log link click:', error);
+    }
+  }
 
   const preseededComments: Comment[] = (video.preseededComments || []).map((c) => ({
     id: c.id,
@@ -112,7 +135,24 @@ export function CommentsOverlay({ video, isOpen, onOpenChange, onComment }: Comm
                           </span>
                         )}
                       </div>
-                      <span className="text-gray-800 dark:text-gray-200">{comment.text}</span>
+                      <div className="text-gray-800 dark:text-gray-200">
+                        {comment.isPinned ? (
+                          parseCommentWithLinks(comment.text).map((part, idx) =>
+                            part.type === 'link' ? (
+                              <CommentLink
+                                key={idx}
+                                text={part.content}
+                                url={part.url!}
+                                onLinkClick={(url) => handlePinnedCommentLinkClick(url, comment.id)}
+                              />
+                            ) : (
+                              <span key={idx}>{part.content}</span>
+                            )
+                          )
+                        ) : (
+                          comment.text
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>{comment.timestamp}</span>

@@ -159,6 +159,8 @@ interface VideoPlayerProps {
   onInteraction?: (type: string, videoId: string, data?: any, options?: { keepalive?: boolean }) => void;
   showUnmutePrompt?: boolean;
   previewMode?: boolean;
+  experimentId?: string;
+  participantId?: string;
 }
 
 export function VideoPlayer({ 
@@ -168,7 +170,9 @@ export function VideoPlayer({
   toggleMute, 
   onInteraction, 
   showUnmutePrompt = false,
-  previewMode = false 
+  previewMode = false,
+  experimentId,
+  participantId
 }: VideoPlayerProps) {
   const [liked, setLiked] = useState(false);
   const [following, setFollowing] = useState(false);
@@ -325,6 +329,8 @@ export function VideoPlayer({
             isOpen={showComments} 
             onOpenChange={setShowComments}
             onComment={handleComment}
+            experimentId={experimentId}
+            participantId={participantId}
           />
           <ShareMenu
             isOpen={showShareMenu}
