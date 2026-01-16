@@ -377,18 +377,18 @@ export function VideoPlayer({
           <button 
             onClick={(e) => { e.stopPropagation(); handleMuteClick(); }} 
             className={cn(
-              "relative text-white/90 hover:text-white",
+              "relative text-white bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors",
               showMuteHighlight && "animate-pulse-ring"
             )}
             data-testid="button-mute-toggle"
           >
-            {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+            {muted ? <VolumeX size={31} strokeWidth={2.4} /> : <Volume2 size={31} strokeWidth={2.4} />}
           </button>
         )}
       </div>
 
       {/* Right Side Actions (placed to the right of media) */}
-      <div className="absolute bottom-10 left-[calc(100%+2.5rem)] flex flex-col items-center gap-4 z-20 text-black">
+      <div className="absolute bottom-10 left-[calc(100%+2rem)] flex flex-col items-center gap-4 z-20 text-black">
         {/* Like */}
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
@@ -435,14 +435,14 @@ export function VideoPlayer({
         <div className="flex flex-col items-center w-12">
           {previewMode ? (
             <div className="flex items-center justify-center text-black h-10 w-10">
-              <Send size={29} strokeWidth={2.4} />
+              <Send size={31} strokeWidth={2.4} />
             </div>
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); handleShare(); }}
               className="transition-transform active:scale-90 text-black flex items-center justify-center h-10 w-10"
             >
-              <Send size={29} strokeWidth={2.4} />
+              <Send size={31} strokeWidth={2.4} />
             </button>
           )}
           <span className="text-[13px] font-medium mt-0.5 text-black">{video.shares}</span>
@@ -450,7 +450,7 @@ export function VideoPlayer({
 
         {/* More */}
         <div className="flex items-center justify-center text-black h-10 w-10">
-          <MoreVertical size={26} strokeWidth={2.4} className="rotate-90" />
+          <MoreVertical size={31} strokeWidth={2.4} className="rotate-90" />
         </div>
 
         {/* User Avatar Box */}
