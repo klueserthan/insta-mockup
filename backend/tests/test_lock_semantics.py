@@ -100,9 +100,9 @@ def test_locked_videos_maintain_position_in_feed(client: TestClient):
     # ["Video 3", "Video 2", "Video 1"]
     middle_order = [feed_videos[i]["caption"] for i in [1, 2, 3]]
     expected_middle_order = ["Video 3", "Video 2", "Video 1"]
-    assert (
-        middle_order == expected_middle_order
-    ), f"Expected middle order {expected_middle_order}, got {middle_order}"
+    assert middle_order == expected_middle_order, (
+        f"Expected middle order {expected_middle_order}, got {middle_order}"
+    )
 
 
 def test_all_locked_videos_preserve_order(client: TestClient):
@@ -264,9 +264,9 @@ def test_no_locked_videos_allows_full_randomization(client: TestClient):
     order1_again = [v["caption"] for v in data1_again["videos"]]
 
     # Verify deterministic behavior - same participant gets identical order
-    assert (
-        order1 == order1_again
-    ), "Same participant should receive identical video order across requests"
+    assert order1 == order1_again, (
+        "Same participant should receive identical video order across requests"
+    )
 
 
 def test_preview_mode_uses_default_order(client: TestClient):

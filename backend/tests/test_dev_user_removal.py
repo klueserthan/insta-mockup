@@ -16,9 +16,9 @@ def test_no_dev_user_on_startup(session: Session):
     ]
     for email in dev_emails:
         user = session.exec(select(Researcher).where(Researcher.email == email)).first()
-        assert (
-            user is None
-        ), f"Security violation: Dev user {email} found in database. This must be removed."
+        assert user is None, (
+            f"Security violation: Dev user {email} found in database. This must be removed."
+        )
 
 
 def test_dev_user_cannot_be_created_with_reserved_emails(client: TestClient):

@@ -2,7 +2,7 @@ import hashlib
 import logging
 import random
 from datetime import datetime
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -12,7 +12,15 @@ from sqlmodel import Session, select
 
 from config import RATE_LIMIT_FEED
 from database import get_session
-from models import Experiment, Project, SocialAccount, Video, VideoBase
+from models import (
+    CamelModel,
+    Experiment,
+    PreseededComment,
+    Project,
+    SocialAccount,
+    Video,
+    VideoBase,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +33,23 @@ class FeedVideoResponse(VideoBase):
     experiment_id: UUID
     created_at: datetime
     social_account: Optional[SocialAccount] = None
+    preseeded_comments: list[PreseededComment] = []
+
+
+class ProjectSettings(CamelModel):
+    query_key: str
+    time_limit_seconds: int
+    redirect_url: str
+    end_screen_message: str
+
+
+class FeedResponse(CamelModel):
+    experiment_id: UUID
+    experiment_name: str
+    persist_timer: bool
+    show_unmute_prompt: bool
+    project_settings: ProjectSettings
+    videos: list[FeedVideoResponse]
 
 
 router = APIRouter()
@@ -128,7 +153,7 @@ def _randomize_videos_with_locks(
     return [v for v in result if v is not None]
 
 
-@router.get("/api/feed/{public_url}")
+@router.get("/api/feed/{public_url}", response_model=FeedResponse)
 @limiter.limit(RATE_LIMIT_FEED)  # H1: Rate limit public feed access
 def get_public_feed(
     request: Request,
@@ -155,8 +180,6 @@ def get_public_feed(
         )
 
     # 3. Get Videos for this experiment with SocialAccount, ordered by position
-    from typing import Any, cast
-
     results = session.exec(
         select(Video, SocialAccount)
         .join(SocialAccount)
@@ -179,21 +202,40 @@ def get_public_feed(
         results, effective_participant_id, randomization_seed
     )
 
-    return {
-        "experimentId": experiment.id,
-        "experimentName": experiment.name,
-        "persistTimer": experiment.persist_timer,
-        "showUnmutePrompt": experiment.show_unmute_prompt,
-        "projectSettings": {
-            "queryKey": project.query_key if project else "participantId",
-            "timeLimitSeconds": project.time_limit_seconds if project else 300,
-            "redirectUrl": project.redirect_url if project else "",
-            "endScreenMessage": project.end_screen_message
+    # 5. Fetch preseeded comments for all videos in this experiment
+    video_ids = [video.id for video, _ in ordered_videos]
+    comments_query = session.exec(
+        select(PreseededComment)
+        .where(cast(Any, PreseededComment.video_id).in_(video_ids))
+        .order_by(cast(Any, PreseededComment.position))
+    ).all()
+
+    # Group comments by video_id
+    comments_by_video: dict[UUID, list[PreseededComment]] = {}
+    for comment in comments_query:
+        if comment.video_id not in comments_by_video:
+            comments_by_video[comment.video_id] = []
+        comments_by_video[comment.video_id].append(comment)
+
+    return FeedResponse(
+        experiment_id=experiment.id,
+        experiment_name=experiment.name,
+        persist_timer=experiment.persist_timer,
+        show_unmute_prompt=experiment.show_unmute_prompt,
+        project_settings=ProjectSettings(
+            query_key=project.query_key if project else "participantId",
+            time_limit_seconds=project.time_limit_seconds if project else 300,
+            redirect_url=project.redirect_url if project else "",
+            end_screen_message=project.end_screen_message
             if project
             else "Thank you for participating.",
-        },
-        "videos": [
-            FeedVideoResponse(**video.model_dump(), social_account=account)
+        ),
+        videos=[
+            FeedVideoResponse(
+                **video.model_dump(),
+                social_account=account,
+                preseeded_comments=comments_by_video.get(video.id, []),
+            )
             for video, account in ordered_videos
         ],
-    }
+    )
