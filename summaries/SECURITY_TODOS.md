@@ -1571,7 +1571,7 @@ def test_file_upload_exploits(client, auth_header):
 
 ---
 
-### TODO-L10: Update Ruff Version
+### TODO-L10: Update Ruff Version ✅ COMPLETED
 **Issue:** Outdated linter version
 
 **Changes Required:**

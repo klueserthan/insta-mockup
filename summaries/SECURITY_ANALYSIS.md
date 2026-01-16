@@ -400,8 +400,9 @@ if not ROCKET_API_KEY:
 - JavaScript: `npm audit` or Snyk
 - GitHub Dependabot
 
-#### L10. Outdated Pre-commit Ruff Version
+#### L10. Outdated Pre-commit Ruff Version ✅ RESOLVED
 **Location:** `.pre-commit-config.yaml:25`
+**Status:** Updated to v0.14.13 (2026-01-16)
 ```yaml
 rev: v0.4.1
 ```
